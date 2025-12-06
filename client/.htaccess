@@ -1,13 +1,6 @@
-# Disable MultiViews
-Options -MultiViews
-
 RewriteEngine On
-RewriteBase '/bugtracker/client/'
-
-# Allow normal file/folder access
-RewriteCond %{REQUEST_FILENAME} -f [OR]
-RewriteCond %{REQUEST_FILENAME} -d
-RewriteRule ^ - [L]
-
-# Redirect everything to client/index.html
-RewriteRule ^(.*)$ client/index.html [L]
+RewriteBase /Project_Tracker_Tool/
+RewriteRule ^index\.html$ - [L]
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule . /Project_Tracker_Tool/index.html [L]

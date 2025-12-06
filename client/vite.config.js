@@ -6,6 +6,5 @@ export default defineConfig({
   server: {
     port: 5173
   },
-  base: '/',   // 👈 REQUIRED for correct asset paths
+  base: '/Project_Tracker_Tool/',   // 👈 IMPORTANT FIX
 })
-//npm run build

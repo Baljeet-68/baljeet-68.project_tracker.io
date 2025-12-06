@@ -11,7 +11,7 @@ import Layout from './Layout'
 function ProtectedRoute({ children }) {
   const token = getToken()
   if (!token) {
-    // relative path -> resolves to /bug_tracker/client/login
+    // relative path -> resolves to /Project_Tracker_Tool/client/login
     return <Navigate to="/login" replace />
   }
   return children
