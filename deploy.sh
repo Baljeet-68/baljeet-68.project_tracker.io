@@ -1,5 +1,4 @@
 #!/bin/bash
-
 REPO=/home/mmfilgqi/public_html/Project_Tracker_Tool
 TARGET=/home/mmfilgqi/public_html/Project_Tracker_Tool
 
