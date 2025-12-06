@@ -3,8 +3,9 @@ import react from '@vitejs/plugin-react'
 
 export default defineConfig({
   plugins: [react()],
-  server: {
-    port: 5173
-  },
-  base: '/Project_Tracker_Tool/',   // 👈 IMPORTANT FIX
+  base: '/Project_Tracker_Tool/',   // Required for cPanel subdirectory hosting
+  build: {
+    outDir: 'dist',
+    emptyOutDir: true
+  }
 })
