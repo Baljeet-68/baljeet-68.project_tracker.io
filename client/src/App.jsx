@@ -32,7 +32,7 @@ function AdminRoute({ children }) {
 }
 export default function App() {
   return (
-    <BrowserRouter basename="/bugtracker/">
+    <BrowserRouter basename="/Project_Tracker_Tool/">
       <Routes>
         {/* Public login route */}
         <Route path="login" element={<Login />} />
