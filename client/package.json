@@ -1,0 +1,33 @@
+{
+  "name": "bug-tracker-client",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@emotion/react": "^11.11.0",
+    "@emotion/styled": "^11.11.0",
+    "@mui/icons-material": "^5.14.7",
+    "@mui/material": "^5.14.8",
+    "@supabase/supabase-js": "^2.81.1",
+    "@tailwindcss/postcss": "^4.1.17",
+    "framer-motion": "^10.12.16",
+    "lucide-react": "^0.554.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-router-dom": "^6.14.1",
+    "recharts": "^2.15.4"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.0.0",
+    "apexcharts": "^5.3.6",
+    "autoprefixer": "10.4.22",
+    "postcss": "8.5.6",
+    "react-apexcharts": "^1.8.0",
+    "tailwindcss": "3.4.1",
+    "vite": "^5.0.0"
+  }
+}
