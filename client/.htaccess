@@ -3,5 +3,4 @@ RewriteBase /Project_Tracker_Tool/
 RewriteRule ^index\.html$ - [L]
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
-RewriteRule . /Project_Tracker_Tool/index.html [L]
-
+RewriteRule ^ /Project_Tracker_Tool/index.html [L]
