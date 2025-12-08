@@ -12,6 +12,7 @@ const corsOptions = {
   optionsSuccessStatus: 200
 };
 
+
 app.use(cors(corsOptions));
 // Allow larger payloads to support base64-encoded attachments from the client
 app.use(express.json({ limit: '50mb' }));
