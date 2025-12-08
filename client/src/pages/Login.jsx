@@ -84,7 +84,7 @@ export default function Login() {
             Welcome Back...
           </Typography>
           <Typography variant="body2" sx={{ textAlign: 'center', mb: 3, color: '#9A9A9A' }}>
-            Sign in to your Bug Tracker account to continue
+            Sign in to your Project Tracker account to continue
           </Typography>
 
           <Divider sx={{ mb: 3 }} />
