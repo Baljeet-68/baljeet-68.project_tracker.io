@@ -5,7 +5,7 @@ const app = express();
 
 // CORS configuration for both local and live environments
 const corsOptions = {
-  origin: ['http://localhost:5173', 'http://localhost:3000', 'https://mmfinfotech.website'],
+  origin: ['http://localhost:5173', 'http://localhost:3000', 'https://mmfinfotech.website/Project_Tracker_Tool'],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
