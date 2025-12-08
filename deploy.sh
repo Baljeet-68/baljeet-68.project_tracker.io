@@ -14,7 +14,4 @@ cp "$REPO/client/dist/index.html" "$TARGET/index.html"
 cp -r "$REPO/client/dist/assets" "$TARGET/assets"
 
 echo "Frontend deploy complete."
-echo "Backend NOT overwritten."
-
 echo "=== DEPLOY COMPLETE ==="
-

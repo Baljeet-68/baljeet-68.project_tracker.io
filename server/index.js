@@ -2,7 +2,17 @@ const express = require('express');
 const cors = require('cors');
 
 const app = express();
-app.use(cors());
+
+// CORS configuration for both local and live environments
+const corsOptions = {
+  origin: ['http://localhost:5173', 'http://localhost:3000', 'https://mmfinfotech.website'],
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+  optionsSuccessStatus: 200
+};
+
+app.use(cors(corsOptions));
 // Allow larger payloads to support base64-encoded attachments from the client
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
@@ -149,7 +159,7 @@ app.get('/api/projects/:id', authenticate, async (req, res) => {
 });
 
 // POST /api/projects - admin only create project
-const { supabase } = require('./supabaseClient');
+const { pool } = require('./db');
 app.post('/api/projects', authenticate, requireRole('admin'), async (req, res) => {
   const { name, client, description, startDate, endDate, testerId, developerIds } = req.body;
   if (!name) return res.status(400).json({ error: 'Missing name' });
@@ -182,9 +192,25 @@ app.post('/api/projects', authenticate, requireRole('admin'), async (req, res) =
   };
 
   try {
-    const { data, error } = await supabase.from('projects').insert([project]).select();
-    if (error) return res.status(500).json({ error: error.message });
-    res.json(data[0]);
+    // Insert into MySQL projects table. developerIds stored as JSON string.
+    const sql = `INSERT INTO projects
+      (id, name, client, description, status, testerId, developerIds, createdBy, createdAt, startDate, endDate)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+    const params = [
+      project.id,
+      project.name,
+      project.client,
+      project.description,
+      project.status,
+      project.testerId,
+      JSON.stringify(project.developerIds || []),
+      project.createdBy,
+      project.createdAt,
+      project.startDate,
+      project.endDate
+    ];
+    await pool.execute(sql, params);
+    res.json(project);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
