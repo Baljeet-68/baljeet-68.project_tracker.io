@@ -4,13 +4,19 @@ const cors = require('cors');
 const app = express();
 
 // CORS configuration for both local and live environments
-const corsOptions = {
-  origin: ['http://localhost:5173', 'http://localhost:3000', 'https://mmfinfotech.website/Project_Tracker_Tool'],
+const cors = require("cors");
+
+app.use(cors({
+  origin: [
+    "http://localhost:5174",
+    "https://mmfinfotech.website",
+    "https://mmfinfotech.website/Project_Tracker_Tool"
+  ],
   credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
-  optionsSuccessStatus: 200
-};
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"]
+}));
+
 
 
 app.use(cors(corsOptions));
@@ -221,19 +227,19 @@ app.post('/api/projects', authenticate, requireRole('admin'), async (req, res) =
 app.patch('/api/projects/:id', authenticate, requireRole('admin'), (req, res) => {
   const p = projects.find((x) => x.id === req.params.id);
   if (!p) return res.status(404).json({ error: 'Project not found' });
-  
+
   const { name, description, status, client, startDate, endDate, testerId, developerIds } = req.body;
   const changes = {};
-  
+
   if (name !== undefined) { p.name = name; changes.name = name; }
   if (description !== undefined) { p.description = description; changes.description = description; }
   if (status !== undefined) { p.status = status; changes.status = status; }
   if (client !== undefined) { p.client = client; changes.client = client; }
-  if (startDate !== undefined) { 
+  if (startDate !== undefined) {
     p.startDate = startDate ? new Date(startDate) : null;
     changes.startDate = startDate;
   }
-  if (endDate !== undefined) { 
+  if (endDate !== undefined) {
     p.endDate = endDate ? new Date(endDate) : null;
     changes.endDate = endDate;
   }
@@ -252,7 +258,7 @@ app.patch('/api/projects/:id', authenticate, requireRole('admin'), (req, res) =>
     p.developerIds = developerIds;
     changes.developerIds = developerIds;
   }
-  
+
   p.updatedAt = new Date();
   logActivity(p.id, 'project', p.id, 'updated', req.user.userId, changes);
   res.json(enrichProject(p));
@@ -290,12 +296,12 @@ app.post('/api/projects/:id/screens', authenticate, requireRole('admin'), (req, 
   if (!p) return res.status(404).json({ error: 'Project not found' });
   const { title, module, assigneeId, plannedDeadline, notes } = req.body;
   if (!title) return res.status(400).json({ error: 'Missing title' });
-  
+
   // Validate assignee is valid developer
   if (assigneeId && !p.developerIds.includes(assigneeId)) {
     return res.status(400).json({ error: 'Assignee not assigned to this project' });
   }
-  
+
   const id = `scr${Math.floor(Math.random() * 100000)}`;
   const screen = {
     id,
@@ -321,18 +327,18 @@ app.post('/api/projects/:id/screens', authenticate, requireRole('admin'), (req, 
 app.patch('/api/screens/:id', authenticate, (req, res) => {
   const scr = screens.find((s) => s.id === req.params.id);
   if (!scr) return res.status(404).json({ error: 'Screen not found' });
-  
+
   if (!hasProjectAccess(req.user.userId, scr.projectId)) {
     return res.status(403).json({ error: 'Forbidden' });
   }
-  
+
   const project = projects.find(p => p.id === scr.projectId);
-  
+
   // Developers can only update deadline if assigned to this screen
   if (req.user.role === 'developer' && scr.assigneeId !== req.user.userId) {
     return res.status(403).json({ error: 'Forbidden - not assigned to this screen' });
   }
-  
+
   // Only admin can update title, module, assigneeId, notes
   if (req.user.role !== 'admin') {
     const { plannedDeadline } = req.body;
@@ -344,13 +350,13 @@ app.patch('/api/screens/:id', authenticate, (req, res) => {
     }
     return res.status(403).json({ error: 'Forbidden - limited update access' });
   }
-  
+
   const { title, module, assigneeId, plannedDeadline, notes } = req.body;
   const changes = {};
-  
+
   if (title !== undefined) { scr.title = title; changes.title = title; }
   if (module !== undefined) { scr.module = module; changes.module = module; }
-  if (plannedDeadline !== undefined) { 
+  if (plannedDeadline !== undefined) {
     scr.plannedDeadline = plannedDeadline ? new Date(plannedDeadline) : null;
     changes.plannedDeadline = plannedDeadline;
   }
@@ -362,7 +368,7 @@ app.patch('/api/screens/:id', authenticate, (req, res) => {
     changes.assigneeId = assigneeId;
   }
   if (notes !== undefined) { scr.notes = notes; changes.notes = notes; }
-  
+
   scr.updatedAt = new Date();
   logActivity(scr.projectId, 'screen', scr.id, 'updated', req.user.userId, changes);
   res.json(enrichScreen(scr));
@@ -372,22 +378,22 @@ app.patch('/api/screens/:id', authenticate, (req, res) => {
 app.patch('/api/screens/:id/status', authenticate, requireRole('admin', 'developer'), (req, res) => {
   const scr = screens.find((s) => s.id === req.params.id);
   if (!scr) return res.status(404).json({ error: 'Screen not found' });
-  
+
   if (!hasProjectAccess(req.user.userId, scr.projectId)) {
     return res.status(403).json({ error: 'Forbidden' });
   }
-  
+
   // Only allow assigned developer or admin to update status
   if (req.user.role === 'developer' && scr.assigneeId !== req.user.userId) {
     return res.status(403).json({ error: 'Forbidden - not assigned to this screen' });
   }
-  
+
   const { status, actualEndDate } = req.body;
   const oldStatus = scr.status;
   const changes = {};
-  
-  if (status) { 
-    scr.status = status; 
+
+  if (status) {
+    scr.status = status;
     changes.oldStatus = oldStatus;
     changes.newStatus = status;
   }
@@ -395,7 +401,7 @@ app.patch('/api/screens/:id/status', authenticate, requireRole('admin', 'develop
     scr.actualEndDate = new Date(actualEndDate);
     changes.actualEndDate = actualEndDate;
   }
-  
+
   scr.updatedAt = new Date();
   logActivity(scr.projectId, 'screen', scr.id, 'status_change', req.user.userId, changes);
   res.json(enrichScreen(scr));
@@ -429,20 +435,20 @@ app.post('/api/projects/:id/bugs', authenticate, requireRole('tester', 'admin'),
   if (!hasProjectAccess(req.user.userId, req.params.id)) {
     return res.status(403).json({ error: 'Forbidden' });
   }
-  
+
   const { description, screenId, module, assignedDeveloperId, severity, attachments, deadline } = req.body;
   if (!description) return res.status(400).json({ error: 'Missing description' });
   if (!severity) return res.status(400).json({ error: 'Missing severity' });
-  
+
   // Validate assigned developer is in the project
   if (assignedDeveloperId && !p.developerIds.includes(assignedDeveloperId)) {
     return res.status(400).json({ error: 'Developer not assigned to this project' });
   }
-  
+
   // Auto-increment bug number per project
   bugCounters[req.params.id] = (bugCounters[req.params.id] || 0) + 1;
   const bugNumber = bugCounters[req.params.id];
-  
+
   const id = `bug${Math.floor(Math.random() * 100000)}`;
   const bug = {
     id,
@@ -472,11 +478,11 @@ app.post('/api/projects/:id/bugs', authenticate, requireRole('tester', 'admin'),
 app.patch('/api/bugs/:id', authenticate, (req, res) => {
   const bug = bugs.find((b) => b.id === req.params.id);
   if (!bug) return res.status(404).json({ error: 'Bug not found' });
-  
+
   if (!hasProjectAccess(req.user.userId, bug.projectId)) {
     return res.status(403).json({ error: 'Forbidden' });
   }
-  
+
   // Developers can update deadline only
   if (req.user.role === 'developer') {
     const { deadline } = req.body;
@@ -488,32 +494,32 @@ app.patch('/api/bugs/:id', authenticate, (req, res) => {
     }
     return res.status(403).json({ error: 'Forbidden - developers can only update deadline' });
   }
-  
+
   // Tester can only edit if they created it
   if (req.user.role === 'tester' && bug.createdBy !== req.user.userId) {
     return res.status(403).json({ error: 'Forbidden - can only edit bugs you created' });
   }
-  
+
   const { description, severity, screenId, module, assignedDeveloperId, deadline } = req.body;
   const changes = {};
-  
+
   if (description !== undefined) { bug.description = description; changes.description = description; }
   if (severity !== undefined) { bug.severity = severity; changes.severity = severity; }
   if (screenId !== undefined) { bug.screenId = screenId; changes.screenId = screenId; }
   if (module !== undefined) { bug.module = module; changes.module = module; }
-  if (assignedDeveloperId !== undefined) { 
+  if (assignedDeveloperId !== undefined) {
     const p = projects.find(pr => pr.id === bug.projectId);
     if (assignedDeveloperId && !p.developerIds.includes(assignedDeveloperId)) {
       return res.status(400).json({ error: 'Developer not assigned to this project' });
     }
-    bug.assignedDeveloperId = assignedDeveloperId; 
+    bug.assignedDeveloperId = assignedDeveloperId;
     changes.assignedDeveloperId = assignedDeveloperId;
   }
-  if (deadline !== undefined) { 
+  if (deadline !== undefined) {
     bug.deadline = deadline ? new Date(deadline) : null;
     changes.deadline = deadline;
   }
-  
+
   bug.updatedAt = new Date();
   logActivity(bug.projectId, 'bug', bug.id, 'updated', req.user.userId, changes);
   res.json(enrichBug(bug));
@@ -523,25 +529,25 @@ app.patch('/api/bugs/:id', authenticate, (req, res) => {
 app.patch('/api/bugs/:id/status', authenticate, requireRole('admin', 'developer'), (req, res) => {
   const bug = bugs.find((b) => b.id === req.params.id);
   if (!bug) return res.status(404).json({ error: 'Bug not found' });
-  
+
   if (!hasProjectAccess(req.user.userId, bug.projectId)) {
     return res.status(403).json({ error: 'Forbidden' });
   }
-  
+
   // Developers with project access are allowed to update bug status.
   // Previously we restricted developers to only update bugs assigned to them;
   // now any developer member of the project may update status.
-  
+
   const { status } = req.body;
   if (!status) return res.status(400).json({ error: 'Missing status' });
-  
+
   const oldStatus = bug.status;
   const changes = { oldStatus, newStatus: status };
-  
+
   bug.status = status;
   if (status === 'Resolved') bug.resolvedAt = new Date();
   if (status === 'Closed') bug.resolvedAt = bug.resolvedAt || new Date();
-  
+
   bug.updatedAt = new Date();
   logActivity(bug.projectId, 'bug', bug.id, 'status_change', req.user.userId, changes);
   res.json(enrichBug(bug));
@@ -551,11 +557,11 @@ app.patch('/api/bugs/:id/status', authenticate, requireRole('admin', 'developer'
 app.delete('/api/bugs/:id', authenticate, requireRole('admin'), (req, res) => {
   const bug = bugs.find((b) => b.id === req.params.id);
   if (!bug) return res.status(404).json({ error: 'Bug not found' });
-  
+
   if (!hasProjectAccess(req.user.userId, bug.projectId)) {
     return res.status(403).json({ error: 'Forbidden' });
   }
-  
+
   const index = bugs.indexOf(bug);
   if (index > -1) {
     bugs.splice(index, 1);
@@ -565,7 +571,7 @@ app.delete('/api/bugs/:id', authenticate, requireRole('admin'), (req, res) => {
     }
     logActivity(bug.projectId, 'bug', bug.id, 'deleted', req.user.userId, { bugNumber: bug.bugNumber });
   }
-  
+
   res.json({ ok: true });
 });
 
@@ -592,7 +598,7 @@ app.post('/api/users', authenticate, requireRole('admin'), (req, res) => {
   if (!email || !password || !role || !name) return res.status(400).json({ error: 'Missing fields' });
   if (!['admin', 'tester', 'developer'].includes(role)) return res.status(400).json({ error: 'Invalid role' });
   if (users.find((u) => u.email === email)) return res.status(400).json({ error: 'User exists' });
-  
+
   const id = `u${Math.floor(Math.random() * 100000)}`;
   const user = { id, name, email, password, role, active: true };
   users.push(user);
@@ -609,11 +615,11 @@ app.get('/api/users', authenticate, requireRole('admin'), (req, res) => {
 app.patch('/api/users/:id', authenticate, requireRole('admin'), (req, res) => {
   const user = users.find(u => u.id === req.params.id);
   if (!user) return res.status(404).json({ error: 'User not found' });
-  
+
   const { active, role } = req.body;
   if (active !== undefined) { user.active = active; }
   if (role !== undefined && ['admin', 'tester', 'developer'].includes(role)) { user.role = role; }
-  
+
   res.json({ id: user.id, name: user.name, email: user.email, role: user.role, active: user.active });
 });
 
