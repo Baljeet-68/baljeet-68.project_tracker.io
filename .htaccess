@@ -1,7 +1,6 @@
 RewriteEngine On
 RewriteBase /Project_Tracker_Tool/
 
-# Always serve index.html for React routes
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
-RewriteRule ^ index.html [L]
+RewriteRule ^ live/index.html [L]
