@@ -2,7 +2,7 @@
 
 echo "=== DEPLOY START ==="
 
-REPO="/home/mmfilgqi/public_html/Project_Tracker_Tool"
+REPO="git@github.com:Baljeet-68/Project_Tracker_Tool.git"
 TARGET="/home/mmfilgqi/public_html/Project_Tracker_Tool"
 
 echo "Clearing old frontend build..."
