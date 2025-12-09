@@ -1,28 +1,26 @@
-const express = require('express');
-const cors = require('cors');
-
+const express = require("express");
+const cors = require("cors");
 const app = express();
 
-// CORS configuration for both local and live environments
-const cors = require("cors");
+// FIXED — add JSON body parsing
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
-app.use(cors({
-  origin: [
-    "http://localhost:5174",
-    "https://mmfinfotech.website",
-    "https://mmfinfotech.website/Project_Tracker_Tool"
-  ],
-  credentials: true,
-  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization"]
-}));
+app.use(
+  cors({
+    origin: [
+      "http://localhost:5173",
+      "http://localhost:5174",
+      "https://mmfinfotech.website",
+      "https://mmfinfotech.website/Project_Tracker_Tool"
+    ],
+    credentials: true,
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+  })
+);
 
 
-
-app.use(cors(corsOptions));
-// Allow larger payloads to support base64-encoded attachments from the client
-app.use(express.json({ limit: '50mb' }));
-app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
 const PORT = process.env.PORT || 4000;
 const jwt = require('jsonwebtoken');

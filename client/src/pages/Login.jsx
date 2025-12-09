@@ -40,10 +40,11 @@ export default function Login() {
 
     try {
       const res = await fetch(`${API_BASE_URL}/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password })
-      })
+      });
+
       if (!res.ok) throw new Error('Invalid credentials')
       const data = await res.json()
       saveToken(data.token)
