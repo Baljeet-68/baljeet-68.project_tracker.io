@@ -24,6 +24,9 @@ echo "Setting permissions..."
 chmod 644 "$TARGET/index.html"
 chmod -R 755 "$TARGET/assets"
 
+echo "Activating Node.js virtual environment..."
+source /home/mmfilgqi/nodevenv/public_html/Project_Tracker_Tool/server/24/bin/activate
+
 echo "Installing server dependencies..."
 if [ -d "$REPO/server" ]; then
     cd "$REPO/server"
