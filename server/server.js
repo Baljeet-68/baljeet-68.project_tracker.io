@@ -40,7 +40,7 @@ app.get(`${BASE_URL}/api/hello`, (req, res) => {
 // ============ AUTHENTICATION (PHASE 1) ============
 
 // Login - accepts { email, password } - returns JWT with userId, email, role
-app.post('/login', (req, res) => {
+app.post(`${BASE_URL}/login`, (req, res) => {
   const { email, password } = req.body;
   if (!email || !password) return res.status(400).json({ error: 'Missing email or password' });
   const user = users.find((u) => u.email === email && u.password === password);
@@ -53,7 +53,7 @@ app.post('/login', (req, res) => {
 const tokenBlacklist = new Set();
 
 // Logout - add token to blacklist (demo)
-app.post('/logout', (req, res) => {
+app.post(`${BASE_URL}/logout`, (req, res) => {
   const auth = req.headers.authorization;
   const token = auth && auth.split(' ')[1];
   if (token) tokenBlacklist.add(token);
@@ -61,7 +61,7 @@ app.post('/logout', (req, res) => {
 });
 
 // Get current user
-app.get('/me', (req, res) => {
+app.get(`${BASE_URL}/me`, (req, res) => {
   const auth = req.headers.authorization;
   if (!auth) return res.status(401).json({ error: 'Missing authorization header' });
   const parts = auth.split(' ');
@@ -126,7 +126,7 @@ function getUserName(userId) {
 // GET /api/projects - list only assigned projects per user
 const { getProjectsFromSupabase } = require('./api');
 
-app.get('/api/projects', authenticate, async (req, res) => {
+app.get(`${BASE_URL}/api/projects`, authenticate, async (req, res) => {
   try {
     const allProjects = await getProjectsFromSupabase();
     let result = [];
@@ -146,7 +146,7 @@ app.get('/api/projects', authenticate, async (req, res) => {
 });
 
 // GET /api/projects/:id - get single project with full details
-app.get('/api/projects/:id', authenticate, async (req, res) => {
+app.get(`${BASE_URL}/api/projects/:id`, authenticate, async (req, res) => {
   try {
     const { getProjectsFromSupabase } = require('./api');
     const allProjects = await getProjectsFromSupabase();
@@ -166,7 +166,7 @@ app.get('/api/projects/:id', authenticate, async (req, res) => {
 
 // POST /api/projects - admin only create project
 const { pool } = require('./db');
-app.post('/api/projects', authenticate, requireRole('admin'), async (req, res) => {
+app.post(`${BASE_URL}/api/projects`, authenticate, requireRole('admin'), async (req, res) => {
   const { name, client, description, startDate, endDate, testerId, developerIds } = req.body;
   if (!name) return res.status(400).json({ error: 'Missing name' });
 
@@ -223,7 +223,7 @@ app.post('/api/projects', authenticate, requireRole('admin'), async (req, res) =
 });
 
 // PATCH /api/projects/:id - admin only update project
-app.patch('/api/projects/:id', authenticate, requireRole('admin'), (req, res) => {
+app.patch(`${BASE_URL}/api/projects/:id`, authenticate, requireRole('admin'), (req, res) => {
   const p = projects.find((x) => x.id === req.params.id);
   if (!p) return res.status(404).json({ error: 'Project not found' });
 
@@ -281,7 +281,7 @@ function enrichProject(p) {
 // ============ SCREENS/TASKS ENDPOINTS (PHASE 3) ============
 
 // GET /api/projects/:id/screens - list screens for a project
-app.get('/api/projects/:id/screens', authenticate, (req, res) => {
+app.get(`${BASE_URL}/api/projects/:id/screens`, authenticate, (req, res) => {
   if (!hasProjectAccess(req.user.userId, req.params.id)) {
     return res.status(403).json({ error: 'Forbidden' });
   }
@@ -290,7 +290,7 @@ app.get('/api/projects/:id/screens', authenticate, (req, res) => {
 });
 
 // POST /api/projects/:id/screens - admin only create screen
-app.post('/api/projects/:id/screens', authenticate, requireRole('admin'), (req, res) => {
+app.post(`${BASE_URL}/api/projects/:id/screens`, authenticate, requireRole('admin'), (req, res) => {
   const p = projects.find((x) => x.id === req.params.id);
   if (!p) return res.status(404).json({ error: 'Project not found' });
   const { title, module, assigneeId, plannedDeadline, notes } = req.body;
@@ -343,7 +343,7 @@ function logActivity(projectId, entityType, entityId, action, userId, changes) {
 }
 
 // PATCH /api/screens/:id - admin/developer update screen details (name, deadline, assignee)
-app.patch('/api/screens/:id', authenticate, (req, res) => {
+app.patch(`${BASE_URL}/api/screens/:id`, authenticate, (req, res) => {
   const scr = screens.find((s) => s.id === req.params.id);
   if (!scr) return res.status(404).json({ error: 'Screen not found' });
 
@@ -394,7 +394,7 @@ app.patch('/api/screens/:id', authenticate, (req, res) => {
 });
 
 // PATCH /api/screens/:id/status - developer/admin only update status and actualEndDate
-app.patch('/api/screens/:id/status', authenticate, requireRole('admin', 'developer'), (req, res) => {
+app.patch(`${BASE_URL}/api/screens/:id/status`, authenticate, requireRole('admin', 'developer'), (req, res) => {
   const scr = screens.find((s) => s.id === req.params.id);
   if (!scr) return res.status(404).json({ error: 'Screen not found' });
 
@@ -448,7 +448,7 @@ app.get('/api/projects/:id/bugs', authenticate, (req, res) => {
 });
 
 // POST /api/projects/:id/bugs - tester/admin only create bug
-app.post('/api/projects/:id/bugs', authenticate, requireRole('tester', 'admin'), (req, res) => {
+app.post(`${BASE_URL}/api/projects/:id/bugs`, authenticate, requireRole('tester', 'admin'), (req, res) => {
   const p = projects.find((x) => x.id === req.params.id);
   if (!p) return res.status(404).json({ error: 'Project not found' });
   if (!hasProjectAccess(req.user.userId, req.params.id)) {
@@ -494,7 +494,7 @@ app.post('/api/projects/:id/bugs', authenticate, requireRole('tester', 'admin'),
 });
 
 // PATCH /api/bugs/:id - tester (if createdBy) / admin (all fields) - restrict field-level access
-app.patch('/api/bugs/:id', authenticate, (req, res) => {
+app.patch(`${BASE_URL}/api/bugs/:id`, authenticate, (req, res) => {
   const bug = bugs.find((b) => b.id === req.params.id);
   if (!bug) return res.status(404).json({ error: 'Bug not found' });
 
@@ -545,7 +545,7 @@ app.patch('/api/bugs/:id', authenticate, (req, res) => {
 });
 
 // PATCH /api/bugs/:id/status - developer/admin only (not tester) update status only
-app.patch('/api/bugs/:id/status', authenticate, requireRole('admin', 'developer'), (req, res) => {
+app.patch(`${BASE_URL}/api/bugs/:id/status`, authenticate, requireRole('admin', 'developer'), (req, res) => {
   const bug = bugs.find((b) => b.id === req.params.id);
   if (!bug) return res.status(404).json({ error: 'Bug not found' });
 
@@ -573,7 +573,7 @@ app.patch('/api/bugs/:id/status', authenticate, requireRole('admin', 'developer'
 });
 
 // DELETE /api/bugs/:id - admin only (soft delete by marking archived)
-app.delete('/api/bugs/:id', authenticate, requireRole('admin'), (req, res) => {
+app.delete(`${BASE_URL}/api/bugs/:id`, authenticate, requireRole('admin'), (req, res) => {
   const bug = bugs.find((b) => b.id === req.params.id);
   if (!bug) return res.status(404).json({ error: 'Bug not found' });
 
@@ -612,7 +612,7 @@ function enrichBug(b) {
 // ============ USERS ENDPOINTS (ADMIN) ============
 
 // Admin: create a new user
-app.post('/api/users', authenticate, requireRole('admin'), (req, res) => {
+app.post(`${BASE_URL}/api/users`, authenticate, requireRole('admin'), (req, res) => {
   const { name, email, password, role } = req.body;
   if (!email || !password || !role || !name) return res.status(400).json({ error: 'Missing fields' });
   if (!['admin', 'tester', 'developer'].includes(role)) return res.status(400).json({ error: 'Invalid role' });
@@ -626,12 +626,12 @@ app.post('/api/users', authenticate, requireRole('admin'), (req, res) => {
 });
 
 // Admin: list users
-app.get('/api/users', authenticate, requireRole('admin'), (req, res) => {
+app.get(`${BASE_URL}/api/users`, authenticate, requireRole('admin'), (req, res) => {
   res.json(users.map((u) => ({ id: u.id, name: u.name, email: u.email, role: u.role, active: u.active })));
 });
 
 // Admin: deactivate/reactivate user
-app.patch('/api/users/:id', authenticate, requireRole('admin'), (req, res) => {
+app.patch(`${BASE_URL}/api/users/:id`, authenticate, requireRole('admin'), (req, res) => {
   const user = users.find(u => u.id === req.params.id);
   if (!user) return res.status(404).json({ error: 'User not found' });
 
