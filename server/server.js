@@ -30,6 +30,7 @@ const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret';
 
 
 require('dotenv').config();
+const BASE_URL = process.env.BASE_URL || '';
 
 // Public test route
 app.get(`${BASE_URL}/api/hello`, (req, res) => {
@@ -297,16 +298,15 @@ app.post('/api/projects/:id/screens', authenticate, requireRole('admin'), (req, 
 
   // Validate assignee is valid developer
   if (assigneeId && !p.developerIds.includes(assigneeId)) {
-    return res.status(400).json({ error: 'Assignee not assigned to this project' });
+    return res.status(400).json({ error: 'Assignee must be a developer on this project' });
   }
 
-  const id = `scr${Math.floor(Math.random() * 100000)}`;
   const screen = {
-    id,
-    projectId: req.params.id,
+    id: `scr${Date.now()}`,
+    projectId: p.id,
     title,
-    module: module || '',
-    assigneeId: assigneeId || '',
+    module: module || 'General',
+    assigneeId: assigneeId || null,
     plannedDeadline: plannedDeadline ? new Date(plannedDeadline) : null,
     actualEndDate: null,
     status: 'Planned',
@@ -315,11 +315,32 @@ app.post('/api/projects/:id/screens', authenticate, requireRole('admin'), (req, 
     updatedAt: new Date()
   };
   screens.push(screen);
-  p.screens = p.screens || [];
-  p.screens.push(screen.id);
-  logActivity(req.params.id, 'screen', screen.id, 'created', req.user.userId, { title, status: 'Planned' });
+  logActivity(p.id, 'screen', screen.id, 'created', req.user.userId, { title });
   res.json(enrichScreen(screen));
 });
+
+// Helper: Enrich screen with user names
+function enrichScreen(s) {
+  return {
+    ...s,
+    assigneeName: s.assigneeId ? getUserName(s.assigneeId) : 'Unassigned'
+  };
+}
+
+// Activity Logger
+function logActivity(projectId, entityType, entityId, action, userId, changes) {
+  const activity = {
+    id: `act${Date.now()}`,
+    projectId,
+    entityType,
+    entityId,
+    action,
+    createdBy: userId,
+    changes,
+    createdAt: new Date()
+  };
+  activityLog.push(activity);
+}
 
 // PATCH /api/screens/:id - admin/developer update screen details (name, deadline, assignee)
 app.patch('/api/screens/:id', authenticate, (req, res) => {
@@ -666,12 +687,13 @@ function enrichActivity(a) {
   };
 }
 
-app.listen(PORT, () => {
-  console.log(`Server listening on port ${PORT}`);
-  console.log(`\nDefault Test Credentials:`);
-  console.log(`  Admin: admin@example.com / admin123`);
-  console.log(`  Tester: tester@example.com / tester123`);
-  console.log(`  Developer: alice@example.com / dev123`);
-  console.log(`  Developer: bob@example.com / dev123`);
-  console.log(`  Developer: charlie@example.com / dev123`);
+// Catch-all for undefined routes
+app.use((req, res) => {
+  res.status(404).json({ error: 'Not Found', path: req.path });
 });
+
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
+  console.log(`BASE_URL: ${BASE_URL}`);
+});
+ 

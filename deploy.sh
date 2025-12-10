@@ -24,4 +24,17 @@ echo "Setting permissions..."
 chmod 644 "$TARGET/index.html"
 chmod -R 755 "$TARGET/assets"
 
+echo "Installing server dependencies..."
+if [ -d "$REPO/server" ]; then
+    cd "$REPO/server"
+    npm install
+    cd ..
+else
+    echo "Warning: server directory not found, skipping npm install."
+fi
+
+echo "Restarting Node.js server..."
+mkdir -p "$TARGET/tmp"
+touch "$TARGET/tmp/restart.txt"
+
 echo "=== DEPLOY COMPLETE ==="

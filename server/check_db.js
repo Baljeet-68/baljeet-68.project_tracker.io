@@ -16,7 +16,7 @@ async function checkConnection() {
   Port: ${DB_PORT}
   User: ${DB_USER}
   Database: ${DB_NAME}
-  Password: ${DB_PASS ? 'ol$9Kw}bZ}fu' : '(empty)'}\n`);
+  Password: ${DB_PASS ? '(masked)' : '(empty)'}\n`);
 
   try {
     console.log('Attempting connection...');
