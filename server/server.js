@@ -32,7 +32,7 @@ const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret';
 require('dotenv').config();
 
 // Public test route
-app.get('/api/hello', (req, res) => {
+app.get(`${BASE_URL}/api/hello`, (req, res) => {
   res.json({ message: 'Hello from Node server!' });
 });
 

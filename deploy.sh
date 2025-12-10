@@ -1,9 +1,16 @@
 #!/bin/bash
 
+# Navigate to the script's directory
+cd "$(dirname "$0")"
+
 echo "=== DEPLOY START ==="
 
-REPO="git@github.com:Baljeet-68/Project_Tracker_Tool.git"
+REPO="."
 TARGET="/home/mmfilgqi/public_html/Project_Tracker_Tool"
+
+# Pull latest changes from git
+echo "Pulling latest changes..."
+git pull origin main
 
 echo "Clearing old frontend build..."
 rm -f "$TARGET/index.html"
