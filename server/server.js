@@ -1,10 +1,25 @@
+// server.js
 const express = require("express");
 const cors = require("cors");
 const app = express();
 
+require('dotenv').config();
+
+const MODE = process.env.MODE || "local"; // "local" or "live"
+const isLocal = MODE === "local";
+
+console.log("SERVER MODE:", isLocal ? "LOCAL" : "LIVE");
+
 // FIXED — add JSON body parsing
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+app.use((req, res, next) => {
+  if (req.url.startsWith('/Project_Tracker_Tool/server')) {
+    req.url = req.url.replace('/Project_Tracker_Tool/server', '');
+  }
+  next();
+});
+
 
 app.use(
   cors({
@@ -15,32 +30,29 @@ app.use(
       "https://mmfinfotech.website/Project_Tracker_Tool"
     ],
     credentials: true,
-    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
   })
 );
 
-
-
 const PORT = process.env.PORT || 4000;
 const jwt = require('jsonwebtoken');
+
+// In local mode we load the in-memory data
 const { users, projects, screens, bugs, activityLog, bugCounters } = require('./data');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret';
-
-
-require('dotenv').config();
 const BASE_URL = process.env.BASE_URL || '';
 
 // Public test route
-app.get(`${BASE_URL}/api/hello`, (req, res) => {
-  res.json({ message: 'Hello from Node server!' });
+app.get(`/api/hello`, (req, res) => {
+  res.json({ message: 'Hello from Node server!', mode: MODE });
 });
 
 // ============ AUTHENTICATION (PHASE 1) ============
 
 // Login - accepts { email, password } - returns JWT with userId, email, role
-app.post(`${BASE_URL}/login`, (req, res) => {
+app.post(`/login`, (req, res) => {
   const { email, password } = req.body;
   if (!email || !password) return res.status(400).json({ error: 'Missing email or password' });
   const user = users.find((u) => u.email === email && u.password === password);
@@ -53,7 +65,7 @@ app.post(`${BASE_URL}/login`, (req, res) => {
 const tokenBlacklist = new Set();
 
 // Logout - add token to blacklist (demo)
-app.post(`${BASE_URL}/logout`, (req, res) => {
+app.post(`/logout`, (req, res) => {
   const auth = req.headers.authorization;
   const token = auth && auth.split(' ')[1];
   if (token) tokenBlacklist.add(token);
@@ -61,7 +73,7 @@ app.post(`${BASE_URL}/logout`, (req, res) => {
 });
 
 // Get current user
-app.get(`${BASE_URL}/me`, (req, res) => {
+app.get(`/me`, (req, res) => {
   const auth = req.headers.authorization;
   if (!auth) return res.status(401).json({ error: 'Missing authorization header' });
   const parts = auth.split(' ');
@@ -103,10 +115,37 @@ function requireRole(...roles) {
   }
 }
 
-// Helper: Check if user has access to project
+// Helper: normalize project object returned from DB or local
+function normalizeProjectObj(p) {
+  if (!p) return null;
+
+  // developerIds may come as JSON string from DB; ensure array
+  if (p.developerIds && typeof p.developerIds === 'string') {
+    try {
+      p.developerIds = JSON.parse(p.developerIds);
+    } catch (e) {
+      // fallback: split by comma (if stored that way)
+      p.developerIds = p.developerIds.split ? p.developerIds.split(',').map(s => s.trim()).filter(Boolean) : [];
+    }
+  }
+  p.developerIds = Array.isArray(p.developerIds) ? p.developerIds : [];
+
+  // Ensure testerId exists
+  p.testerId = p.testerId || '';
+
+  return p;
+}
+
+// Helper: Check if user has access to project (local or live)
 async function hasProjectAccess(userId, projectId) {
-  const { getProjectById } = require('./api');
-  const project = await getProjectById(projectId);
+  let project;
+  if (isLocal) {
+    project = projects.find(p => p.id === projectId);
+  } else {
+    const { getProjectById } = require('./api');
+    project = await getProjectById(projectId);
+  }
+  project = normalizeProjectObj(project);
   if (!project) return false;
   const user = users.find(u => u.id === userId);
   if (!user) return false;
@@ -122,14 +161,62 @@ function getUserName(userId) {
   return user?.name || 'Unknown';
 }
 
+// Helper: Enrich bug with user details
+function enrichBug(b) {
+  const creator = users.find(u => u.id === b.createdBy);
+  const assignee = b.assignedDeveloperId ? users.find(u => u.id === b.assignedDeveloperId) : null;
+  const screen = b.screenId ? screens.find(s => s.id === b.screenId) : null;
+  return {
+    ...b,
+    createdByName: creator?.name || 'Unknown',
+    createdByEmail: creator?.email || '',
+    assignedDeveloperName: assignee?.name || 'Unassigned',
+    assignedDeveloperEmail: assignee?.email || '',
+    screenTitle: screen?.title || b.module || 'Unknown'
+  };
+}
+
+// Helper: Enrich screen with user details
+function enrichScreen(s) {
+  const assignee = s.assigneeId ? users.find(u => u.id === s.assigneeId) : null;
+  return {
+    ...s,
+    assigneeName: assignee?.name || 'Unassigned',
+    assigneeEmail: assignee?.email || ''
+  };
+}
+
+// Helper: Enrich project with user details (and counts)
+function enrichProject(p) {
+  p = normalizeProjectObj(p);
+  const screenDeadlines = screens.filter(s => s.projectId === p.id && s.plannedDeadline && new Date(s.plannedDeadline) > new Date()).length;
+  const bugDeadlines = bugs.filter(b => b.projectId === p.id && b.deadline && new Date(b.deadline) > new Date()).length;
+  return {
+    ...p,
+    testerName: p.testerId ? getUserName(p.testerId) : 'Unassigned',
+    developerNames: (p.developerIds || []).map(id => ({ id, name: getUserName(id) })),
+    openBugsCount: bugs.filter(b => b.projectId === p.id && (b.status === 'Open' || b.status === 'In Progress')).length,
+    completedScreensCount: screens.filter(s => s.projectId === p.id && s.status === 'Done').length,
+    totalScreensCount: screens.filter(s => s.projectId === p.id).length,
+    upcomingDeadlines: screenDeadlines + bugDeadlines
+  };
+}
+
 // ============ PROJECTS ENDPOINTS (PHASE 2) ============
 
-// GET /api/projects - list only assigned projects per user
-const { getProjectsFromSupabase } = require('./api');
-
-app.get(`${BASE_URL}/api/projects`, authenticate, async (req, res) => {
+// GET /projects - list only assigned projects per user
+app.get(`/projects`, authenticate, async (req, res) => {
   try {
-    const allProjects = await getProjectsFromSupabase();
+    let allProjects;
+
+    if (isLocal) {
+      allProjects = projects.map(p => normalizeProjectObj({ ...p }));
+    } else {
+      const { getProjectsFromMySQL } = require('./api');
+      allProjects = await getProjectsFromMySQL();
+      allProjects = (allProjects || []).map(p => normalizeProjectObj({ ...p }));
+    }
+
     let result = [];
     if (req.user.role === 'admin') {
       result = allProjects;
@@ -147,29 +234,38 @@ app.get(`${BASE_URL}/api/projects`, authenticate, async (req, res) => {
 });
 
 // GET /api/projects/:id - get single project with full details
-app.get(`${BASE_URL}/api/projects/:id`, authenticate, async (req, res) => {
+app.get(`/api/projects/:id`, authenticate, async (req, res) => {
   try {
-    const { getProjectById } = require('./api');
-    const p = await getProjectById(req.params.id);
+    let p;
+
+    if (isLocal) {
+      p = projects.find(pr => pr.id === req.params.id);
+    } else {
+      const { getProjectById } = require('./api');
+      p = await getProjectById(req.params.id);
+    }
+
+    p = normalizeProjectObj(p);
     if (!p) return res.status(404).json({ error: 'Project not found' });
-    
+
     // Check access
     const hasAccess = await hasProjectAccess(req.user.userId, req.params.id);
     if (!hasAccess) {
       return res.status(403).json({ error: 'Forbidden' });
     }
+
     // Add screens and bugs details (still from in-memory for now)
-    p.screensList = screens.filter(s => s.projectId === p.id);
+    p.screensList = screens.filter(s => s.projectId === p.id).map(enrichScreen);
     p.bugsList = bugs.filter(b => b.projectId === p.id).map(b => enrichBug(b));
-    res.json(p);
+
+    res.json(enrichProject(p));
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
 
 // POST /api/projects - admin only create project
-const { pool } = require('./db');
-app.post(`${BASE_URL}/api/projects`, authenticate, requireRole('admin'), async (req, res) => {
+app.post(`/api/projects`, authenticate, requireRole('admin'), async (req, res) => {
   const { name, client, description, startDate, endDate, testerId, developerIds } = req.body;
   if (!name) return res.status(400).json({ error: 'Missing name' });
 
@@ -184,7 +280,7 @@ app.post(`${BASE_URL}/api/projects`, authenticate, requireRole('admin'), async (
     if (invalid.length > 0) return res.status(400).json({ error: 'Invalid developer IDs' });
   }
 
-  // Generate a unique id (Supabase can also auto-generate)
+  // Generate a unique id
   const id = `proj${Date.now()}`;
   const project = {
     id,
@@ -201,36 +297,49 @@ app.post(`${BASE_URL}/api/projects`, authenticate, requireRole('admin'), async (
   };
 
   try {
-    // Insert into MySQL projects table. developerIds stored as JSON string.
-    const sql = `INSERT INTO projects
-      (id, name, client, description, status, testerId, developerIds, createdBy, createdAt, startDate, endDate)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
-    const params = [
-      project.id,
-      project.name,
-      project.client,
-      project.description,
-      project.status,
-      project.testerId,
-      JSON.stringify(project.developerIds || []),
-      project.createdBy,
-      project.createdAt,
-      project.startDate,
-      project.endDate
-    ];
-    await pool.execute(sql, params);
-    res.json(project);
+    if (isLocal) {
+      // push into in-memory projects
+      projects.push(project);
+      return res.json(project);
+    } else {
+      // Insert into MySQL projects table. developerIds stored as JSON string.
+      const { pool } = require('./db');
+      const sql = `INSERT INTO projects
+        (id, name, client, description, status, testerId, developerIds, createdBy, createdAt, startDate, endDate)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+      const params = [
+        project.id,
+        project.name,
+        project.client,
+        project.description,
+        project.status,
+        project.testerId,
+        JSON.stringify(project.developerIds || []),
+        project.createdBy,
+        project.createdAt,
+        project.startDate,
+        project.endDate
+      ];
+      await pool.execute(sql, params);
+      return res.json(project);
+    }
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
 // PATCH /api/projects/:id - admin only update project
-app.patch(`${BASE_URL}/api/projects/:id`, authenticate, requireRole('admin'), async (req, res) => {
+app.patch(`/api/projects/:id`, authenticate, requireRole('admin'), async (req, res) => {
   try {
-    const { getProjectById, updateProjectInDb } = require('./api');
-    const p = await getProjectById(req.params.id);
-    if (!p) return res.status(404).json({ error: 'Project not found' });
+    let p;
+    if (isLocal) {
+      p = projects.find(pr => pr.id === req.params.id);
+      if (!p) return res.status(404).json({ error: 'Project not found' });
+    } else {
+      const { getProjectById } = require('./api');
+      p = await getProjectById(req.params.id);
+      if (!p) return res.status(404).json({ error: 'Project not found' });
+    }
 
     const { name, description, status, client, startDate, endDate, testerId, developerIds } = req.body;
     const changes = {};
@@ -241,7 +350,7 @@ app.patch(`${BASE_URL}/api/projects/:id`, authenticate, requireRole('admin'), as
     if (client !== undefined) changes.client = client;
     if (startDate !== undefined) changes.startDate = startDate ? new Date(startDate) : null;
     if (endDate !== undefined) changes.endDate = endDate ? new Date(endDate) : null;
-    
+
     if (testerId !== undefined) {
       if (testerId && !users.find(u => u.id === testerId && u.role === 'tester')) {
         return res.status(400).json({ error: 'Invalid tester ID' });
@@ -256,11 +365,17 @@ app.patch(`${BASE_URL}/api/projects/:id`, authenticate, requireRole('admin'), as
       changes.developerIds = developerIds;
     }
 
-    await updateProjectInDb(req.params.id, changes);
-    
-    // Fetch updated project
-    const updatedProject = await getProjectById(req.params.id);
-    
+    if (isLocal) {
+      // apply changes in memory
+      Object.assign(p, changes);
+      p.updatedAt = new Date().toISOString();
+    } else {
+      const { updateProjectInDb, getProjectById } = require('./api');
+      await updateProjectInDb(req.params.id, changes);
+      p = await getProjectById(req.params.id);
+    }
+
+    const updatedProject = normalizeProjectObj(p);
     logActivity(updatedProject.id, 'project', updatedProject.id, 'updated', req.user.userId, changes);
     res.json(enrichProject(updatedProject));
   } catch (error) {
@@ -268,39 +383,35 @@ app.patch(`${BASE_URL}/api/projects/:id`, authenticate, requireRole('admin'), as
   }
 });
 
-// Helper: Enrich project with user details
-function enrichProject(p) {
-  const screenDeadlines = screens.filter(s => s.projectId === p.id && s.plannedDeadline && new Date(s.plannedDeadline) > new Date()).length;
-  const bugDeadlines = bugs.filter(b => b.projectId === p.id && b.deadline && new Date(b.deadline) > new Date()).length;
-  return {
-    ...p,
-    testerName: p.testerId ? getUserName(p.testerId) : 'Unassigned',
-    developerNames: p.developerIds.map(id => ({ id, name: getUserName(id) })),
-    openBugsCount: bugs.filter(b => b.projectId === p.id && (b.status === 'Open' || b.status === 'In Progress')).length,
-    completedScreensCount: screens.filter(s => s.projectId === p.id && s.status === 'Done').length,
-    totalScreensCount: screens.filter(s => s.projectId === p.id).length,
-    upcomingDeadlines: screenDeadlines + bugDeadlines
-  };
-}
-
 // ============ SCREENS/TASKS ENDPOINTS (PHASE 3) ============
 
 // GET /api/projects/:id/screens - list screens for a project
-app.get(`${BASE_URL}/api/projects/:id/screens`, authenticate, (req, res) => {
-  if (!hasProjectAccess(req.user.userId, req.params.id)) {
-    return res.status(403).json({ error: 'Forbidden' });
+app.get(`/api/projects/:id/screens`, authenticate, async (req, res) => {
+  try {
+    if (!await hasProjectAccess(req.user.userId, req.params.id)) {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
+    const projectScreens = screens.filter(s => s.projectId === req.params.id).map(s => enrichScreen(s));
+    res.json(projectScreens);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
-  const projectScreens = screens.filter(s => s.projectId === req.params.id).map(s => enrichScreen(s));
-  res.json(projectScreens);
 });
 
 // POST /api/projects/:id/screens - admin only create screen
-app.post(`${BASE_URL}/api/projects/:id/screens`, authenticate, requireRole('admin'), async (req, res) => {
+app.post(`/api/projects/:id/screens`, authenticate, requireRole('admin'), async (req, res) => {
   try {
-    const { getProjectById } = require('./api');
-    const p = await getProjectById(req.params.id);
+    // fetch project (local or live)
+    let p;
+    if (isLocal) {
+      p = projects.find(pr => pr.id === req.params.id);
+    } else {
+      const { getProjectById } = require('./api');
+      p = await getProjectById(req.params.id);
+    }
+    p = normalizeProjectObj(p);
     if (!p) return res.status(404).json({ error: 'Project not found' });
-    
+
     const { title, module, assigneeId, plannedDeadline, notes } = req.body;
     if (!title) return res.status(400).json({ error: 'Missing title' });
 
@@ -319,8 +430,8 @@ app.post(`${BASE_URL}/api/projects/:id/screens`, authenticate, requireRole('admi
       actualEndDate: null,
       status: 'Planned',
       notes: notes || '',
-      createdAt: new Date(),
-      updatedAt: new Date()
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
     };
     screens.push(screen);
     logActivity(p.id, 'screen', screen.id, 'created', req.user.userId, { title });
@@ -330,31 +441,8 @@ app.post(`${BASE_URL}/api/projects/:id/screens`, authenticate, requireRole('admi
   }
 });
 
-// Helper: Enrich screen with user names
-function enrichScreen(s) {
-  return {
-    ...s,
-    assigneeName: s.assigneeId ? getUserName(s.assigneeId) : 'Unassigned'
-  };
-}
-
-// Activity Logger
-function logActivity(projectId, entityType, entityId, action, userId, changes) {
-  const activity = {
-    id: `act${Date.now()}`,
-    projectId,
-    entityType,
-    entityId,
-    action,
-    createdBy: userId,
-    changes,
-    createdAt: new Date()
-  };
-  activityLog.push(activity);
-}
-
 // PATCH /api/screens/:id - admin/developer update screen details (name, deadline, assignee)
-app.patch(`${BASE_URL}/api/screens/:id`, authenticate, async (req, res) => {
+app.patch(`/api/screens/:id`, authenticate, async (req, res) => {
   try {
     const scr = screens.find((s) => s.id === req.params.id);
     if (!scr) return res.status(404).json({ error: 'Screen not found' });
@@ -363,8 +451,14 @@ app.patch(`${BASE_URL}/api/screens/:id`, authenticate, async (req, res) => {
       return res.status(403).json({ error: 'Forbidden' });
     }
 
-    const { getProjectById } = require('./api');
-    const project = await getProjectById(scr.projectId);
+    let project;
+    if (isLocal) {
+      project = projects.find(p => p.id === scr.projectId);
+    } else {
+      const { getProjectById } = require('./api');
+      project = await getProjectById(scr.projectId);
+    }
+    project = normalizeProjectObj(project);
 
     // Developers can only update deadline if assigned to this screen
     if (req.user.role === 'developer' && scr.assigneeId !== req.user.userId) {
@@ -376,7 +470,7 @@ app.patch(`${BASE_URL}/api/screens/:id`, authenticate, async (req, res) => {
       const { plannedDeadline } = req.body;
       if (plannedDeadline !== undefined) {
         scr.plannedDeadline = plannedDeadline ? new Date(plannedDeadline) : null;
-        scr.updatedAt = new Date();
+        scr.updatedAt = new Date().toISOString();
         logActivity(scr.projectId, 'screen', scr.id, 'deadline_updated', req.user.userId, { plannedDeadline });
         return res.json(enrichScreen(scr));
       }
@@ -401,7 +495,7 @@ app.patch(`${BASE_URL}/api/screens/:id`, authenticate, async (req, res) => {
     }
     if (notes !== undefined) { scr.notes = notes; changes.notes = notes; }
 
-    scr.updatedAt = new Date();
+    scr.updatedAt = new Date().toISOString();
     logActivity(scr.projectId, 'screen', scr.id, 'updated', req.user.userId, changes);
     res.json(enrichScreen(scr));
   } catch (error) {
@@ -410,7 +504,7 @@ app.patch(`${BASE_URL}/api/screens/:id`, authenticate, async (req, res) => {
 });
 
 // PATCH /api/screens/:id/status - developer/admin only update status and actualEndDate
-app.patch(`${BASE_URL}/api/screens/:id/status`, authenticate, requireRole('admin', 'developer'), async (req, res) => {
+app.patch(`/api/screens/:id/status`, authenticate, requireRole('admin', 'developer'), async (req, res) => {
   try {
     const scr = screens.find((s) => s.id === req.params.id);
     if (!scr) return res.status(404).json({ error: 'Screen not found' });
@@ -438,7 +532,7 @@ app.patch(`${BASE_URL}/api/screens/:id/status`, authenticate, requireRole('admin
       changes.actualEndDate = actualEndDate;
     }
 
-    scr.updatedAt = new Date();
+    scr.updatedAt = new Date().toISOString();
     logActivity(scr.projectId, 'screen', scr.id, 'status_change', req.user.userId, changes);
     res.json(enrichScreen(scr));
   } catch (error) {
@@ -446,20 +540,10 @@ app.patch(`${BASE_URL}/api/screens/:id/status`, authenticate, requireRole('admin
   }
 });
 
-// Helper: Enrich screen with user details
-function enrichScreen(s) {
-  const assignee = s.assigneeId ? users.find(u => u.id === s.assigneeId) : null;
-  return {
-    ...s,
-    assigneeName: assignee?.name || 'Unassigned',
-    assigneeEmail: assignee?.email || ''
-  };
-}
-
 // ============ BUGS ENDPOINTS (PHASE 4) ============
 
 // GET /api/projects/:id/bugs - list bugs with per-project numbering
-app.get(`${BASE_URL}/api/projects/:id/bugs`, authenticate, async (req, res) => {
+app.get(`/api/projects/:id/bugs`, authenticate, async (req, res) => {
   try {
     if (!await hasProjectAccess(req.user.userId, req.params.id)) {
       return res.status(403).json({ error: 'Forbidden' });
@@ -472,10 +556,16 @@ app.get(`${BASE_URL}/api/projects/:id/bugs`, authenticate, async (req, res) => {
 });
 
 // POST /api/projects/:id/bugs - tester/admin only create bug
-app.post(`${BASE_URL}/api/projects/:id/bugs`, authenticate, requireRole('tester', 'admin'), async (req, res) => {
+app.post(`/api/projects/:id/bugs`, authenticate, requireRole('tester', 'admin'), async (req, res) => {
   try {
-    const { getProjectById } = require('./api');
-    const p = await getProjectById(req.params.id);
+    let p;
+    if (isLocal) {
+      p = projects.find(pr => pr.id === req.params.id);
+    } else {
+      const { getProjectById } = require('./api');
+      p = await getProjectById(req.params.id);
+    }
+    p = normalizeProjectObj(p);
     if (!p) return res.status(404).json({ error: 'Project not found' });
     if (!await hasProjectAccess(req.user.userId, req.params.id)) {
       return res.status(403).json({ error: 'Forbidden' });
@@ -508,13 +598,11 @@ app.post(`${BASE_URL}/api/projects/:id/bugs`, authenticate, requireRole('tester'
       severity: severity || 'medium',
       attachments: attachments && Array.isArray(attachments) ? attachments : [],
       deadline: deadline ? new Date(deadline) : null,
-      createdAt: new Date(),
-      updatedAt: new Date(),
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
       resolvedAt: null
     };
     bugs.push(bug);
-    // p.bugs = p.bugs || []; // Project object is from DB, doesn't need in-memory update
-    // p.bugs.push(bug.id); 
     logActivity(req.params.id, 'bug', bug.id, 'created', req.user.userId, { description, status: 'Open', severity, deadline });
     res.json(enrichBug(bug));
   } catch (error) {
@@ -523,7 +611,7 @@ app.post(`${BASE_URL}/api/projects/:id/bugs`, authenticate, requireRole('tester'
 });
 
 // PATCH /api/bugs/:id - tester (if createdBy) / admin (all fields) - restrict field-level access
-app.patch(`${BASE_URL}/api/bugs/:id`, authenticate, async (req, res) => {
+app.patch(`/api/bugs/:id`, authenticate, async (req, res) => {
   try {
     const bug = bugs.find((b) => b.id === req.params.id);
     if (!bug) return res.status(404).json({ error: 'Bug not found' });
@@ -532,15 +620,21 @@ app.patch(`${BASE_URL}/api/bugs/:id`, authenticate, async (req, res) => {
       return res.status(403).json({ error: 'Forbidden' });
     }
 
-    const { getProjectById } = require('./api');
-    const p = await getProjectById(bug.projectId);
+    let p;
+    if (isLocal) {
+      p = projects.find(pr => pr.id === bug.projectId);
+    } else {
+      const { getProjectById } = require('./api');
+      p = await getProjectById(bug.projectId);
+    }
+    p = normalizeProjectObj(p);
 
     // Developers can update deadline only
     if (req.user.role === 'developer') {
       const { deadline } = req.body;
       if (deadline !== undefined) {
         bug.deadline = deadline ? new Date(deadline) : null;
-        bug.updatedAt = new Date();
+        bug.updatedAt = new Date().toISOString();
         logActivity(bug.projectId, 'bug', bug.id, 'deadline_updated', req.user.userId, { deadline });
         return res.json(enrichBug(bug));
       }
@@ -571,7 +665,7 @@ app.patch(`${BASE_URL}/api/bugs/:id`, authenticate, async (req, res) => {
       changes.deadline = deadline;
     }
 
-    bug.updatedAt = new Date();
+    bug.updatedAt = new Date().toISOString();
     logActivity(bug.projectId, 'bug', bug.id, 'updated', req.user.userId, changes);
     res.json(enrichBug(bug));
   } catch (error) {
@@ -580,35 +674,35 @@ app.patch(`${BASE_URL}/api/bugs/:id`, authenticate, async (req, res) => {
 });
 
 // PATCH /api/bugs/:id/status - developer/admin only (not tester) update status only
-app.patch(`${BASE_URL}/api/bugs/:id/status`, authenticate, requireRole('admin', 'developer'), (req, res) => {
-  const bug = bugs.find((b) => b.id === req.params.id);
-  if (!bug) return res.status(404).json({ error: 'Bug not found' });
+app.patch(`/api/bugs/:id/status`, authenticate, requireRole('admin', 'developer'), async (req, res) => {
+  try {
+    const bug = bugs.find((b) => b.id === req.params.id);
+    if (!bug) return res.status(404).json({ error: 'Bug not found' });
 
-  if (!hasProjectAccess(req.user.userId, bug.projectId)) {
-    return res.status(403).json({ error: 'Forbidden' });
+    if (!await hasProjectAccess(req.user.userId, bug.projectId)) {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
+
+    const { status } = req.body;
+    if (!status) return res.status(400).json({ error: 'Missing status' });
+
+    const oldStatus = bug.status;
+    const changes = { oldStatus, newStatus: status };
+
+    bug.status = status;
+    if (status === 'Resolved') bug.resolvedAt = new Date().toISOString();
+    if (status === 'Closed') bug.resolvedAt = bug.resolvedAt || new Date().toISOString();
+
+    bug.updatedAt = new Date().toISOString();
+    logActivity(bug.projectId, 'bug', bug.id, 'status_change', req.user.userId, changes);
+    res.json(enrichBug(bug));
+  } catch (error) {
+    res.status(500).json({ error: error.message });
   }
-
-  // Developers with project access are allowed to update bug status.
-  // Previously we restricted developers to only update bugs assigned to them;
-  // now any developer member of the project may update status.
-
-  const { status } = req.body;
-  if (!status) return res.status(400).json({ error: 'Missing status' });
-
-  const oldStatus = bug.status;
-  const changes = { oldStatus, newStatus: status };
-
-  bug.status = status;
-  if (status === 'Resolved') bug.resolvedAt = new Date();
-  if (status === 'Closed') bug.resolvedAt = bug.resolvedAt || new Date();
-
-  bug.updatedAt = new Date();
-  logActivity(bug.projectId, 'bug', bug.id, 'status_change', req.user.userId, changes);
-  res.json(enrichBug(bug));
 });
 
 // DELETE /api/bugs/:id - admin only (soft delete by marking archived)
-app.delete(`${BASE_URL}/api/bugs/:id`, authenticate, requireRole('admin'), (req, res) => {
+app.delete(`/api/bugs/:id`, authenticate, requireRole('admin'), (req, res) => {
   const bug = bugs.find((b) => b.id === req.params.id);
   if (!bug) return res.status(404).json({ error: 'Bug not found' });
 
@@ -629,25 +723,10 @@ app.delete(`${BASE_URL}/api/bugs/:id`, authenticate, requireRole('admin'), (req,
   res.json({ ok: true });
 });
 
-// Helper: Enrich bug with user details
-function enrichBug(b) {
-  const creator = users.find(u => u.id === b.createdBy);
-  const assignee = b.assignedDeveloperId ? users.find(u => u.id === b.assignedDeveloperId) : null;
-  const screen = b.screenId ? screens.find(s => s.id === b.screenId) : null;
-  return {
-    ...b,
-    createdByName: creator?.name || 'Unknown',
-    createdByEmail: creator?.email || '',
-    assignedDeveloperName: assignee?.name || 'Unassigned',
-    assignedDeveloperEmail: assignee?.email || '',
-    screenTitle: screen?.title || b.module || 'Unknown'
-  };
-}
-
 // ============ USERS ENDPOINTS (ADMIN) ============
 
 // Admin: create a new user
-app.post(`${BASE_URL}/api/users`, authenticate, requireRole('admin'), (req, res) => {
+app.post(`/api/users`, authenticate, requireRole('admin'), (req, res) => {
   const { name, email, password, role } = req.body;
   if (!email || !password || !role || !name) return res.status(400).json({ error: 'Missing fields' });
   if (!['admin', 'tester', 'developer'].includes(role)) return res.status(400).json({ error: 'Invalid role' });
@@ -661,12 +740,12 @@ app.post(`${BASE_URL}/api/users`, authenticate, requireRole('admin'), (req, res)
 });
 
 // Admin: list users
-app.get(`${BASE_URL}/api/users`, authenticate, requireRole('admin'), (req, res) => {
+app.get(`/api/users`, authenticate, requireRole('admin'), (req, res) => {
   res.json(users.map((u) => ({ id: u.id, name: u.name, email: u.email, role: u.role, active: u.active })));
 });
 
 // Admin: deactivate/reactivate user
-app.patch(`${BASE_URL}/api/users/:id`, authenticate, requireRole('admin'), (req, res) => {
+app.patch(`/api/users/:id`, authenticate, requireRole('admin'), (req, res) => {
   const user = users.find(u => u.id === req.params.id);
   if (!user) return res.status(404).json({ error: 'User not found' });
 
@@ -689,7 +768,7 @@ function logActivity(projectId, entityType, entityId, action, userId, changes) {
     action,
     createdBy: userId,
     changes: changes || {},
-    createdAt: new Date()
+    createdAt: new Date().toISOString()
   };
   activityLog.push(log);
   if (projectId) {
@@ -702,14 +781,18 @@ function logActivity(projectId, entityType, entityId, action, userId, changes) {
 }
 
 // GET /api/projects/:id/activity - retrieve activity log with enriched data
-app.get('/api/projects/:id/activity', authenticate, (req, res) => {
-  if (!hasProjectAccess(req.user.userId, req.params.id)) {
-    return res.status(403).json({ error: 'Forbidden' });
+app.get('/api/projects/:id/activity', authenticate, async (req, res) => {
+  try {
+    if (!await hasProjectAccess(req.user.userId, req.params.id)) {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
+    const projectActivity = activityLog.filter((a) => a.projectId === req.params.id).map(a => enrichActivity(a));
+    // Sort by date descending
+    projectActivity.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    res.json(projectActivity);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
   }
-  const projectActivity = activityLog.filter((a) => a.projectId === req.params.id).map(a => enrichActivity(a));
-  // Sort by date descending
-  projectActivity.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-  res.json(projectActivity);
 });
 
 // Helper: Enrich activity with user details
@@ -729,6 +812,4 @@ app.use((req, res) => {
 
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
-  console.log(`BASE_URL: ${BASE_URL}`);
 });
- 

@@ -82,7 +82,7 @@ export default function Login() {
           </Box>
 
           <Typography variant="h4" sx={{ textAlign: 'center', mb: 1, fontWeight: 700, color: '#3c4858' }}>
-            Welcome Back...
+            Welcome!
           </Typography>
           <Typography variant="body2" sx={{ textAlign: 'center', mb: 3, color: '#9A9A9A' }}>
             Sign in to your Project Tracker account to continue
@@ -165,22 +165,9 @@ export default function Login() {
             </Box>
           </Box>
 
-          <Divider sx={{ my: 2 }} />
 
-          <Box sx={{ mt: 2, p: 2, bgcolor: '#f4f3ef', borderRadius: 1 }}>
-            <Typography variant="caption" color="text.secondary">
-              <strong>Demo Credentials:</strong>
-            </Typography>
-            <Typography variant="caption" display="block" sx={{ mt: 0.5 }}>
-              Admin: admin@example.com / admin123
-            </Typography>
-            <Typography variant="caption" display="block">
-              Tester: tester@example.com / tester123
-            </Typography>
-            <Typography variant="caption" display="block">
-              Dev: alice@example.com / dev123
-            </Typography>
-          </Box>
+
+
         </Paper>
       </motion.div>
     </Box>
