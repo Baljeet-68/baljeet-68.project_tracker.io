@@ -9,6 +9,7 @@ import FolderOpenIcon from '@mui/icons-material/FolderOpen'
 import PeopleIcon from '@mui/icons-material/People'
 import EditIcon from '@mui/icons-material/Edit'
 import { Snackbar, Alert } from '@mui/material'
+import { API_BASE_URL } from '../apiConfig'
 
 export default function Admin() {
   const [users, setUsers] = useState([])

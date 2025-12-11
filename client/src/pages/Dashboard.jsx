@@ -4,6 +4,7 @@ import { authFetch, getUser } from '../auth'
 import { LineChart, BarChart, PieChart, AreaChart } from '../components/ChartComponents'
 import { StatCard, Card, CardHeader, CardBody, Badge } from '../components/TailAdminComponents'
 import { TrendingUp, AlertCircle, CheckCircle, Users, Activity } from 'lucide-react'
+import { API_BASE_URL } from '../apiConfig'
 
 export default function Dashboard() {
   const [projects, setProjects] = useState([])
