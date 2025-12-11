@@ -14,7 +14,7 @@ console.log("SERVER MODE:", isLocal ? "LOCAL" : "LIVE");
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use((req, res, next) => {
-  if (req.url.startsWith('/Project_Tracker_Tool/server/api')) {
+  if (req.url.startsWith('/Project_Tracker_Tool/server')) {
     req.url = req.url.replace('/Project_Tracker_Tool/server/api', '');
   }
   next();
@@ -740,7 +740,7 @@ app.post(`/api/users`, authenticate, requireRole('admin'), (req, res) => {
 });
 
 // Admin: list users
-app.get(`/api/users`, authenticate, requireRole('admin'), (req, res) => {
+app.get(`/users`, authenticate, requireRole('admin'), (req, res) => {
   res.json(users.map((u) => ({ id: u.id, name: u.name, email: u.email, role: u.role, active: u.active })));
 });
 
