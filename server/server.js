@@ -14,7 +14,7 @@ console.log("SERVER MODE:", isLocal ? "LOCAL" : "LIVE");
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use((req, res, next) => {
-  if (req.url.startsWith('/Project_Tracker_Tool/server')) {
+  if (req.url.startsWith('/Project_Tracker_Tool/server/api')) {
     req.url = req.url.replace('/Project_Tracker_Tool/server/api', '');
   }
   next();
