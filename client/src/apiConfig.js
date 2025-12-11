@@ -1,5 +1,5 @@
 // Toggle between local & live
-const USE_LIVE_API = true;
+const USE_LIVE_API = false;
 
 // LOCAL API BASE (backend routes start with /login, /api/projects etc.)
 const LOCAL_API_URL = "http://localhost:4000";

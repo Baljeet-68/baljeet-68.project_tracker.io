@@ -15,7 +15,7 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use((req, res, next) => {
   if (req.url.startsWith('/Project_Tracker_Tool/server')) {
-    req.url = req.url.replace('/Project_Tracker_Tool/server', '');
+    req.url = req.url.replace('/Project_Tracker_Tool/server/api', '');
   }
   next();
 });
@@ -743,6 +743,12 @@ app.post(`/api/users`, authenticate, requireRole('admin'), (req, res) => {
 app.get(`/api/users`, authenticate, requireRole('admin'), (req, res) => {
   res.json(users.map((u) => ({ id: u.id, name: u.name, email: u.email, role: u.role, active: u.active })));
 });
+
+// LIVE convenience route: allow GET /users (redirects to /api/users)
+app.get(`${BASE_URL}/users`, authenticate, requireRole('admin'), (req, res) => {
+  res.redirect(`/api/users`);
+});
+
 
 // Admin: deactivate/reactivate user
 app.patch(`/api/users/:id`, authenticate, requireRole('admin'), (req, res) => {
