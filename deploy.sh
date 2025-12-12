@@ -49,6 +49,7 @@ echo "Frontend deployment complete."
 echo "Installing backend dependencies..."
 cd "$TARGET/server" || exit
 npm install
+npm start
 
 
 # ===============================
