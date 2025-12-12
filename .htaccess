@@ -1,6 +1,11 @@
 RewriteEngine On
 RewriteBase /Project_Tracker_Tool/
 
+# If the request is NOT a real file
 RewriteCond %{REQUEST_FILENAME} !-f
+
+# If the request is NOT a real directory
 RewriteCond %{REQUEST_FILENAME} !-d
-RewriteRule ^ live/index.html [L]
+
+# Always serve index.html for SPA routing
+RewriteRule ^ index.html [L]

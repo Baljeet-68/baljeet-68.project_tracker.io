@@ -13,14 +13,10 @@ console.log("SERVER MODE:", isLocal ? "LOCAL" : "LIVE");
 // FIXED — add JSON body parsing
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-app.use((req, res, next) => {
-    
-  if (req.url.startsWith('/Project_Tracker_Tool/server')) {
-    req.url = req.url.replace('/Project_Tracker_Tool/server/api', '');
-  }
-  next();
-});
 
+// NOTE: Removed the broken URL rewrite middleware that attempted to mutate req.url.
+// That middleware caused route mismatches and double /api rewriting.
+// (Original code block removed as requested.)
 
 app.use(
   cors({
@@ -45,15 +41,15 @@ const { users, projects, screens, bugs, activityLog, bugCounters } = require('./
 const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret';
 const BASE_URL = process.env.BASE_URL || '';
 
-// Public test route
-app.get(`/hello`, (req, res) => {
+// Public test route (prefixed with /api)
+app.get(`/api/hello`, (req, res) => {
   res.json({ message: 'Hello from Node server!', mode: MODE });
 });
 
 // ============ AUTHENTICATION (PHASE 1) ============
 
 // Login - accepts { email, password } - returns JWT with userId, email, role
-app.post(`/login`, (req, res) => {
+app.post(`/api/login`, (req, res) => {
   const { email, password } = req.body;
   if (!email || !password) return res.status(400).json({ error: 'Missing email or password' });
   const user = users.find((u) => u.email === email && u.password === password);
@@ -66,7 +62,7 @@ app.post(`/login`, (req, res) => {
 const tokenBlacklist = new Set();
 
 // Logout - add token to blacklist (demo)
-app.post(`/logout`, (req, res) => {
+app.post(`/api/logout`, (req, res) => {
   const auth = req.headers.authorization;
   const token = auth && auth.split(' ')[1];
   if (token) tokenBlacklist.add(token);
@@ -74,7 +70,7 @@ app.post(`/logout`, (req, res) => {
 });
 
 // Get current user
-app.get(`/me`, (req, res) => {
+app.get(`/api/me`, (req, res) => {
   const auth = req.headers.authorization;
   if (!auth) return res.status(401).json({ error: 'Missing authorization header' });
   const parts = auth.split(' ');
@@ -205,8 +201,8 @@ function enrichProject(p) {
 
 // ============ PROJECTS ENDPOINTS (PHASE 2) ============
 
-// GET /projects - list only assigned projects per user
-app.get(`/projects`, authenticate, async (req, res) => {
+// GET /api/projects - list only assigned projects per user
+app.get(`/api/projects`, authenticate, async (req, res) => {
   try {
     let allProjects;
 
@@ -741,7 +737,7 @@ app.post(`/api/users`, authenticate, requireRole('admin'), (req, res) => {
 });
 
 // Admin: list users
-app.get(`/users`, authenticate, requireRole('admin'), (req, res) => {
+app.get(`/api/users`, authenticate, requireRole('admin'), (req, res) => {
   res.json(users.map((u) => ({ id: u.id, name: u.name, email: u.email, role: u.role, active: u.active })));
 });
 
