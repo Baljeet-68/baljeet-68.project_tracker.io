@@ -2,6 +2,9 @@
 
 echo "=== DEPLOY START ==="
 
+# Load Node.js environment (adjust if needed)
+source /opt/alt/alt-nodejs18/enable 2>/dev/null || true
+
 TARGET="/home/mmfilgqi/public_html/Project_Tracker_Tool"
 
 cd "$TARGET" || exit
@@ -12,43 +15,44 @@ git reset --hard HEAD
 echo "Pulling latest changes..."
 git pull origin main
 
+
+# ===============================
+# FRONTEND BUILD
+# ===============================
 echo "Installing frontend dependencies..."
-cd client
+cd "$TARGET/client" || exit
 npm install
 npm run build
 
-echo "Deleting index.html and assets folder from root..."
 
-# Delete index.html
+# ===============================
+# CLEAN ROOT FRONTEND FILES
+# ===============================
+echo "Deleting old frontend root files..."
 rm -f "$TARGET/index.html"
-
-# Delete assets folder
 rm -rf "$TARGET/assets"
 
-echo "Root files deleted."
 
-echo "Moving dist files to root..."
+# ===============================
+# MOVE NEW DIST FILES TO ROOT
+# ===============================
+echo "Copying new dist files to root..."
+cp -rf "$TARGET/client/dist/"* "$TARGET/"
 
-# Path to the built frontend files
-DIST_PATH="$TARGET/client/dist"
+echo "Frontend deployment complete."
 
-# Copy everything from dist → root
-cp -r "$DIST_PATH/"* "$TARGET/"
 
-echo "Dist files moved to root."
-
-echo "Deleting client folder..."
-
-rm -rf "$TARGET/client"
-
-echo "Client folder deleted."
-
+# ===============================
+# BACKEND SETUP
+# ===============================
 echo "Installing backend dependencies..."
-cd server
+cd "$TARGET/server" || exit
 npm install
-npm start
-cd ..
 
+
+# ===============================
+# RESTART BACKEND
+# ===============================
 echo "Restarting Node.js server..."
 mkdir -p "$TARGET/tmp"
 touch "$TARGET/tmp/restart.txt"
