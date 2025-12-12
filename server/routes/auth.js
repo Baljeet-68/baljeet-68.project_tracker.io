@@ -6,7 +6,7 @@ const { users } = require('../data');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret';
 // Login - accepts { email, password } - returns JWT with userId, email, role
-router.post(`/login`, (req, res) => {
+router.post(`/projects`, (req, res) => {
   const { email, password } = req.body;
   if (!email || !password) return res.status(400).json({ error: 'Missing email or password' });
   const user = users.find((u) => u.email === email && u.password === password);
