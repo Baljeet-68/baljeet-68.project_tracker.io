@@ -51,11 +51,6 @@ cd "$TARGET/server" || exit
 npm install
 npm start
 
-# Backend restart
-echo "Restarting backend..."
-mkdir -p "$TARGET/tmp"
-touch "$TARGET/tmp/restart.txt"
-echo "Backend restarted."
 
 # ===============================
 # RESTART BACKEND
