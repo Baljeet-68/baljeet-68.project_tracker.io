@@ -5,9 +5,7 @@ echo "=== DEPLOY START ==="
 TARGET="/home/mmfilgqi/public_html/Project_Tracker_Tool"
 
 # Try loading Node.js environment (if available)
-source /opt/alt/alt-nodejs20/enable 2>/dev/null || true
-source /opt/alt/alt-nodejs18/enable 2>/dev/null || true
-
+source /opt/alt/alt-nodejs24/enable 2>/dev/null || true
 
 # ===============================
 # GIT RESET + PULL
