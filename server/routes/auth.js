@@ -15,26 +15,6 @@ router.post(`/login`, (req, res) => {
   return res.json({ token, user: { id: user.id, name: user.name, email: user.email, role: user.role } });
 });
 
-router.get(`/projects`, authenticate, async (req, res) => {
-  try {
-    const allProjects = await getProjectsFromMySQL();
-    let result = [];
-    if (req.user.role === 'admin') {
-      console.log('Admin user, showing all projects');
-      
-      result = allProjects;
-    } else {
-      result = allProjects.filter((p) => {
-        if (req.user.role === 'tester' && p.testerId === req.user.userId) return true;
-        if (req.user.role === 'developer' && p.developerIds && p.developerIds.includes(req.user.userId)) return true;
-        return false;
-      });
-    }
-    res.json(result.map(p => enrichProject(p)));
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
 
 
 // Logout - add token to blacklist (demo)
