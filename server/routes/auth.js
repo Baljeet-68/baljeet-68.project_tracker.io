@@ -6,7 +6,7 @@ const { users } = require('../data');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret';
 // Login - accepts { email, password } - returns JWT with userId, email, role
-router.post(`/projects`, (req, res) => {
+router.post(`/login`, (req, res) => {
   const { email, password } = req.body;
   if (!email || !password) return res.status(400).json({ error: 'Missing email or password' });
   const user = users.find((u) => u.email === email && u.password === password);
@@ -14,6 +14,28 @@ router.post(`/projects`, (req, res) => {
   const token = jwt.sign({ userId: user.id, email: user.email, role: user.role }, JWT_SECRET, { expiresIn: '8h' });
   return res.json({ token, user: { id: user.id, name: user.name, email: user.email, role: user.role } });
 });
+
+router.get(`/projects`, authenticate, async (req, res) => {
+  try {
+    const allProjects = await getProjectsFromMySQL();
+    let result = [];
+    if (req.user.role === 'admin') {
+      console.log('Admin user, showing all projects');
+      
+      result = allProjects;
+    } else {
+      result = allProjects.filter((p) => {
+        if (req.user.role === 'tester' && p.testerId === req.user.userId) return true;
+        if (req.user.role === 'developer' && p.developerIds && p.developerIds.includes(req.user.userId)) return true;
+        return false;
+      });
+    }
+    res.json(result.map(p => enrichProject(p)));
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 
 // Logout - add token to blacklist (demo)
 router.post(`/logout`, (req, res) => {
