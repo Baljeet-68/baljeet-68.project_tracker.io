@@ -48,16 +48,20 @@ echo "Frontend deployment complete."
 # ===============================
 echo "Installing backend dependencies..."
 cd "$TARGET/server" || exit
-npm install --production
+npm install
+npm start
 
-
-# ===============================
-# RESTART BACKEND (Correct way for cPanel)
-# ===============================
-echo "Restarting Node.js server (cPanel method)..."
+# Backend restart
+echo "Restarting backend..."
 mkdir -p "$TARGET/tmp"
 touch "$TARGET/tmp/restart.txt"
+echo "Backend restarted."
 
-echo "Node.js app restart triggered."
+# ===============================
+# RESTART BACKEND
+# ===============================
+echo "Restarting Node.js server..."
+mkdir -p "$TARGET/tmp"
+touch "$TARGET/tmp/restart.txt"
 
 echo "=== DEPLOY COMPLETE ==="
