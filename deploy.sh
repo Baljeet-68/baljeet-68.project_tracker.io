@@ -2,11 +2,16 @@
 
 echo "=== DEPLOY START ==="
 
-# Load Node.js environment (adjust if needed)
-source /opt/alt/alt-nodejs18/enable 2>/dev/null || true
-
 TARGET="/home/mmfilgqi/public_html/Project_Tracker_Tool"
 
+# Try loading Node.js environment (if available)
+source /opt/alt/alt-nodejs20/enable 2>/dev/null || true
+source /opt/alt/alt-nodejs18/enable 2>/dev/null || true
+
+
+# ===============================
+# GIT RESET + PULL
+# ===============================
 cd "$TARGET" || exit
 
 echo "Resetting local changes..."
@@ -17,16 +22,14 @@ git pull origin main
 
 
 # ===============================
-# FRONTEND BUILD
+# FRONTEND (BUILD LOCALLY)
 # ===============================
-echo "Installing frontend dependencies..."
-cd "$TARGET/client" || exit
-npm install
-npm run build
+echo "Skipping frontend build (server cannot build Vite apps)."
+echo "Make sure client/dist is built locally and committed to GitHub."
 
 
 # ===============================
-# CLEAN ROOT FRONTEND FILES
+# DELETE OLD ROOT FRONTEND FILES
 # ===============================
 echo "Deleting old frontend root files..."
 rm -f "$TARGET/index.html"
@@ -34,7 +37,7 @@ rm -rf "$TARGET/assets"
 
 
 # ===============================
-# MOVE NEW DIST FILES TO ROOT
+# COPY NEW DIST FILES TO ROOT
 # ===============================
 echo "Copying new dist files to root..."
 cp -rf "$TARGET/client/dist/"* "$TARGET/"
