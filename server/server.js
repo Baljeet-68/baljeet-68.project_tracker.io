@@ -14,6 +14,7 @@ console.log("SERVER MODE:", isLocal ? "LOCAL" : "LIVE");
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use((req, res, next) => {
+    
   if (req.url.startsWith('/Project_Tracker_Tool/server')) {
     req.url = req.url.replace('/Project_Tracker_Tool/server/api', '');
   }
@@ -45,7 +46,7 @@ const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret';
 const BASE_URL = process.env.BASE_URL || '';
 
 // Public test route
-app.get(`/api/hello`, (req, res) => {
+app.get(`/hello`, (req, res) => {
   res.json({ message: 'Hello from Node server!', mode: MODE });
 });
 
