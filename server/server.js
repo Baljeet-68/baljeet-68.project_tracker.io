@@ -55,6 +55,7 @@ const bugRoutes = require("./routes/bugs");
 app.use(BASE_URL, authRoutes);
 app.use(BASE_URL, userRoutes);
 app.use(BASE_URL, projectRoutes);
+console.log(projectRoutes);
 app.use(BASE_URL, screenRoutes);
 app.use(BASE_URL, bugRoutes);
 
