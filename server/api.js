@@ -1,6 +1,6 @@
 const { pool } = require('./db');
 
-async function getProjectsFromSupabase() {
+async function getProjectsFromMySQL() {
   try {
     // Reads projects from MySQL `projects` table. Keeps the same exported name
     // so existing imports don't need to be changed elsewhere.
@@ -98,4 +98,4 @@ async function updateProjectInDb(projectId, changes) {
   }
 }
 
-module.exports = { getProjectsFromSupabase, getProjectById, updateProjectInDb };
+module.exports = { getProjectsFromMySQL, getProjectById, updateProjectInDb };
