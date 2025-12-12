@@ -12,6 +12,8 @@ router.get(`/projects`, authenticate, async (req, res) => {
     const allProjects = await getProjectsFromMySQL();
     let result = [];
     if (req.user.role === 'admin') {
+      console.log('Admin user, showing all projects');
+      
       result = allProjects;
     } else {
       result = allProjects.filter((p) => {
