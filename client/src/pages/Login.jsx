@@ -52,7 +52,7 @@ export default function Login() {
       if (remember) localStorage.setItem('username', email)
       nav('/', { replace: true })
     } catch (err) {
-      setError(err.message || 'Login failed')
+      setError(err.message || 'Login failed..')
     } finally {
       setLoading(false)
     }
