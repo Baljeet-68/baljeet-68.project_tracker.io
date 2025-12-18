@@ -3,7 +3,7 @@
 
 const users = [
   { id: 'u1', name: 'Admin User', email: 'admin@example.com', password: 'admin123', role: 'admin', active: true },
-  { id: 'u2', name: 'John Testerdasd', email: 'tester@example.com', password: 'tester123', role: 'tester', active: true },
+  { id: 'u2', name: 'John', email: 'tester@example.com', password: 'tester123', role: 'tester', active: true },
   { id: 'u3', name: 'Dev Alice', email: 'alice@example.com', password: 'dev123', role: 'developer', active: true },
   { id: 'u4', name: 'Dev Bob', email: 'bob@example.com', password: 'dev123', role: 'developer', active: true },
   { id: 'u5', name: 'Dev Charlie', email: 'charlie@example.com', password: 'dev123', role: 'developer', active: true }

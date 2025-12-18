@@ -2,14 +2,50 @@ const express = require('express');
 const router = express.Router();
 const { authenticate, requireRole } = require('../middleware/auth');
 const { hasProjectAccess, enrichProject, normalizeProjectObj, logActivity } = require('../middleware/helpers');
-const { getProjectsFromMySQL, getProjectById, updateProjectInDb } = require('../api');
-const { users } = require('../data');
+const { USE_LIVE_DB } = require('../config');
 const { pool } = require('../db');
+
+let getProjectsSource;
+let getProjectByIdSource;
+let updateProjectInDbSource;
+let usersSource;
+let projectsSource;
+let screensSource;
+let bugsSource;
+
+if (USE_LIVE_DB) {
+  const dbApi = require('../api');
+  getProjectsSource = dbApi.getProjectsFromMySQL;
+  getProjectByIdSource = dbApi.getProjectById;
+  updateProjectInDbSource = dbApi.updateProjectInDb;
+  // For live DB, users, screens, bugs would ideally come from DB as well.
+  // For now, we'll assume they are handled elsewhere or will be implemented.
+  usersSource = []; // Placeholder, will need to fetch from DB
+  projectsSource = []; // Placeholder
+  screensSource = []; // Placeholder
+  bugsSource = []; // Placeholder
+} else {
+  const localData = require('../data');
+  projectsSource = localData.projects;
+  usersSource = localData.users;
+  screensSource = localData.screens;
+  bugsSource = localData.bugs;
+
+  // Implement local data functions if not using live DB
+  getProjectsSource = async () => projectsSource;
+  getProjectByIdSource = async (id) => projectsSource.find(p => p.id === id);
+  updateProjectInDbSource = async (projectId, changes) => {
+    const projectIndex = projectsSource.findIndex(p => p.id === projectId);
+    if (projectIndex > -1) {
+      projectsSource[projectIndex] = { ...projectsSource[projectIndex], ...changes };
+    }
+  };
+}
 
 // GET /api/projects - list only assigned projects per user
 router.get(`/projects`, authenticate, async (req, res) => {
   try {
-    const allProjects = await getProjectsFromMySQL();
+    const allProjects = await getProjectsSource();
     let result = [];
     if (req.user.role === 'admin') {
       console.log('Admin user, showing all projects');
@@ -31,7 +67,7 @@ router.get(`/projects`, authenticate, async (req, res) => {
 // GET /api/projects/:id - get single project with full details
 router.get(`/projects/:id`, authenticate, async (req, res) => {
   try {
-    const p = await getProjectById(req.params.id);
+    const p = await getProjectByIdSource(req.params.id);
     if (!p) return res.status(404).json({ error: 'Project not found' });
     
     // Check access
@@ -41,9 +77,10 @@ router.get(`/projects/:id`, authenticate, async (req, res) => {
     }
     // Add screens and bugs details (still from in-memory for now)
     // NOTE: screens and bugs are still in-memory for now, will be moved to DB later
-    const { screens, bugs } = require('../data');
-    p.screensList = screens.filter(s => s.projectId === p.id);
-    p.bugsList = bugs.filter(b => b.projectId === p.id).map(b => enrichBug(b));
+    if (!USE_LIVE_DB) {
+      p.screensList = screensSource.filter(s => s.projectId === p.id);
+      p.bugsList = bugsSource.filter(b => b.projectId === p.id).map(b => enrichBug(b));
+    }
     res.json(enrichProject(p));
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -56,13 +93,13 @@ router.post(`/projects`, authenticate, requireRole('admin'), async (req, res) =>
   if (!name) return res.status(400).json({ error: 'Missing name' });
 
   // Validate that testerId is a valid tester user
-  if (testerId && !users.find(u => u.id === testerId && u.role === 'tester')) {
+  if (testerId && !usersSource.find(u => u.id === testerId && u.role === 'tester')) {
     return res.status(400).json({ error: 'Invalid tester ID' });
   }
 
   // Validate that developerIds are valid developer users
   if (developerIds && developerIds.length > 0) {
-    const invalid = developerIds.filter(id => !users.find(u => u.id === id && u.role === 'developer'));
+    const invalid = developerIds.filter(id => !usersSource.find(u => u.id === id && u.role === 'developer'));
     if (invalid.length > 0) return res.status(400).json({ error: 'Invalid developer IDs' });
   }
 
@@ -83,24 +120,28 @@ router.post(`/projects`, authenticate, requireRole('admin'), async (req, res) =>
   };
 
   try {
-    // Insert into MySQL projects table. developerIds stored as JSON string.
-    const sql = `INSERT INTO projects
-      (id, name, client, description, status, testerId, developerIds, createdBy, createdAt, startDate, endDate)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
-    const params = [
-      project.id,
-      project.name,
-      project.client,
-      project.description,
-      project.status,
-      project.testerId,
-      JSON.stringify(project.developerIds || []),
-      project.createdBy,
-      project.createdAt,
-      project.startDate,
-      project.endDate
-    ];
-    await pool.execute(sql, params);
+    if (USE_LIVE_DB) {
+      // Insert into MySQL projects table. developerIds stored as JSON string.
+      const sql = `INSERT INTO projects
+        (id, name, client, description, status, testerId, developerIds, createdBy, createdAt, startDate, endDate)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+      const params = [
+        project.id,
+        project.name,
+        project.client,
+        project.description,
+        project.status,
+        project.testerId,
+        JSON.stringify(project.developerIds || []),
+        project.createdBy,
+        project.createdAt,
+        project.startDate,
+        project.endDate
+      ];
+      await pool.execute(sql, params);
+    } else {
+      projectsSource.push(project);
+    }
     res.status(201).json(enrichProject(project));
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -124,20 +165,20 @@ router.patch(`/projects/:id`, authenticate, requireRole('admin'), async (req, re
     if (endDate !== undefined) changes.endDate = endDate ? new Date(endDate) : null;
     
     if (testerId !== undefined) {
-      if (testerId && !users.find(u => u.id === testerId && u.role === 'tester')) {
+      if (testerId && !usersSource.find(u => u.id === testerId && u.role === 'tester')) {
         return res.status(400).json({ error: 'Invalid tester ID' });
       }
       changes.testerId = testerId;
     }
     if (developerIds !== undefined) {
       if (developerIds && developerIds.length > 0) {
-        const invalid = developerIds.filter(id => !users.find(u => u.id === id && u.role === 'developer'));
+        const invalid = developerIds.filter(id => !usersSource.find(u => u.id === id && u.role === 'developer'));
         if (invalid.length > 0) return res.status(400).json({ error: 'Invalid developer IDs' });
       }
       changes.developerIds = developerIds;
     }
 
-    await updateProjectInDb(req.params.id, changes);
+    await updateProjectInDbSource(req.params.id, changes);
     
     // Fetch updated project
     const updatedProject = await getProjectById(req.params.id);
