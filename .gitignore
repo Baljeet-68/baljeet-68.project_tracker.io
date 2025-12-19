@@ -1,5 +1,5 @@
 # Node modules for both client + server
 client/node_modules/
 server/node_modules/
-node_modules/
+# node_modules/
 server/.env
