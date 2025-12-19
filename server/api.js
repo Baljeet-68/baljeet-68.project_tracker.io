@@ -204,6 +204,31 @@ async function updateScreenInDb(screenId, changes) {
   }
 }
 
+async function updateProjectInDb(projectId, changes) {
+  try {
+    const fields = [];
+    const values = [];
+
+    if (changes.name !== undefined) { fields.push('name = ?'); values.push(changes.name); }
+    if (changes.client !== undefined) { fields.push('client = ?'); values.push(changes.client); }
+    if (changes.description !== undefined) { fields.push('description = ?'); values.push(changes.description); }
+    if (changes.status !== undefined) { fields.push('status = ?'); values.push(changes.status); }
+    if (changes.testerId !== undefined) { fields.push('testerId = ?'); values.push(changes.testerId); }
+    if (changes.developerIds !== undefined) { fields.push('developerIds = ?'); values.push(JSON.stringify(changes.developerIds)); }
+    if (changes.startDate !== undefined) { fields.push('startDate = ?'); values.push(changes.startDate); }
+    if (changes.endDate !== undefined) { fields.push('endDate = ?'); values.push(changes.endDate); }
+
+    if (fields.length === 0) return;
+
+    values.push(projectId);
+    const sql = `UPDATE projects SET ${fields.join(', ')} WHERE id = ?`;
+    await pool.execute(sql, values);
+  } catch (error) {
+    console.error('Database update failed in updateProjectInDb:', error);
+    throw error;
+  }
+}
+
 async function getScreenById(screenId) {
   try {
     const [rows] = await pool.query('SELECT * FROM screens WHERE id = ?', [screenId]);
