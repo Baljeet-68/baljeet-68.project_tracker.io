@@ -1,44 +1,122 @@
 const express = require('express');
 const router = express.Router();
 const { authenticate, requireRole } = require('../middleware/auth');
-const { users } = require('../data');
 const { getUserName } = require('../middleware/helpers');
+const { USE_LIVE_DB } = require('../config');
 
+let usersSource;
+let createUserInDbSource;
+let updateUserInDbSource;
+let deleteUserFromDbSource;
 
+if (USE_LIVE_DB) {
+  const dbApi = require('../api');
+  usersSource = async () => await dbApi.getUsersFromMySQL();
+  createUserInDbSource = dbApi.createUserInDb;
+  updateUserInDbSource = dbApi.updateUserInDb;
+  deleteUserFromDbSource = dbApi.deleteUserFromDb;
+} else {
+  const localData = require('../data');
+  usersSource = async () => localData.users;
+  createUserInDbSource = async (user) => {
+    const users = await usersSource();
+    users.push(user);
+  };
+  updateUserInDbSource = async (userId, changes) => {
+    const users = await usersSource();
+    const userIndex = users.findIndex(u => u.id === userId);
+    if (userIndex > -1) {
+      users[userIndex] = { ...users[userIndex], ...changes };
+    }
+  };
+  deleteUserFromDbSource = async (userId) => {
+    const users = await usersSource();
+    const index = users.findIndex(u => u.id === userId);
+    if (index !== -1) {
+      users.splice(index, 1);
+    }
+  };
+}
 
 // GET /api/users - admin only
-router.get(`/users`, authenticate, requireRole('admin'), (req, res) => {
-  res.json(users.map(u => ({ ...u, name: getUserName(u.id) })));
+router.get(`/users`, authenticate, requireRole('admin'), async (req, res) => {
+  try {
+    const users = await usersSource();
+    res.json(users.map(u => ({ ...u, name: getUserName(u.id) })));
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // POST /api/users - admin only create user
-router.post(`/users`, authenticate, requireRole('admin'), (req, res) => {
-  const { name, email, password, role } = req.body;
-  if (!name || !email || !password || !role) return res.status(400).json({ error: 'Missing fields' });
-  if (users.find((u) => u.email === email)) return res.status(400).json({ error: 'User exists' });
-  const newUser = { id: `u${Date.now()}`, name, email, password, role };
-  users.push(newUser);
-  res.status(201).json(newUser);
+router.post(`/users`, authenticate, requireRole('admin'), async (req, res) => {
+  try {
+    const { name, email, password, role } = req.body;
+    if (!name || !email || !password || !role) return res.status(400).json({ error: 'Missing fields' });
+    const users = await usersSource();
+    if (users.find((u) => u.email === email)) return res.status(400).json({ error: 'User exists' });
+    const newUser = { id: `u${Date.now()}`, name, email, password, role };
+
+    if (USE_LIVE_DB) {
+      await createUserInDbSource(newUser);
+    } else {
+      users.push(newUser);
+    }
+    res.status(201).json(newUser);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
 });
 
 // PATCH /api/users/:id - admin only update user
-router.patch(`/users/:id`, authenticate, requireRole('admin'), (req, res) => {
-  const user = users.find((u) => u.id === req.params.id);
-  if (!user) return res.status(404).json({ error: 'User not found' });
-  const { name, email, password, role } = req.body;
-  if (name) user.name = name;
-  if (email) user.email = email;
-  if (password) user.password = password;
-  if (role) user.role = role;
-  res.json(user);
+router.patch(`/users/:id`, authenticate, requireRole('admin'), async (req, res) => {
+  try {
+    const users = await usersSource();
+    let user = users.find((u) => u.id === req.params.id);
+    if (!user) return res.status(404).json({ error: 'User not found' });
+    const { name, email, password, role } = req.body;
+    const changes = {};
+    if (name) changes.name = name;
+    if (email) changes.email = email;
+    if (password) changes.password = password;
+    if (role) changes.role = role;
+
+    if (Object.keys(changes).length === 0) {
+      return res.status(200).json(user); // No changes, return existing user
+    }
+
+    const updatedUser = { ...user, ...changes };
+
+    if (USE_LIVE_DB) {
+      await updateUserInDbSource(updatedUser.id, changes);
+    } else {
+      const userIndex = users.findIndex(u => u.id === updatedUser.id);
+      if (userIndex > -1) {
+        users[userIndex] = updatedUser;
+      }
+    }
+    res.json(updatedUser);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
 });
 
 // DELETE /api/users/:id - admin only delete user
-router.delete(`/users/:id`, authenticate, requireRole('admin'), (req, res) => {
-  const index = users.findIndex((u) => u.id === req.params.id);
-  if (index === -1) return res.status(404).json({ error: 'User not found' });
-  users.splice(index, 1);
-  res.status(204).send();
+router.delete(`/users/:id`, authenticate, requireRole('admin'), async (req, res) => {
+  try {
+    const users = await usersSource();
+    const index = users.findIndex((u) => u.id === req.params.id);
+    if (index === -1) return res.status(404).json({ error: 'User not found' });
+
+    if (USE_LIVE_DB) {
+      await deleteUserFromDbSource(req.params.id);
+    } else {
+      users.splice(index, 1);
+    }
+    res.status(204).send();
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
 });
 
 module.exports = router;

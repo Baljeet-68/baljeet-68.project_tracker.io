@@ -2,13 +2,24 @@ const express = require('express');
 const router = express.Router();
 const jwt = require('jsonwebtoken');
 const { authenticate, tokenBlacklist } = require('../middleware/auth');
-const { users } = require('../data');
+const { USE_LIVE_DB } = require('../config');
+
+let usersSource;
+
+if (USE_LIVE_DB) {
+  const dbApi = require('../api');
+  usersSource = async () => await dbApi.getUsersFromMySQL();
+} else {
+  const localData = require('../data');
+  usersSource = async () => localData.users;
+}
 
 const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret';
 // Login - accepts { email, password } - returns JWT with userId, email, role
-router.post(`/login`, (req, res) => {
+router.post(`/login`, async (req, res) => {
   const { email, password } = req.body;
   if (!email || !password) return res.status(400).json({ error: 'Missing email or password' });
+  const users = await usersSource();
   const user = users.find((u) => u.email === email && u.password === password);
   if (!user) return res.status(401).json({ error: 'Invalid credentials' });
   const token = jwt.sign({ userId: user.id, email: user.email, role: user.role }, JWT_SECRET, { expiresIn: '8h' });
@@ -26,7 +37,7 @@ router.post(`/logout`, (req, res) => {
 });
 
 // Get current user
-router.get(`/me`, (req, res) => {
+router.get(`/me`, async (req, res) => {
   const auth = req.headers.authorization;
   if (!auth) return res.status(401).json({ error: 'Missing authorization header' });
   const parts = auth.split(' ');
@@ -35,6 +46,7 @@ router.get(`/me`, (req, res) => {
   if (tokenBlacklist.has(token)) return res.status(401).json({ error: 'Token revoked' });
   try {
     const payload = jwt.verify(token, JWT_SECRET);
+    const users = await usersSource();
     const user = users.find(u => u.id === payload.userId);
     return res.json({ id: payload.userId, email: payload.email, role: payload.role, name: user?.name });
   } catch (err) {

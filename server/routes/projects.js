@@ -18,9 +18,7 @@ if (USE_LIVE_DB) {
   getProjectsSource = dbApi.getProjectsFromMySQL;
   getProjectByIdSource = dbApi.getProjectById;
   updateProjectInDbSource = dbApi.updateProjectInDb;
-  // For live DB, users, screens, bugs would ideally come from DB as well.
-  // For now, we'll assume they are handled elsewhere or will be implemented.
-  usersSource = []; // Placeholder, will need to fetch from DB
+  usersSource = async () => await dbApi.getUsersFromMySQL(); // Now fetches from DB
   projectsSource = []; // Placeholder
   screensSource = []; // Placeholder
   bugsSource = []; // Placeholder
@@ -92,14 +90,16 @@ router.post(`/projects`, authenticate, requireRole('admin'), async (req, res) =>
   const { name, client, description, startDate, endDate, testerId, developerIds } = req.body;
   if (!name) return res.status(400).json({ error: 'Missing name' });
 
+  const users = await usersSource();
+
   // Validate that testerId is a valid tester user
-  if (testerId && !usersSource.find(u => u.id === testerId && u.role === 'tester')) {
+  if (testerId && !users.find(u => u.id === testerId && u.role === 'tester')) {
     return res.status(400).json({ error: 'Invalid tester ID' });
   }
 
   // Validate that developerIds are valid developer users
   if (developerIds && developerIds.length > 0) {
-    const invalid = developerIds.filter(id => !usersSource.find(u => u.id === id && u.role === 'developer'));
+    const invalid = developerIds.filter(id => !users.find(u => u.id === id && u.role === 'developer'));
     if (invalid.length > 0) return res.status(400).json({ error: 'Invalid developer IDs' });
   }
 
@@ -157,6 +157,8 @@ router.patch(`/projects/:id`, authenticate, requireRole('admin'), async (req, re
     const { name, description, status, client, startDate, endDate, testerId, developerIds } = req.body;
     const changes = {};
 
+    const users = await usersSource();
+
     if (name !== undefined) changes.name = name;
     if (description !== undefined) changes.description = description;
     if (status !== undefined) changes.status = status;
@@ -165,14 +167,14 @@ router.patch(`/projects/:id`, authenticate, requireRole('admin'), async (req, re
     if (endDate !== undefined) changes.endDate = endDate ? new Date(endDate) : null;
     
     if (testerId !== undefined) {
-      if (testerId && !usersSource.find(u => u.id === testerId && u.role === 'tester')) {
+      if (testerId && !users.find(u => u.id === testerId && u.role === 'tester')) {
         return res.status(400).json({ error: 'Invalid tester ID' });
       }
       changes.testerId = testerId;
     }
     if (developerIds !== undefined) {
       if (developerIds && developerIds.length > 0) {
-        const invalid = developerIds.filter(id => !usersSource.find(u => u.id === id && u.role === 'developer'));
+        const invalid = developerIds.filter(id => !users.find(u => u.id === id && u.role === 'developer'));
         if (invalid.length > 0) return res.status(400).json({ error: 'Invalid developer IDs' });
       }
       changes.developerIds = developerIds;

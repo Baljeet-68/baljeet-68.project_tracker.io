@@ -2,7 +2,38 @@ const express = require('express');
 const router = express.Router();
 const { authenticate, requireRole } = require('../middleware/auth');
 const { hasProjectAccess, enrichBug, logActivity } = require('../middleware/helpers');
-const { bugs, bugCounters, users, projects } = require('../data');
+const { USE_LIVE_DB } = require('../config');
+
+let bugsSource;
+let bugCountersSource;
+let usersSource;
+let projectsSource;
+let bugByIdSource;
+let updateBugInDbSource;
+
+if (USE_LIVE_DB) {
+  const dbApi = require('../api');
+  bugsSource = async () => []; // Placeholder for DB bugs
+  bugCountersSource = async () => ({}); // Placeholder for DB bug counters
+  usersSource = async () => await dbApi.getUsersFromMySQL();
+  projectsSource = async () => await dbApi.getProjectsFromMySQL();
+  bugByIdSource = dbApi.getBugById;
+  updateBugInDbSource = dbApi.updateBugInDb;
+} else {
+  const localData = require('../data');
+  bugsSource = async () => localData.bugs;
+  bugCountersSource = async () => localData.bugCounters;
+  usersSource = async () => localData.users;
+  projectsSource = async () => localData.projects;
+  bugByIdSource = async (id) => localData.bugs.find(b => b.id === id);
+  updateBugInDbSource = async (bugId, changes) => {
+    const bugs = await bugsSource();
+    const bugIndex = bugs.findIndex(b => b.id === bugId);
+    if (bugIndex > -1) {
+      bugs[bugIndex] = { ...bugs[bugIndex], ...changes };
+    }
+  };
+}
 
 // GET /api/projects/:id/bugs - list bugs with per-project numbering
 router.get(`/projects/:id/bugs`, authenticate, async (req, res) => {
@@ -10,6 +41,7 @@ router.get(`/projects/:id/bugs`, authenticate, async (req, res) => {
     if (!await hasProjectAccess(req.user.userId, req.params.id)) {
       return res.status(403).json({ error: 'Forbidden' });
     }
+    const bugs = await bugsSource();
     const projectBugs = bugs.filter((b) => b.projectId === req.params.id).map(b => enrichBug(b));
     res.json(projectBugs);
   } catch (error) {
@@ -20,6 +52,7 @@ router.get(`/projects/:id/bugs`, authenticate, async (req, res) => {
 // POST /api/projects/:id/bugs - tester/admin only create bug
 router.post(`/projects/:id/bugs`, authenticate, requireRole('tester', 'admin'), async (req, res) => {
   try {
+    const projects = await projectsSource();
     const p = projects.find((x) => x.id === req.params.id);
     if (!p) return res.status(404).json({ error: 'Project not found' });
     if (!await hasProjectAccess(req.user.userId, req.params.id)) {
@@ -36,10 +69,11 @@ router.post(`/projects/:id/bugs`, authenticate, requireRole('tester', 'admin'), 
     }
 
     // Auto-increment bug number per project
+    const bugCounters = await bugCountersSource();
     bugCounters[req.params.id] = (bugCounters[req.params.id] || 0) + 1;
     const bugNumber = bugCounters[req.params.id];
 
-    const id = `bug${Math.floor(Math.random() * 100000)}`;
+    const id = `bug${Date.now()}`;
     const bug = {
       id,
       projectId: req.params.id,
@@ -53,13 +87,40 @@ router.post(`/projects/:id/bugs`, authenticate, requireRole('tester', 'admin'), 
       severity: severity || 'medium',
       attachments: attachments && Array.isArray(attachments) ? attachments : [],
       deadline: deadline ? new Date(deadline) : null,
-      createdAt: new Date(),
-      updatedAt: new Date(),
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
       resolvedAt: null
     };
-    bugs.push(bug);
-    p.bugs = p.bugs || [];
-    p.bugs.push(bug.id);
+
+    if (USE_LIVE_DB) {
+      // Insert into MySQL bugs table
+      const sql = `INSERT INTO bugs
+        (id, projectId, bugNumber, description, screenId, module, assignedDeveloperId, createdBy, status, severity, attachments, deadline, createdAt, updatedAt, resolvedAt)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+      const params = [
+        bug.id,
+        bug.projectId,
+        bug.bugNumber,
+        bug.description,
+        bug.screenId,
+        bug.module,
+        bug.assignedDeveloperId,
+        bug.createdBy,
+        bug.status,
+        bug.severity,
+        JSON.stringify(bug.attachments),
+        bug.deadline,
+        bug.createdAt,
+        bug.updatedAt,
+        bug.resolvedAt
+      ];
+      await pool.execute(sql, params);
+    } else {
+      const bugs = await bugsSource();
+      bugs.push(bug);
+      p.bugs = p.bugs || [];
+      p.bugs.push(bug.id);
+    }
     logActivity(req.params.id, 'bug', bug.id, 'created', req.user.userId, { description, status: 'Open', severity, deadline });
     res.status(201).json(enrichBug(bug));
   } catch (error) {
@@ -70,7 +131,7 @@ router.post(`/projects/:id/bugs`, authenticate, requireRole('tester', 'admin'), 
 // PATCH /api/bugs/:id - tester (if createdBy) / admin (all fields) - restrict field-level access
 router.patch(`/bugs/:id`, authenticate, async (req, res) => {
   try {
-    const bug = bugs.find((b) => b.id === req.params.id);
+    const bug = await bugByIdSource(req.params.id);
     if (!bug) return res.status(404).json({ error: 'Bug not found' });
 
     if (!await hasProjectAccess(req.user.userId, bug.projectId)) {
@@ -81,10 +142,11 @@ router.patch(`/bugs/:id`, authenticate, async (req, res) => {
     if (req.user.role === 'developer') {
       const { deadline } = req.body;
       if (deadline !== undefined) {
-        bug.deadline = deadline ? new Date(deadline) : null;
-        bug.updatedAt = new Date();
+        const changes = { deadline: deadline ? new Date(deadline).toISOString() : null, updatedAt: new Date().toISOString() };
+        await updateBugInDbSource(bug.id, changes);
         logActivity(bug.projectId, 'bug', bug.id, 'deadline_updated', req.user.userId, { deadline });
-        return res.json(enrichBug(bug));
+        const updatedBug = await bugByIdSource(bug.id);
+        return res.json(enrichBug(updatedBug));
       }
       return res.status(403).json({ error: 'Forbidden - developers can only update deadline' });
     }
@@ -97,16 +159,18 @@ router.patch(`/bugs/:id`, authenticate, async (req, res) => {
     const { description, severity, screenId, module, assignedDeveloperId, deadline } = req.body;
     const changes = {};
 
-    if (description !== undefined) { bug.description = description; changes.description = description; }
-    if (severity !== undefined) { bug.severity = severity; changes.severity = severity; }
-    if (screenId !== undefined) { bug.screenId = screenId; changes.screenId = screenId; }
-    if (module !== undefined) { bug.module = module; changes.module = module; }
-    if (assignedDeveloperId !== undefined) { bug.assignedDeveloperId = assignedDeveloperId; changes.assignedDeveloperId = assignedDeveloperId; }
-    if (deadline !== undefined) { bug.deadline = deadline ? new Date(deadline) : null; changes.deadline = deadline; }
+    if (description !== undefined) changes.description = description;
+    if (severity !== undefined) changes.severity = severity;
+    if (screenId !== undefined) changes.screenId = screenId;
+    if (module !== undefined) changes.module = module;
+    if (assignedDeveloperId !== undefined) changes.assignedDeveloperId = assignedDeveloperId;
+    if (deadline !== undefined) changes.deadline = deadline ? new Date(deadline).toISOString() : null;
 
-    bug.updatedAt = new Date();
+    changes.updatedAt = new Date().toISOString();
+    await updateBugInDbSource(bug.id, changes);
+    const updatedBug = await bugByIdSource(bug.id);
     logActivity(bug.projectId, 'bug', bug.id, 'updated', req.user.userId, changes);
-    res.json(enrichBug(bug));
+    res.json(enrichBug(updatedBug));
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -115,7 +179,7 @@ router.patch(`/bugs/:id`, authenticate, async (req, res) => {
 // PATCH /api/bugs/:id/status - developer/tester/admin only update status and resolvedAt
 router.patch(`/bugs/:id/status`, authenticate, requireRole('developer', 'tester', 'admin'), async (req, res) => {
   try {
-    const bug = bugs.find((b) => b.id === req.params.id);
+    const bug = await bugByIdSource(req.params.id);
     if (!bug) return res.status(404).json({ error: 'Bug not found' });
 
     if (!await hasProjectAccess(req.user.userId, bug.projectId)) {
@@ -132,18 +196,19 @@ router.patch(`/bugs/:id/status`, authenticate, requireRole('developer', 'tester'
     const changes = {};
 
     if (status) {
-      bug.status = status;
+      changes.status = status;
       changes.oldStatus = oldStatus;
       changes.newStatus = status;
     }
     if (status === 'Resolved' && resolvedAt) {
-      bug.resolvedAt = new Date(resolvedAt);
-      changes.resolvedAt = resolvedAt;
+      changes.resolvedAt = new Date(resolvedAt).toISOString();
     }
 
-    bug.updatedAt = new Date();
+    changes.updatedAt = new Date().toISOString();
+    await updateBugInDbSource(bug.id, changes);
+    const updatedBug = await bugByIdSource(bug.id);
     logActivity(bug.projectId, 'bug', bug.id, 'status_change', req.user.userId, changes);
-    res.json(enrichBug(bug));
+    res.json(enrichBug(updatedBug));
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -152,15 +217,21 @@ router.patch(`/bugs/:id/status`, authenticate, requireRole('developer', 'tester'
 // DELETE /api/bugs/:id - admin only delete bug
 router.delete(`/bugs/:id`, authenticate, requireRole('admin'), async (req, res) => {
   try {
-    const index = bugs.findIndex((b) => b.id === req.params.id);
-    if (index === -1) return res.status(404).json({ error: 'Bug not found' });
+    const bug = await bugByIdSource(req.params.id);
+    if (!bug) return res.status(404).json({ error: 'Bug not found' });
 
-    const bug = bugs[index];
     if (!await hasProjectAccess(req.user.userId, bug.projectId)) {
       return res.status(403).json({ error: 'Forbidden' });
     }
 
-    bugs.splice(index, 1);
+    if (USE_LIVE_DB) {
+      await deleteBugFromDbSource(req.params.id);
+    } else {
+      const bugs = await bugsSource();
+      const index = bugs.findIndex((b) => b.id === req.params.id);
+      bugs.splice(index, 1);
+    }
+
     logActivity(bug.projectId, 'bug', bug.id, 'deleted', req.user.userId, { description: bug.description });
     res.status(204).send();
   } catch (error) {
