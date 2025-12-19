@@ -13,7 +13,7 @@ let deleteScreenFromDbSource;
 
 if (USE_LIVE_DB) {
   const dbApi = require('../api');
-  screensSource = async () => []; // Placeholder for DB screens
+  screensSource = async () => await dbApi.getScreensFromMySQL();
   usersSource = async () => await dbApi.getUsersFromMySQL();
   projectsSource = async () => await dbApi.getProjectsFromMySQL();
   screenByIdSource = dbApi.getScreenById;

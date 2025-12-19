@@ -229,6 +229,16 @@ async function updateProjectInDb(projectId, changes) {
   }
 }
 
+async function getScreensFromMySQL() {
+  try {
+    const [rows] = await pool.query('SELECT * FROM screens');
+    return rows;
+  } catch (error) {
+    console.error('Database query failed in getScreensFromMySQL:', error);
+    throw error;
+  }
+}
+
 async function getScreenById(screenId) {
   try {
     const [rows] = await pool.query('SELECT * FROM screens WHERE id = ?', [screenId]);
@@ -292,4 +302,4 @@ async function deleteUserFromDb(userId) {
   }
 }
 
-module.exports = { getProjectsFromMySQL, getProjectById, updateProjectInDb, getBugById, getUsersFromMySQL, updateBugInDb, deleteBugFromDb, createScreenInDb, updateScreenInDb, getScreenById, deleteScreenFromDb, createUserInDb, updateUserInDb, deleteUserFromDb };
+module.exports = { getProjectsFromMySQL, getProjectById, updateProjectInDb, getBugById, getUsersFromMySQL, updateBugInDb, deleteBugFromDb, createScreenInDb, updateScreenInDb, getScreensFromMySQL, getScreenById, deleteScreenFromDb, createUserInDb, updateUserInDb, deleteUserFromDb };
