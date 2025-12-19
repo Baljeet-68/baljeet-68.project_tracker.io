@@ -7,31 +7,7 @@ async function getProjectsFromMySQL() {
     // so existing imports don't need to be changed elsewhere.
     const [rows] = await pool.query('SELECT * FROM projects');
     // Parse developerIds column if stored as JSON string
-    return rows.map(r => {
-      const developerIds = (() => {
-        try {
-          if (r.developerIds == null) return [];
-          if (Array.isArray(r.developerIds)) return r.developerIds;
-          return JSON.parse(r.developerIds);
-        } catch (e) {
-          return [];
-        }
-      })();
-
-      return {
-        id: r.id,
-        name: decrypt(r.name),
-        client: decrypt(r.client),
-        description: decrypt(r.description),
-        status: r.status,
-        testerId: r.testerId,
-        developerIds,
-        createdBy: r.createdBy,
-        createdAt: r.createdAt,
-        startDate: r.startDate,
-        endDate: r.endDate
-      };
-    });
+    return rows;
   } catch (error) {
     console.error('Database query failed in getProjectsFromSupabase:', error);
     throw error;
