@@ -1,4 +1,5 @@
 const { pool } = require('./db');
+const { hashPassword } = require('./utils/encryption');
 
 async function getProjectsFromMySQL() {
   try {
@@ -262,8 +263,9 @@ async function deleteScreenFromDb(screenId) {
 
 async function createUserInDb(user) {
   try {
+    const hashedPassword = await hashPassword(user.password);
     const sql = 'INSERT INTO users (id, name, email, password, role) VALUES (?, ?, ?, ?, ?)';
-    const params = [user.id, user.name, user.email, user.password, user.role];
+    const params = [user.id, user.name, user.email, hashedPassword, user.role];
     await pool.execute(sql, params);
   } catch (error) {
     console.error('Database insert failed in createUserInDb:', error);
@@ -278,7 +280,11 @@ async function updateUserInDb(userId, changes) {
 
     if (changes.name !== undefined) { fields.push('name = ?'); values.push(changes.name); }
     if (changes.email !== undefined) { fields.push('email = ?'); values.push(changes.email); }
-    if (changes.password !== undefined) { fields.push('password = ?'); values.push(changes.password); }
+    if (changes.password !== undefined) {
+      const hashedPassword = await hashPassword(changes.password);
+      fields.push('password = ?');
+      values.push(hashedPassword);
+    }
     if (changes.role !== undefined) { fields.push('role = ?'); values.push(changes.role); }
 
     if (fields.length === 0) return;

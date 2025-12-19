@@ -2,7 +2,8 @@ const express = require('express');
 const router = express.Router();
 const jwt = require('jsonwebtoken');
 const { authenticate, tokenBlacklist } = require('../middleware/auth');
-const { USE_LIVE_DB } = require('../config');
+const { USE_LIVE_DB, USE_ENCRYPTION } = require('../config');
+const { comparePassword } = require('../utils/encryption');
 
 let usersSource;
 
@@ -20,8 +21,11 @@ router.post(`/login`, async (req, res) => {
   const { email, password } = req.body;
   if (!email || !password) return res.status(400).json({ error: 'Missing email or password' });
   const users = await usersSource();
-  const user = users.find((u) => u.email === email && u.password === password);
+  const user = users.find((u) => u.email === email);
   if (!user) return res.status(401).json({ error: 'Invalid credentials' });
+
+  const passwordMatch = await comparePassword(password, user.password);
+  if (!passwordMatch) return res.status(401).json({ error: 'Invalid credentials' });
   const token = jwt.sign({ userId: user.id, email: user.email, role: user.role }, JWT_SECRET, { expiresIn: '8h' });
   return res.json({ token, user: { id: user.id, name: user.name, email: user.email, role: user.role } });
 });
