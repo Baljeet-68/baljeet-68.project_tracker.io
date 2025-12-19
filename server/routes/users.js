@@ -42,7 +42,11 @@ if (USE_LIVE_DB) {
 router.get(`/users`, authenticate, requireRole('admin'), async (req, res) => {
   try {
     const users = await usersSource();
-    res.json(users.map(u => ({ ...u, name: getUserName(u.id) })));
+    const usersWithNames = await Promise.all(users.map(async u => ({
+      ...u,
+      name: await getUserName(u.id)
+    })));
+    res.json(usersWithNames);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

@@ -1,5 +1,6 @@
-const { users, projects, screens, bugs, activityLog, bugCounters } = require('../data');
-const { getProjectById } = require('../api');
+const localData = require('../data');
+const { USE_LIVE_DB } = require('../config');
+const { getProjectById, getUsersFromMySQL } = require('../api');
 
 // Helper: normalize project object returned from DB or local
 function normalizeProjectObj(p) {
@@ -27,6 +28,7 @@ async function hasProjectAccess(userId, projectId) {
   const project = await getProjectById(projectId);
   const normalizedProject = normalizeProjectObj(project);
   if (!normalizedProject) return false;
+  const users = await getUsers();
   const user = users.find(u => u.id === userId);
   if (!user) return false;
   if (user.role === 'admin') return true;
@@ -35,17 +37,29 @@ async function hasProjectAccess(userId, projectId) {
   return false;
 }
 
+let allUsersCache = null;
+
+async function getUsers() {
+  if (USE_LIVE_DB) {
+    return await getUsersFromMySQL();
+  } else {
+    return localData.users;
+  }
+}
+
 // Helper: Get user name by id
-function getUserName(userId) {
+async function getUserName(userId) {
+  const users = await getUsers();
   const user = users.find(u => u.id === userId);
   return user?.name || 'Unknown';
 }
 
 // Helper: Enrich bug with user details
-function enrichBug(b) {
+async function enrichBug(b) {
+  const users = await getUsers();
   const creator = users.find(u => u.id === b.createdBy);
   const assignee = b.assignedDeveloperId ? users.find(u => u.id === b.assignedDeveloperId) : null;
-  const screen = b.screenId ? screens.find(s => s.id === b.screenId) : null;
+  const screen = b.screenId ? localData.screens.find(s => s.id === b.screenId) : null;
   return {
     ...b,
     createdByName: creator?.name || 'Unknown',
@@ -57,7 +71,8 @@ function enrichBug(b) {
 }
 
 // Helper: Enrich screen with user details
-function enrichScreen(s) {
+async function enrichScreen(s) {
+  const users = await getUsers();
   const assignee = s.assigneeId ? users.find(u => u.id === s.assigneeId) : null;
   return {
     ...s,
@@ -67,17 +82,23 @@ function enrichScreen(s) {
 }
 
 // Helper: Enrich project with user details (and counts)
-function enrichProject(p) {
+async function enrichProject(p) {
   p = normalizeProjectObj(p);
-  const screenDeadlines = screens.filter(s => s.projectId === p.id && s.plannedDeadline && new Date(s.plannedDeadline) > new Date()).length;
-  const bugDeadlines = bugs.filter(b => b.projectId === p.id && b.deadline && new Date(b.deadline) > new Date()).length;
+  const testerName = p.testerId ? await getUserName(p.testerId) : 'Unassigned';
+  const developerNames = await Promise.all((p.developerIds || []).map(async id => ({ id, name: await getUserName(id) })));
+  const openBugsCount = localData.bugs.filter(b => b.projectId === p.id && (b.status === 'Open' || b.status === 'In Progress')).length;
+  const completedScreensCount = localData.screens.filter(s => s.projectId === p.id).length;
+  const totalScreensCount = localData.screens.filter(s => s.projectId === p.id).length;
+  const screenDeadlines = localData.screens.filter(s => s.projectId === p.id && s.plannedDeadline && new Date(s.plannedDeadline) > new Date()).length;
+  const bugDeadlines = localData.bugs.filter(b => b.projectId === p.id && b.deadline && new Date(b.deadline) > new Date()).length;
+
   return {
     ...p,
-    testerName: p.testerId ? getUserName(p.testerId) : 'Unassigned',
-    developerNames: (p.developerIds || []).map(id => ({ id, name: getUserName(id) })),
-    openBugsCount: bugs.filter(b => b.projectId === p.id && (b.status === 'Open' || b.status === 'In Progress')).length,
-    completedScreensCount: screens.filter(s => s.projectId === p.id).length,
-    totalScreensCount: screens.filter(s => s.projectId === p.id).length,
+    testerName,
+    developerNames,
+    openBugsCount,
+    completedScreensCount,
+    totalScreensCount,
     upcomingDeadlines: screenDeadlines + bugDeadlines
   };
 }
@@ -94,7 +115,7 @@ function logActivity(projectId, entityType, entityId, action, userId, changes) {
     changes,
     createdAt: new Date()
   };
-  activityLog.push(activity);
+  localData.activityLog.push(activity);
 }
 
-module.exports = { normalizeProjectObj, hasProjectAccess, getUserName, enrichBug, enrichScreen, enrichProject, logActivity };
+module.exports = { normalizeProjectObj, hasProjectAccess, getUserName, enrichBug, enrichScreen, enrichProject, logActivity, getUsers };
