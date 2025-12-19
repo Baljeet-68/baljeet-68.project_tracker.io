@@ -40,7 +40,7 @@ const PORT = process.env.PORT || 4000;
 
 // Public test route
 app.get(`${BASE_URL}/hello`, (req, res) => {
-  res.json({ message: `'API is working!'${new Date().toLocaleString()}` });
+  res.json({ message: `'API is working!'${Date().now()} ${Date().toLocaleTimeString()}` });
 });
 
 // === IMPORT ROUTES ===
