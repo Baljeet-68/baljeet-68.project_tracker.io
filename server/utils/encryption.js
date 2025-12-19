@@ -1,4 +1,4 @@
-require('dotenv').config({ path: './.env' });
+require('dotenv').config({ path: '../../.env' });
 const bcrypt = require('bcrypt');
 const crypto = require('crypto');
 const { USE_ENCRYPTION } = require('../config');
