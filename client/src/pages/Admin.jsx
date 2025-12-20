@@ -152,6 +152,28 @@ export default function Admin() {
     setStatusToast({ ...statusToast, open: false })
   }
 
+  const handleDeleteUser = async (userId) => {
+    if (userId === me.id) {
+      setError('You cannot delete yourself')
+      return
+    }
+    if (!window.confirm('Are you sure you want to delete this user?')) return
+
+    try {
+      const res = await authFetch(`${API_BASE_URL}/users/${userId}`, {
+        method: 'DELETE'
+      })
+      if (!res.ok) {
+        const errData = await res.json()
+        throw new Error(errData.error || 'Failed to delete user')
+      }
+      await load()
+      setStatusToast({ open: true, message: 'User deleted successfully', severity: 'success' })
+    } catch (e) {
+      setError(e.message)
+    }
+  }
+
   const testers = users.filter(u => u.role === 'tester')
   const developers = users.filter(u => u.role === 'developer')
 
@@ -500,6 +522,7 @@ export default function Admin() {
                       <TableCell><Typography variant="subtitle2" sx={{ fontWeight: 700 }}>Email</Typography></TableCell>
                       <TableCell><Typography variant="subtitle2" sx={{ fontWeight: 700 }}>Role</Typography></TableCell>
                       <TableCell><Typography variant="subtitle2" sx={{ fontWeight: 700 }}>Status</Typography></TableCell>
+                      <TableCell><Typography variant="subtitle2" sx={{ fontWeight: 700 }}>Actions</Typography></TableCell>
                     </TableRow>
                   </TableHead>
                   <TableBody>
@@ -512,6 +535,17 @@ export default function Admin() {
                         </TableCell>
                         <TableCell>
                           <Chip label={u.active ? 'Active' : 'Inactive'} color={u.active ? 'success' : 'default'} size="small" />
+                        </TableCell>
+                        <TableCell>
+                          <Button 
+                            size="small" 
+                            color="error" 
+                            startIcon={<DeleteIcon />} 
+                            onClick={() => handleDeleteUser(u.id)}
+                            disabled={u.id === me.id}
+                          >
+                            Delete
+                          </Button>
                         </TableCell>
                       </TableRow>
                     ))}

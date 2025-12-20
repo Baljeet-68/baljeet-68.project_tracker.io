@@ -109,17 +109,18 @@ router.patch(`/users/:id`, authenticate, requireRole('admin'), async (req, res) 
 router.delete(`/users/:id`, authenticate, requireRole('admin'), async (req, res) => {
   try {
     const users = await usersSource();
-    const index = users.findIndex((u) => u.id === req.params.id);
-    if (index === -1) return res.status(404).json({ error: 'User not found' });
-
-    if (USE_LIVE_DB) {
-      await deleteUserFromDbSource(req.params.id);
-    } else {
-      users.splice(index, 1);
+    const user = users.find((u) => u.id === req.params.id);
+    if (!user) return res.status(404).json({ error: 'User not found' });
+    
+    // Prevent admin from deleting themselves
+    if (user.id === req.user.userId) {
+      return res.status(400).json({ error: 'Cannot delete yourself' });
     }
-    res.status(204).send();
-  } catch (error) {
-    res.status(500).json({ error: error.message });
+
+    await deleteUserFromDbSource(req.params.id);
+    res.json({ ok: true, message: 'User deleted' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 });
 
