@@ -97,8 +97,8 @@ router.post(`/projects/:id/screens`, authenticate, requireRole('admin'), async (
     }
 
     logActivity(project.id, 'screen', screen.id, 'created', req.user.userId, { title });
-    res.status(201).json(enrichScreen(screen));
-  } catch (error) {
+    res.status(201).json(await enrichScreen(screen));
+  } catch (err) {
     res.status(500).json({ error: error.message });
   }
 });

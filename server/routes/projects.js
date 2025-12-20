@@ -56,7 +56,7 @@ router.get(`/projects`, authenticate, async (req, res) => {
         return false;
       });
     }
-    res.json(result.map(p => enrichProject(p)));
+    res.json(await Promise.all(result.map(p => enrichProject(p))));
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -142,7 +142,7 @@ router.post(`/projects`, authenticate, requireRole('admin'), async (req, res) =>
     } else {
       projectsSource.push(project);
     }
-    res.status(201).json(enrichProject(project));
+    res.status(201).json(await enrichProject(project));
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

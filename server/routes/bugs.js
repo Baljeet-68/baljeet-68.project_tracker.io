@@ -121,8 +121,8 @@ router.post(`/projects/:id/bugs`, authenticate, requireRole('tester', 'admin'), 
       p.bugs = p.bugs || [];
       p.bugs.push(bug.id);
     }
-    logActivity(req.params.id, 'bug', bug.id, 'created', req.user.userId, { description, status: 'Open', severity, deadline });
-    res.status(201).json(enrichBug(bug));
+    logActivity(req.params.id, 'bug', bug.id, 'created', req.user.userId, { bugNumber: bug.bugNumber });
+    res.status(201).json(await enrichBug(bug));
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
