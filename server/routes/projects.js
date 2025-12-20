@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { authenticate, requireRole } = require('../middleware/auth');
-const { hasProjectAccess, enrichProject, normalizeProjectObj, logActivity } = require('../middleware/helpers');
+const { hasProjectAccess, enrichProject, normalizeProjectObj, logActivity, enrichBug, getUserName } = require('../middleware/helpers');
 const { USE_LIVE_DB } = require('../config');
 const { pool } = require('../db');
 
@@ -77,9 +77,35 @@ router.get(`/projects/:id`, authenticate, async (req, res) => {
     // NOTE: screens and bugs are still in-memory for now, will be moved to DB later
     if (!USE_LIVE_DB) {
       p.screensList = screensSource.filter(s => s.projectId === p.id);
-      p.bugsList = bugsSource.filter(b => b.projectId === p.id).map(b => enrichBug(b));
+      p.bugsList = await Promise.all(bugsSource.filter(b => b.projectId === p.id).map(b => enrichBug(b)));
     }
-    res.json(enrichProject(p));
+    const enriched = await enrichProject(p);
+    res.json(enriched);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// GET /api/projects/:id/activity - get project activity log
+router.get(`/projects/:id/activity`, authenticate, async (req, res) => {
+  try {
+    const projectId = req.params.id;
+    // Check access
+    const hasAccess = await hasProjectAccess(req.user.userId, projectId);
+    if (!hasAccess) {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
+
+    const localData = require('../data');
+    const activity = localData.activityLog.filter(a => a.projectId === projectId);
+
+    // Enrich activity with user names
+    const enrichedActivity = await Promise.all(activity.map(async (a) => ({
+      ...a,
+      createdByName: await getUserName(a.createdBy)
+    })));
+
+    res.json(enrichedActivity);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -151,7 +177,7 @@ router.post(`/projects`, authenticate, requireRole('admin'), async (req, res) =>
 // PATCH /api/projects/:id - admin only update project
 router.patch(`/projects/:id`, authenticate, requireRole('admin'), async (req, res) => {
   try {
-    const p = await getProjectById(req.params.id);
+    const p = await getProjectByIdSource(req.params.id);
     if (!p) return res.status(404).json({ error: 'Project not found' });
 
     const { name, description, status, client, startDate, endDate, testerId, developerIds } = req.body;
@@ -183,10 +209,10 @@ router.patch(`/projects/:id`, authenticate, requireRole('admin'), async (req, re
     await updateProjectInDbSource(req.params.id, changes);
     
     // Fetch updated project
-    const updatedProject = await getProjectById(req.params.id);
+    const updatedProject = await getProjectByIdSource(req.params.id);
     
     logActivity(updatedProject.id, 'project', updatedProject.id, 'updated', req.user.userId, changes);
-    res.json(enrichProject(updatedProject));
+    res.json(await enrichProject(updatedProject));
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
