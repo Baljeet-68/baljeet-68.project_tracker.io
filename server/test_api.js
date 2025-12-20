@@ -1,6 +1,8 @@
 // server/test_api.js
 // Quick test to verify the projects endpoint works with MySQL
+require('dotenv').config();
 const http = require('http');
+const BASE_URL = process.env.BASE_URL || '';
 
 function httpRequest(options, body) {
   return new Promise((resolve, reject) => {
@@ -30,7 +32,7 @@ async function test() {
     const loginRes = await httpRequest({
       hostname: 'localhost',
       port: 4000,
-      path: '/login',
+      path: `${BASE_URL}/login`,
       method: 'POST',
       headers: { 'Content-Type': 'application/json' }
     }, JSON.stringify({ email: 'admin@example.com', password: 'admin123' }));
@@ -49,7 +51,7 @@ async function test() {
     const projectsRes = await httpRequest({
       hostname: 'localhost',
       port: 4000,
-      path: '/api/projects',
+      path: `${BASE_URL}/api/projects`,
       method: 'GET',
       headers: { 'Authorization': `Bearer ${token}` }
     });

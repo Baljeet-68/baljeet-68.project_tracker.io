@@ -117,6 +117,11 @@ router.delete(`/users/:id`, authenticate, requireRole('admin'), async (req, res)
       return res.status(400).json({ error: 'Cannot delete yourself' });
     }
 
+    // Prevent admin from deleting other admins
+    if (req.user.role === 'admin' && user.role === 'admin') {
+      return res.status(400).json({ error: 'Cannot delete another admin' });
+    }
+
     await deleteUserFromDbSource(req.params.id);
     res.json({ ok: true, message: 'User deleted' });
   } catch (err) {
