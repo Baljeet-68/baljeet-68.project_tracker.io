@@ -51,9 +51,9 @@ app.use(
 );
 
 /* ===============================
-   Config
+   Port (LOCAL + CPANEL SAFE)
 ================================ */
-const PORT = process.env.PORT;
+const PORT = process.env.PORT || 4000;
 
 /* ===============================
    Health Check Route
@@ -78,8 +78,7 @@ const screenRoutes = require("./routes/screens");
 const bugRoutes = require("./routes/bugs");
 
 /* ===============================
-   Mount Routes
-   (NO double prefixes)
+   Mount Routes (NO double prefix)
 ================================ */
 app.use(BASE_URL, authRoutes);
 app.use(BASE_URL, userRoutes);
