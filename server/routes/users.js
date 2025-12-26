@@ -1,5 +1,7 @@
 const express = require('express');
 const router = express.Router();
+const fs = require('fs');
+const path = require('path');
 const { authenticate, requireRole } = require('../middleware/auth');
 const { getUserName } = require('../middleware/helpers');
 const { USE_LIVE_DB } = require('../config');
@@ -77,7 +79,39 @@ router.patch(`/me`, authenticate, async (req, res) => {
     const changes = {};
     if (name) changes.name = name;
     if (password) changes.password = password;
-    if (profilePicture) changes.profilePicture = profilePicture;
+
+    // Handle profile picture storage as file
+    if (profilePicture !== undefined) {
+      if (profilePicture === '' || profilePicture === null) {
+        changes.profilePicture = '';
+      } else if (profilePicture.startsWith('data:image')) {
+        // It's a base64 string, save it as a file
+        const matches = profilePicture.match(/^data:image\/([a-zA-Z0-9+]+);base64,(.+)$/);
+        if (!matches || matches.length !== 3) {
+          return res.status(400).json({ error: 'Invalid image format' });
+        }
+
+        const extension = matches[1].toLowerCase();
+        if (!['jpg', 'jpeg', 'png'].includes(extension)) {
+          return res.status(400).json({ error: 'Only JPG, JPEG, and PNG files are allowed' });
+        }
+        
+        const base64Data = matches[2];
+        const fileName = `profile_${req.user.userId}_${Date.now()}.${extension}`;
+        const filePath = path.join(__dirname, '..', 'uploads', fileName);
+
+        // Save file to disk
+        fs.writeFileSync(filePath, base64Data, 'base64');
+        
+        // Store the relative link in DB
+        const protocol = req.protocol;
+        const host = req.get('host');
+        changes.profilePicture = `${protocol}://${host}/uploads/${fileName}`;
+      } else {
+        // It's already a link or something else, keep it as is
+        changes.profilePicture = profilePicture;
+      }
+    }
 
     if (Object.keys(changes).length === 0) {
       return res.status(400).json({ error: 'No changes provided' });

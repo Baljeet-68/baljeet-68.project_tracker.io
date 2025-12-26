@@ -100,6 +100,13 @@ export default function Settings() {
   const handleImageChange = (e) => {
     const file = e.target.files[0]
     if (file) {
+      // Validate file type
+      const validTypes = ['image/jpeg', 'image/jpg', 'image/png']
+      if (!validTypes.includes(file.type)) {
+        setError('Please upload a valid image file (JPG, JPEG, or PNG)')
+        return
+      }
+
       if (file.size > 10 * 1024 * 1024) {
         setError('Image size should be less than 10MB')
         return
@@ -146,7 +153,7 @@ export default function Settings() {
                 </div>
                 <label className="absolute inset-0 flex items-center justify-center bg-black/40 text-white opacity-0 group-hover:opacity-100 cursor-pointer transition-opacity rounded-2xl">
                   <Camera size={24} />
-                  <input type="file" className="hidden" accept="image/*" onChange={handleImageChange} />
+                  <input type="file" className="hidden" accept=".jpg,.jpeg,.png" onChange={handleImageChange} />
                 </label>
                 {formData.profilePicture && (
                   <button
