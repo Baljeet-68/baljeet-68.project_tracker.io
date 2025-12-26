@@ -42,7 +42,7 @@ router.get(`/projects/:id/bugs`, authenticate, async (req, res) => {
       return res.status(403).json({ error: 'Forbidden' });
     }
     const bugs = await bugsSource();
-    const projectBugs = bugs.filter((b) => b.projectId === req.params.id).map(b => enrichBug(b));
+    const projectBugs = await Promise.all(bugs.filter((b) => b.projectId === req.params.id).map(b => enrichBug(b)));
     res.json(projectBugs);
   } catch (error) {
     res.status(500).json({ error: error.message });

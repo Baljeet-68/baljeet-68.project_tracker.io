@@ -1,15 +1,29 @@
 import React, { useEffect, useState } from 'react'
-import { useParams, Link } from 'react-router-dom'
-import { authFetch, getUser } from '../auth'
+import { useParams, Link, useNavigate } from 'react-router-dom'
+import { authFetch, getUser, clearToken, clearUser } from '../auth'
 import { API_BASE_URL } from '../apiConfig';
-import { Card, CardContent, CardActions, Button, Chip, Box, Tab, Tabs, TextField, MenuItem, Table, TableBody, TableCell, TableHead, TableRow, Dialog, DialogTitle, DialogContent, DialogActions, Select, FormControl, InputLabel, Grid, IconButton, LinearProgress, Avatar, AvatarGroup, Typography, Stack, Divider, Snackbar, Alert } from '@mui/material'
-import EditIcon from '@mui/icons-material/Edit'
-import DeleteIcon from '@mui/icons-material/Delete'
-import AddIcon from '@mui/icons-material/Add'
-import AttachFileIcon from '@mui/icons-material/AttachFile'
-import DownloadIcon from '@mui/icons-material/Download'
-import CloseIcon from '@mui/icons-material/Close'
-import ImageIcon from '@mui/icons-material/Image'
+import { ToastContainer, toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
+import { Card, CardHeader, CardBody, Badge, Button } from '../components/TailAdminComponents'
+import { Table, Modal, InputGroup, Select, ProgressBar } from '../components/FormComponents'
+import { 
+  Edit, 
+  Trash2, 
+  Plus, 
+  Paperclip, 
+  Download, 
+  X, 
+  Image as ImageIcon, 
+  ArrowLeft,
+  Calendar,
+  Users,
+  CheckCircle,
+  AlertCircle,
+  Clock,
+  Eye,
+  EyeOff,
+  ChevronRight
+} from 'lucide-react'
 
 export default function ProjectPage() {
   const { id } = useParams()
@@ -21,9 +35,7 @@ export default function ProjectPage() {
   const [loading, setLoading] = useState(true)
   const [tabIndex, setTabIndex] = useState(0)
   const user = getUser()
-
-  // Toast notification state
-  const [toast, setToast] = useState({ open: false, message: '', severity: 'success' })
+  const nav = useNavigate()
 
   // Project date edit states (admin)
   const [projectStart, setProjectStart] = useState('')
@@ -58,13 +70,14 @@ export default function ProjectPage() {
     loadData()
   }, [id])
 
-  // Show toast notification
-  const showToast = (message, severity = 'success') => {
-    setToast({ open: true, message, severity })
-  }
-
-  const closeToast = () => {
-    setToast({ ...toast, open: false })
+  const handleAuthError = (e) => {
+    if (e.message === 'Unauthorized: Token expired or invalid') {
+      clearToken()
+      clearUser()
+      nav('/login', { replace: true })
+    } else {
+      toast.error(e.message)
+    }
   }
 
   const loadData = async () => {
@@ -88,7 +101,7 @@ export default function ProjectPage() {
       if (bugsRes.ok) setBugsList(await bugsRes.json())
       if (activityRes.ok) setActivityList(await activityRes.json())
     } catch (e) {
-      setError(e.message)
+      handleAuthError(e)
     } finally {
       setLoading(false)
     }
@@ -109,7 +122,7 @@ export default function ProjectPage() {
       setBugDialog(false)
       loadData() // Reload to get updated activity
     } catch (e) {
-      setError(e.message)
+      handleAuthError(e)
     }
   }
 
@@ -136,9 +149,9 @@ export default function ProjectPage() {
       setBugEditId(null)
       setBugEditDeadline('')
       loadData()
-      showToast('Bug deadline updated successfully!', 'success')
+      toast.success('Bug deadline updated successfully!')
     } catch (e) {
-      showToast(e.message, 'error')
+      handleAuthError(e)
     }
   }
 
@@ -198,8 +211,9 @@ export default function ProjectPage() {
       const updatedBug = await res.json()
       setBugsList(bugsList.map(b => b.id === bugId ? updatedBug : b))
       loadData()
+      showToast('Bug status updated successfully!', 'success')
     } catch (e) {
-      setError(e.message)
+      handleAuthError(e)
     }
   }
 
@@ -214,8 +228,9 @@ export default function ProjectPage() {
       const updatedScreen = await res.json()
       setScreensList(screensList.map(s => s.id === screenId ? updatedScreen : s))
       loadData()
+      showToast('Screen status updated successfully!', 'success')
     } catch (e) {
-      setError(e.message)
+      handleAuthError(e)
     }
   }
 
@@ -242,8 +257,9 @@ export default function ProjectPage() {
       setScreenForm({ title: '', module: '', assigneeId: '', plannedDeadline: '', notes: '' })
       setScreenDialog(false)
       loadData()
+      showToast(editingScreen ? 'Screen updated successfully!' : 'Screen added successfully!', 'success')
     } catch (e) {
-      setError(e.message)
+      handleAuthError(e)
     }
   }
 
@@ -277,7 +293,7 @@ export default function ProjectPage() {
       loadData()
       showToast('Screen deadline updated successfully!', 'success')
     } catch (e) {
-      showToast(e.message, 'error')
+      handleAuthError(e)
     }
   }
 
@@ -296,7 +312,7 @@ export default function ProjectPage() {
       loadData()
       showToast('Project dates updated successfully!', 'success')
     } catch (e) {
-      showToast(e.message, 'error')
+      handleAuthError(e)
     }
   }
 
@@ -307,32 +323,50 @@ export default function ProjectPage() {
       if (!res.ok) throw new Error('Failed to delete bug')
       setBugsList(bugsList.filter(b => b.id !== bugId))
       loadData()
+      showToast('Bug deleted successfully!', 'success')
     } catch (e) {
-      setError(e.message)
+      handleAuthError(e)
     }
   }
 
-  const getStatusColor = (status) => {
+  const handleDeleteScreen = async (screenId) => {
+    if (!window.confirm('Delete this screen?')) return
+    try {
+      const res = await authFetch(`${API_BASE_URL}/screens/${screenId}`, { method: 'DELETE' })
+      if (!res.ok) throw new Error('Failed to delete screen')
+      setScreensList(screensList.filter(s => s.id !== screenId))
+      loadData()
+      toast.success('Screen deleted successfully!')
+    } catch (e) {
+      handleAuthError(e)
+    }
+  }
+
+  const getStatusGradient = (status) => {
     switch(status) {
-      case 'Open': return 'error'
-      case 'In Progress': return 'warning'
-      case 'Resolved': return 'success'
-      case 'Closed': return 'default'
-      case 'Planned': return 'info'
-      case 'Blocked': return 'error'
-      case 'Done': return 'success'
-      default: return 'default'
+      case 'Open': return 'from-red-600 to-rose-400'
+      case 'In Progress': return 'from-orange-500 to-yellow-400'
+      case 'Resolved': return 'from-green-600 to-lime-400'
+      case 'Closed': return 'from-slate-600 to-slate-300'
+      case 'Planned': return 'from-blue-600 to-cyan-400'
+      case 'Blocked': return 'from-red-600 to-rose-400'
+      case 'Done': return 'from-green-600 to-lime-400'
+      default: return 'from-slate-600 to-slate-300'
     }
   }
 
-  const getSeverityColor = (severity) => {
+  const getSeverityGradient = (severity) => {
     switch(severity) {
-      case 'low': return 'info'
-      case 'medium': return 'warning'
-      case 'high': return 'error'
-      case 'critical': return 'error'
-      default: return 'default'
+      case 'low': return 'from-blue-600 to-cyan-400'
+      case 'medium': return 'from-orange-500 to-yellow-400'
+      case 'high': return 'from-red-600 to-rose-400'
+      case 'critical': return 'from-red-900 to-slate-800'
+      default: return 'from-slate-600 to-slate-300'
     }
+  }
+
+  const showToast = (message, type = 'info') => {
+    toast[type](message)
   }
 
   // Filter bugs
@@ -343,668 +377,657 @@ export default function ProjectPage() {
     return true
   })
 
-  if (loading) return <Box sx={{ p: 4, textAlign: 'center' }}>Loading project...</Box>
-  if (!project) return <Box sx={{ p: 4, color: 'error.main' }}>Project not found</Box>
+  if (loading) return (
+    <div className="flex flex-col items-center justify-center min-h-screen">
+      <div className="w-12 h-12 border-4 border-fuchsia-200 border-t-fuchsia-600 rounded-full animate-spin mb-4"></div>
+      <p className="text-slate-500 font-medium">Loading project details...</p>
+    </div>
+  )
+  
+  if (!project) return (
+    <div className="p-8 text-center">
+      <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-red-100 text-red-600 mb-4">
+        <AlertCircle size={32} />
+      </div>
+      <h3 className="text-xl font-bold text-slate-800">Project not found</h3>
+      <p className="text-slate-500 mb-6">The project you are looking for does not exist or has been deleted.</p>
+      <Link to="/" className="text-fuchsia-600 font-bold hover:underline inline-flex items-center">
+        <ArrowLeft size={16} className="mr-2" /> Back to Dashboard
+      </Link>
+    </div>
+  )
+
+  const screenColumns = [
+    { key: 'title', label: 'Title' },
+    { key: 'module', label: 'Module' },
+    { key: 'assigneeName', label: 'Assignee' },
+    { 
+      key: 'plannedDeadline', 
+      label: 'Deadline',
+      render: (val, s) => (
+        <div className="flex items-center gap-2">
+          <span>{val ? new Date(val).toLocaleDateString() : '—'}</span>
+          {(user?.role === 'admin' || (user?.role === 'developer' && s.assigneeId === user.id)) && (
+            <button onClick={() => openScreenDeadlineEdit(s)} className="text-slate-400 hover:text-blue-500 transition-colors">
+              <Edit size={14} />
+            </button>
+          )}
+        </div>
+      )
+    },
+    {
+      key: 'status',
+      label: 'Status',
+      render: (status, s) => {
+        if (user?.role === 'admin' || (user?.role === 'developer' && s.assigneeId === user.id)) {
+          return (
+            <select
+              value={status}
+              onChange={(e) => handleUpdateScreenStatus(s.id, e.target.value)}
+              className="text-xs border-0 bg-transparent font-bold focus:ring-0 cursor-pointer"
+            >
+              <option value="Planned">Planned</option>
+              <option value="In Progress">In Progress</option>
+              <option value="Blocked">Blocked</option>
+              <option value="Done">Done</option>
+            </select>
+          )
+        }
+        return <Badge gradient={getStatusGradient(status)} size="sm">{status}</Badge>
+      }
+    },
+    {
+      key: 'actions',
+      label: 'Actions',
+      render: (_, s) => (
+        <div className="flex gap-2">
+          {user?.role === 'admin' && (
+            <>
+              <button onClick={() => openEditScreen(s)} className="text-slate-400 hover:text-blue-500 transition-colors">
+                <Edit size={16} />
+              </button>
+              <button onClick={() => handleDeleteScreen(s.id)} className="text-slate-400 hover:text-red-500 transition-colors">
+                <Trash2 size={16} />
+              </button>
+            </>
+          )}
+        </div>
+      )
+    }
+  ]
+
+  const bugColumns = [
+    { key: 'bugNumber', label: 'Bug #', render: (val) => <span className="font-bold">#{val}</span> },
+    { key: 'description', label: 'Description', render: (val) => <div className="max-w-xs truncate">{val}</div> },
+    { key: 'screenTitle', label: 'Screen' },
+    { key: 'assignedDeveloperName', label: 'Assigned Dev' },
+    {
+      key: 'status',
+      label: 'Status',
+      render: (status, b) => {
+        if (user?.role === 'admin' || (user?.role === 'developer' && b.assignedDeveloperId === user.id)) {
+          return (
+            <select
+              value={status}
+              onChange={(e) => handleUpdateBugStatus(b.id, e.target.value)}
+              className="text-xs border-0 bg-transparent font-bold focus:ring-0 cursor-pointer"
+            >
+              <option value="Open">Open</option>
+              <option value="In Progress">In Progress</option>
+              <option value="Resolved">Resolved</option>
+              <option value="Closed">Closed</option>
+            </select>
+          )
+        }
+        return <Badge gradient={getStatusGradient(status)} size="sm">{status}</Badge>
+      }
+    },
+    {
+      key: 'severity',
+      label: 'Severity',
+      render: (sev) => <Badge gradient={getSeverityGradient(sev)} size="sm">{sev}</Badge>
+    },
+    {
+      key: 'deadline',
+      label: 'Deadline',
+      render: (val, b) => (
+        <div className="flex items-center gap-2">
+          <span>{val ? new Date(val).toLocaleDateString() : '—'}</span>
+          {(user?.role === 'admin' || (user?.role === 'developer' && b.assignedDeveloperId === user.id)) && (
+            <button onClick={() => openBugEdit(b)} className="text-slate-400 hover:text-blue-500 transition-colors">
+              <Edit size={14} />
+            </button>
+          )}
+        </div>
+      )
+    },
+    {
+      key: 'actions',
+      label: 'Actions',
+      render: (_, b) => (
+        <div className="flex gap-2">
+          {(user?.role === 'admin' || user?.role === 'tester') && (
+            <button onClick={() => handleDeleteBug(b.id)} className="text-slate-400 hover:text-red-500 transition-colors">
+              <Trash2 size={16} />
+            </button>
+          )}
+        </div>
+      )
+    }
+  ]
 
   return (
-    <Box sx={{ p: 3 }}>
-      <Link to="/">← Back to Dashboard</Link>
+    <div className="container-fluid py-4">
+      {/* Breadcrumbs */}
+      <nav className="mb-4">
+        <ol className="flex flex-wrap pt-1 mr-12 bg-transparent rounded-lg sm:mr-16">
+          <li className="leading-normal text-sm">
+            <Link className="opacity-50 text-slate-700" to="/">Pages</Link>
+          </li>
+          <li className="text-sm pl-2 capitalize leading-normal text-slate-700 before:float-left before:pr-2 before:text-gray-300 before:content-['/']">
+            Project Details
+          </li>
+        </ol>
+        <h6 className="mb-0 font-bold capitalize">Project Details</h6>
+      </nav>
 
-      <Box sx={{ mt: 2, mb: 3 }}>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-          <div>
-            <h2 style={{ margin: 0 }}>{project.name}</h2>
-            <div style={{ color: '#666' }}>Client: {project.client}</div>
-          </div>
-          <Chip label={project.status} color={getStatusColor(project.status)} />
-        </Box>
-        <div style={{ color: '#666', marginBottom: '1rem' }}>{project.description}</div>
-
-        <Box sx={{ display: 'flex', gap: 2, mb: 2, flexWrap: 'wrap' }}>
-          <Chip label={`Tester: ${project.testerName}`} size="small" />
-          <Chip label={`Devs: ${project.developerNames?.length || 0}`} size="small" />
-          <Chip label={`Open Bugs: ${project.openBugsCount || 0}`} size="small" variant="outlined" />
-          <Chip label={`Upcoming Deadlines: ${project.upcomingDeadlines || 0}`} size="small" variant="outlined" />
-        </Box>
-      </Box>
-
-      {error && <Box sx={{ mb: 2, p: 2, bgcolor: '#ffebee', color: '#c62828', borderRadius: 1 }}>{error}</Box>}
-
-      <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 2 }}>
-        <Tabs value={tabIndex} onChange={(e, val) => setTabIndex(val)}>
-          <Tab label="Overview" />
-          <Tab label="Screens/Tasks" />
-          <Tab label="Bugs" />
-          <Tab label="Activity" />
-        </Tabs>
-      </Box>
-
-      {/* Overview Tab */}
-      {tabIndex === 0 && (
-        <Box>
-          <h3>Project Details</h3>
+      <div className="flex flex-wrap -mx-3">
+        {/* Header Section */}
+        <div className="w-full max-w-full px-3 mb-6">
           <Card>
-            <CardContent>
-              <Grid container spacing={2} alignItems="flex-start">
-                <Grid item xs={12} md={4}>
-                  <Stack spacing={2}>
-                    <Box>
-                      <Typography variant="subtitle2" color="text.secondary">Status</Typography>
-                      <Box sx={{ mt: 1 }}>
-                        <Chip label={project.status} color={getStatusColor(project.status)} size="medium" />
-                      </Box>
-                    </Box>
-
-                    <Divider />
-
-                          <Box>
-                            <Typography variant="subtitle2" color="text.secondary">Timeline</Typography>
-                            <Box sx={{ mt: 1 }}>
-                              {user?.role === 'admin' ? (
-                                <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', flexWrap: 'wrap' }}>
-                                  <TextField label="Start" type="date" size="small" value={projectStart} onChange={(e) => setProjectStart(e.target.value)} InputLabelProps={{ shrink: true }} />
-                                  <TextField label="End" type="date" size="small" value={projectEnd} onChange={(e) => setProjectEnd(e.target.value)} InputLabelProps={{ shrink: true }} />
-                                  <Button size="small" variant="contained" onClick={handleUpdateProjectDates}>Save Dates</Button>
-                                </Box>
-                              ) : (
-                                <Box>
-                                  <Typography variant="body2"><strong>Start:</strong> {project.startDate ? new Date(project.startDate).toLocaleDateString() : 'N/A'}</Typography>
-                                  <Typography variant="body2"><strong>End:</strong> {project.endDate ? new Date(project.endDate).toLocaleDateString() : 'N/A'}</Typography>
-                                </Box>
-                              )}
-                            </Box>
-                          </Box>
-
-                    <Divider />
-
-                    <Box>
-                      <Typography variant="subtitle2" color="text.secondary">Team</Typography>
-                      <Box sx={{ mt: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
-                        <AvatarGroup max={4}>
-                          {project.developerNames && project.developerNames.length > 0 ? (
-                            project.developerNames.map((d) => (
-                              <Avatar key={d.id} alt={d.name}>{d.name?.split(' ').map(n=>n[0]).slice(0,2).join('')}</Avatar>
-                            ))
-                          ) : (
-                            <Avatar>—</Avatar>
-                          )}
-                        </AvatarGroup>
-                        <Box sx={{ ml: 1 }}>
-                          <Typography variant="body2"><strong>Tester:</strong> {project.testerName || '—'}</Typography>
-                          <Typography variant="body2" color="text.secondary">{project.developerNames?.map(d => d.name).join(', ') || 'No developers assigned'}</Typography>
-                        </Box>
-                      </Box>
-                    </Box>
-
-                    <Divider />
-
-                    <Box>
-                      <Typography variant="subtitle2" color="text.secondary">Progress</Typography>
-                      <Box sx={{ mt: 1 }}>
-                        {screensList && screensList.length > 0 ? (
-                          (() => {
-                            const completed = project.completedScreensCount || 0
-                            const total = screensList.length
-                            const pct = Math.round((completed / Math.max(1, total)) * 100)
-                            return (
-                              <Box>
-                                <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                                  <Typography variant="body2">{completed} / {total} screens</Typography>
-                                  <Typography variant="body2">{pct}%</Typography>
-                                </Box>
-                                <LinearProgress variant="determinate" value={pct} sx={{ mt: 1, height: 10, borderRadius: 2 }} />
-                              </Box>
-                            )
-                          })()
-                        ) : (
-                          <Typography variant="body2" color="text.secondary">No screens added yet</Typography>
-                        )}
-                      </Box>
-                    </Box>
-                  </Stack>
-                </Grid>
-
-                <Grid item xs={12} md={8}>
-                  <Stack spacing={2}>
-                    <Box>
-                      <Typography variant="subtitle2" color="text.secondary">Description</Typography>
-                      <Typography variant="body1" sx={{ mt: 1 }}>{project.description || 'No description provided.'}</Typography>
-                    </Box>
-
-                    <Box>
-                      <Stack direction="row" spacing={1} alignItems="center">
-                        <Chip label={`Open Bugs: ${project.openBugsCount || 0}`} color="error" />
-                        <Chip label={`Completed Screens: ${project.completedScreensCount || 0}`} variant="outlined" />
-                        <Chip label={`Total Screens: ${screensList.length}`} variant="outlined" />
-                        <Chip label={`Client: ${project.client || '—'}`} variant="outlined" />
-                      </Stack>
-                    </Box>
-
-                    <Box>
-                      <Stack direction="row" spacing={1}>
-                        {(user?.role === 'admin' || user?.role === 'developer') && (
-                          <Button variant="contained" size="small" startIcon={<EditIcon />}>Edit Project</Button>
-                        )}
-                        <Button component={Link} to="/" size="small">Back to Dashboard</Button>
-                      </Stack>
-                    </Box>
-                  </Stack>
-                </Grid>
-              </Grid>
-            </CardContent>
+            <CardBody className="p-4">
+              <div className="flex flex-wrap items-center -mx-3">
+                <div className="flex-none w-auto max-w-full px-3">
+                  <div className="relative inline-flex items-center justify-center text-white transition-all duration-200 ease-soft-in-out text-base h-18.5 w-18.5 rounded-xl">
+                    <div className="flex items-center justify-center w-12 h-12 rounded-lg bg-gradient-to-tl from-purple-700 to-pink-500 shadow-soft-2xl">
+                      <Calendar className="text-white" />
+                    </div>
+                  </div>
+                </div>
+                <div className="flex-none w-auto max-w-full px-3 my-auto">
+                  <div className="h-full">
+                    <h5 className="mb-1 font-bold">{project?.name}</h5>
+                    <p className="mb-0 font-semibold leading-normal text-sm">Client: {project?.client}</p>
+                  </div>
+                </div>
+                <div className="w-full max-w-full px-3 mx-auto mt-4 sm:my-auto sm:mr-0 md:w-1/2 md:flex-none lg:w-4/12">
+                  <div className="relative flex flex-wrap items-center justify-end">
+                    <Badge gradient={getStatusGradient(project?.status)} size="lg">
+                      {project?.status}
+                    </Badge>
+                  </div>
+                </div>
+              </div>
+            </CardBody>
           </Card>
-        </Box>
-      )}
+        </div>
 
-      {/* Screens/Tasks Tab */}
-      {tabIndex === 1 && (
-        <Box>
-          <Box sx={{ mb: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <h3>Screens/Tasks</h3>
-            {user?.role === 'admin' && (
-              <Button variant="contained" startIcon={<AddIcon />} onClick={() => setScreenDialog(true)}>
-                New Screen
-              </Button>
-            )}
-          </Box>
+        {/* Stats Row */}
+        <div className="w-full max-w-full px-3 mb-6 lg:w-3/12">
+          <Card className="h-full">
+            <CardBody className="p-4">
+              <div className="flex items-center mb-4">
+                <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-gradient-to-tl from-blue-600 to-cyan-400 shadow-soft-2xl mr-3">
+                  <Users className="text-white" size={18} />
+                </div>
+                <div>
+                  <p className="mb-0 text-xs font-semibold leading-tight opacity-60 uppercase">Team</p>
+                  <h6 className="mb-0 font-bold">{project?.developerNames?.length || 0} Developers</h6>
+                </div>
+              </div>
+              <p className="text-xs text-slate-500 mb-0">Tester: <span className="font-bold">{project?.testerName}</span></p>
+            </CardBody>
+          </Card>
+        </div>
 
-          {screensList.length === 0 ? (
-            <Box sx={{ p: 3, textAlign: 'center', color: '#999' }}>No screens yet</Box>
-          ) : (
-            <Table>
-              <TableHead>
-                <TableRow sx={{ bgcolor: '#f5f5f5' }}>
-                  <TableCell><strong>Title</strong></TableCell>
-                  <TableCell><strong>Module</strong></TableCell>
-                  <TableCell><strong>Assignee</strong></TableCell>
-                  <TableCell><strong>Deadline</strong></TableCell>
-                  <TableCell><strong>Status</strong></TableCell>
-                  {(user?.role === 'admin' || user?.role === 'developer') && <TableCell><strong>Actions</strong></TableCell>}
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {screensList.map(s => (
-                  <TableRow key={s.id}>
-                    <TableCell>{s.title}</TableCell>
-                    <TableCell>{s.module}</TableCell>
-                    <TableCell>{s.assigneeName}</TableCell>
-                    <TableCell>
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                        <span>{s.plannedDeadline ? new Date(s.plannedDeadline).toLocaleDateString() : '—'}</span>
-                        {(user?.role === 'admin' || (user?.role === 'developer' && s.assigneeId === user.id)) && (
-                          <IconButton size="small" onClick={() => openScreenDeadlineEdit(s)} title="Edit deadline">
-                            <EditIcon fontSize="small" />
-                          </IconButton>
-                        )}
-                      </Box>
-                    </TableCell>
-                    <TableCell>
-                      {(user?.role === 'admin' || (user?.role === 'developer' && s.assigneeId === user.id)) ? (
-                        <Select
-                          value={s.status}
-                          onChange={(e) => handleUpdateScreenStatus(s.id, e.target.value)}
-                          size="small"
-                          variant="standard"
+        <div className="w-full max-w-full px-3 mb-6 lg:w-3/12">
+          <Card className="h-full">
+            <CardBody className="p-4">
+              <div className="flex items-center mb-4">
+                <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-gradient-to-tl from-red-600 to-rose-400 shadow-soft-2xl mr-3">
+                  <AlertCircle className="text-white" size={18} />
+                </div>
+                <div>
+                  <p className="mb-0 text-xs font-semibold leading-tight opacity-60 uppercase">Bugs</p>
+                  <h6 className="mb-0 font-bold">{project.openBugsCount || 0} Open Bugs</h6>
+                </div>
+              </div>
+              <p className="text-xs text-slate-500 mb-0">Total resolved: <span className="font-bold">{bugsList.filter(b => b.status === 'Resolved').length}</span></p>
+            </CardBody>
+          </Card>
+        </div>
+
+        <div className="w-full max-w-full px-3 mb-6 lg:w-3/12">
+          <Card className="h-full">
+            <CardBody className="p-4">
+              <div className="flex items-center mb-4">
+                <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-gradient-to-tl from-green-600 to-lime-400 shadow-soft-2xl mr-3">
+                  <CheckCircle className="text-white" size={18} />
+                </div>
+                <div>
+                  <p className="mb-0 text-xs font-semibold leading-tight opacity-60 uppercase">Progress</p>
+                  <h6 className="mb-0 font-bold">{project.completedScreensCount || 0} / {screensList.length} Done</h6>
+                </div>
+              </div>
+              <ProgressBar 
+                value={project.completedScreensCount || 0} 
+                max={screensList.length || 1} 
+                showLabel={false}
+                gradient="from-green-600 to-lime-400"
+              />
+            </CardBody>
+          </Card>
+        </div>
+
+        <div className="w-full max-w-full px-3 mb-6 lg:w-3/12">
+          <Card className="h-full">
+            <CardBody className="p-4">
+              <div className="flex items-center mb-4">
+                <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-gradient-to-tl from-orange-500 to-yellow-400 shadow-soft-2xl mr-3">
+                  <Clock className="text-white" size={18} />
+                </div>
+                <div>
+                  <p className="mb-0 text-xs font-semibold leading-tight opacity-60 uppercase">Deadlines</p>
+                  <h6 className="mb-0 font-bold">{project.upcomingDeadlines || 0} Upcoming</h6>
+                </div>
+              </div>
+              <p className="text-xs text-slate-500 mb-0">Ending: <span className="font-bold">{project.endDate ? new Date(project.endDate).toLocaleDateString() : 'N/A'}</span></p>
+            </CardBody>
+          </Card>
+        </div>
+
+        {/* Tabs Section */}
+        <div className="w-full max-w-full px-3">
+          <div className="relative flex flex-col min-w-0 break-words bg-white border-0 shadow-soft-xl rounded-2xl bg-clip-border mb-6">
+            <div className="p-4 pb-0">
+              <div className="flex flex-wrap -mx-3">
+                <div className="flex items-center w-full max-w-full px-3 shrink-0 md:w-8/12 md:flex-none">
+                  <ul className="flex flex-wrap p-1 list-none bg-gray-50 rounded-xl" role="tablist">
+                    {['Overview', 'Screens', 'Bugs', 'Activity'].map((tab, idx) => (
+                      <li key={tab} className="flex-auto text-center">
+                        <button
+                          onClick={() => setTabIndex(idx)}
+                          className={`z-30 block w-full px-4 py-1 mb-0 transition-all border-0 rounded-lg cursor-pointer text-slate-700 bg-inherit ${tabIndex === idx ? 'bg-white shadow-soft-md font-bold' : 'opacity-60'}`}
                         >
-                          <MenuItem value="Planned">Planned</MenuItem>
-                          <MenuItem value="In Progress">In Progress</MenuItem>
-                          <MenuItem value="Blocked">Blocked</MenuItem>
-                          <MenuItem value="Done">Done</MenuItem>
-                        </Select>
-                      ) : (
-                        <Chip label={s.status} color={getStatusColor(s.status)} size="small" />
-                      )}
-                    </TableCell>
-                    {(user?.role === 'admin' || user?.role === 'developer') && (
-                      <TableCell>
-                        {user?.role === 'admin' && (
-                          <Button size="small" startIcon={<EditIcon />} onClick={() => openEditScreen(s)}>Edit</Button>
-                        )}
-                      </TableCell>
-                    )}
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
-
-          {/* Add Screen Dialog */}
-          <Dialog open={screenDialog} onClose={() => setScreenDialog(false)} maxWidth="sm" fullWidth>
-            <DialogTitle>Create New Screen/Task</DialogTitle>
-            <DialogContent sx={{ pt: 2 }}>
-              <TextField
-                fullWidth
-                label="Title"
-                value={screenForm.title}
-                onChange={(e) => setScreenForm({ ...screenForm, title: e.target.value })}
-                margin="normal"
-              />
-              <TextField
-                fullWidth
-                label="Module"
-                value={screenForm.module}
-                onChange={(e) => setScreenForm({ ...screenForm, module: e.target.value })}
-                margin="normal"
-              />
-              <FormControl fullWidth margin="normal">
-                <InputLabel>Assignee</InputLabel>
-                <Select
-                  value={screenForm.assigneeId}
-                  onChange={(e) => setScreenForm({ ...screenForm, assigneeId: e.target.value })}
-                  label="Assignee"
-                >
-                  <MenuItem value="">Unassigned</MenuItem>
-                  {project.developerNames?.map(d => (
-                    <MenuItem key={d.id} value={d.id}>{d.name}</MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-              <TextField
-                fullWidth
-                label="Planned Deadline"
-                type="date"
-                value={screenForm.plannedDeadline}
-                onChange={(e) => setScreenForm({ ...screenForm, plannedDeadline: e.target.value })}
-                margin="normal"
-                InputLabelProps={{ shrink: true }}
-              />
-              <TextField
-                fullWidth
-                label="Notes"
-                multiline
-                rows={3}
-                value={screenForm.notes}
-                onChange={(e) => setScreenForm({ ...screenForm, notes: e.target.value })}
-                margin="normal"
-              />
-            </DialogContent>
-            <DialogActions>
-              <Button onClick={() => setScreenDialog(false)}>Cancel</Button>
-              <Button onClick={handleAddScreen} variant="contained">Create</Button>
-            </DialogActions>
-          </Dialog>
-        </Box>
-      )}
-
-      {/* Bugs Tab */}
-      {tabIndex === 2 && (
-        <Box>
-          <Box sx={{ mb: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <h3>Bugs</h3>
-            {(user?.role === 'admin' || user?.role === 'tester' || user?.role === 'developer') && (
-              <Button variant="contained" startIcon={<AddIcon />} onClick={() => setBugDialog(true)}>
-                New Bug
-              </Button>
-            )}
-          </Box>
-
-          {/* Bug Filters */}
-          <Box sx={{ mb: 2, display: 'flex', gap: 2, flexWrap: 'wrap' }}>
-            <FormControl sx={{ minWidth: 150 }} size="small">
-              <InputLabel>Status Filter</InputLabel>
-              <Select
-                value={bugStatusFilter}
-                onChange={(e) => setBugStatusFilter(e.target.value)}
-                label="Status Filter"
-              >
-                <MenuItem value="">All Statuses</MenuItem>
-                <MenuItem value="Open">Open</MenuItem>
-                <MenuItem value="In Progress">In Progress</MenuItem>
-                <MenuItem value="Resolved">Resolved</MenuItem>
-                <MenuItem value="Closed">Closed</MenuItem>
-              </Select>
-            </FormControl>
-
-            <FormControl sx={{ minWidth: 150 }} size="small">
-              <InputLabel>Severity Filter</InputLabel>
-              <Select
-                value={bugSeverityFilter}
-                onChange={(e) => setBugSeverityFilter(e.target.value)}
-                label="Severity Filter"
-              >
-                <MenuItem value="">All Severities</MenuItem>
-                <MenuItem value="low">Low</MenuItem>
-                <MenuItem value="medium">Medium</MenuItem>
-                <MenuItem value="high">High</MenuItem>
-                <MenuItem value="critical">Critical</MenuItem>
-              </Select>
-            </FormControl>
-
-            <FormControl sx={{ minWidth: 150 }} size="small">
-              <InputLabel>Assignee Filter</InputLabel>
-              <Select
-                value={bugAssigneeFilter}
-                onChange={(e) => setBugAssigneeFilter(e.target.value)}
-                label="Assignee Filter"
-              >
-                <MenuItem value="">All Assignees</MenuItem>
-                {project.developerNames?.map(d => (
-                  <MenuItem key={d.id} value={d.id}>{d.name}</MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-          </Box>
-
-          {filteredBugs.length === 0 ? (
-            <Box sx={{ p: 3, textAlign: 'center', color: '#999' }}>No bugs found</Box>
-          ) : (
-            <Table>
-              <TableHead>
-                <TableRow sx={{ bgcolor: '#f5f5f5' }}>
-                  <TableCell><strong>Bug #</strong></TableCell>
-                  <TableCell><strong>Description</strong></TableCell>
-                  <TableCell><strong>Screen</strong></TableCell>
-                  <TableCell><strong>Assigned Dev</strong></TableCell>
-                  <TableCell><strong>Status</strong></TableCell>
-                  <TableCell><strong>Severity</strong></TableCell>
-                  <TableCell><strong>Deadline</strong></TableCell>
-                  <TableCell><strong>Attachments</strong></TableCell>
-                  {(user?.role === 'admin' || user?.role === 'developer') && <TableCell><strong>Actions</strong></TableCell>}
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {filteredBugs.map(b => (
-                  <TableRow key={b.id}>
-                    <TableCell>#{b.bugNumber}</TableCell>
-                    <TableCell>{b.description}</TableCell>
-                    <TableCell>{b.screenTitle}</TableCell>
-                    <TableCell>{b.assignedDeveloperName}</TableCell>
-                    <TableCell>
-                      {(user?.role === 'admin' || (user?.role === 'developer' && b.assignedDeveloperId === user.id)) ? (
-                        <Select
-                          value={b.status}
-                          onChange={(e) => handleUpdateBugStatus(b.id, e.target.value)}
-                          size="small"
-                          variant="standard"
-                        >
-                          <MenuItem value="Open">Open</MenuItem>
-                          <MenuItem value="In Progress">In Progress</MenuItem>
-                          <MenuItem value="Resolved">Resolved</MenuItem>
-                          <MenuItem value="Closed">Closed</MenuItem>
-                        </Select>
-                      ) : (
-                        <Chip label={b.status} color={getStatusColor(b.status)} size="small" />
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      <Chip label={b.severity} color={getSeverityColor(b.severity)} size="small" />
-                    </TableCell>
-                    <TableCell>
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                        <span>{b.deadline ? new Date(b.deadline).toLocaleDateString() : '—'}</span>
-                        {(user?.role === 'admin' || (user?.role === 'developer' && b.assignedDeveloperId === user.id)) && (
-                          <IconButton size="small" onClick={() => openBugEdit(b)} title="Edit deadline">
-                            <EditIcon fontSize="small" />
-                          </IconButton>
-                        )}
-                      </Box>
-                    </TableCell>
-                    <TableCell>
-                      {b.attachments && b.attachments.length > 0 ? (
-                        <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
-                          {b.attachments.map((att, idx) => (
-                            <Chip
-                              key={idx}
-                              icon={isImageFile(att.type || '') ? <ImageIcon /> : <AttachFileIcon />}
-                              label={att.name}
-                              size="small"
-                              onClick={() => showAttachmentPreview(att)}
-                              sx={{ cursor: 'pointer', maxWidth: 150 }}
-                            />
-                          ))}
-                        </Box>
-                      ) : (
-                        <span style={{ color: '#999' }}>—</span>
-                      )}
-                    </TableCell>
-                    {(user?.role === 'admin' || user?.role === 'developer') && (
-                      <TableCell>
-                        {user?.role === 'admin' && (
-                          <Button size="small" startIcon={<DeleteIcon />} onClick={() => handleDeleteBug(b.id)}>Delete</Button>
-                        )}
-                      </TableCell>
-                    )}
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
-
-          {/* Add Bug Dialog */}
-          <Dialog open={bugDialog} onClose={() => setBugDialog(false)} maxWidth="sm" fullWidth>
-            <DialogTitle>Report New Bug</DialogTitle>
-            <DialogContent sx={{ pt: 2 }}>
-              <TextField
-                fullWidth
-                label="Description"
-                multiline
-                rows={3}
-                value={bugForm.description}
-                onChange={(e) => setBugForm({ ...bugForm, description: e.target.value })}
-                margin="normal"
-              />
-              <FormControl fullWidth margin="normal">
-                <InputLabel>Severity</InputLabel>
-                <Select
-                  value={bugForm.severity}
-                  onChange={(e) => setBugForm({ ...bugForm, severity: e.target.value })}
-                  label="Severity"
-                >
-                  <MenuItem value="low">Low</MenuItem>
-                  <MenuItem value="medium">Medium</MenuItem>
-                  <MenuItem value="high">High</MenuItem>
-                  <MenuItem value="critical">Critical</MenuItem>
-                </Select>
-              </FormControl>
-              <FormControl fullWidth margin="normal">
-                <InputLabel>Screen/Module</InputLabel>
-                <Select
-                  value={bugForm.screenId}
-                  onChange={(e) => setBugForm({ ...bugForm, screenId: e.target.value })}
-                  label="Screen/Module"
-                >
-                  <MenuItem value="">Select Screen</MenuItem>
-                  {screensList.map(s => (
-                    <MenuItem key={s.id} value={s.id}>{s.title}</MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-              <FormControl fullWidth margin="normal">
-                <InputLabel>Assign Developer</InputLabel>
-                <Select
-                  value={bugForm.assignedDeveloperId}
-                  onChange={(e) => setBugForm({ ...bugForm, assignedDeveloperId: e.target.value })}
-                  label="Assign Developer"
-                >
-                  <MenuItem value="">Unassigned</MenuItem>
-                  {project.developerNames?.map(d => (
-                    <MenuItem key={d.id} value={d.id}>{d.name}</MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-              <TextField
-                fullWidth
-                label="Deadline"
-                type="date"
-                value={bugForm.deadline}
-                onChange={(e) => setBugForm({ ...bugForm, deadline: e.target.value })}
-                margin="normal"
-                InputLabelProps={{ shrink: true }}
-              />
-
-              {/* Attachments Section */}
-              <Box sx={{ mt: 3, mb: 2 }}>
-                <strong>Attachments</strong>
-                <Box sx={{ mt: 1, mb: 2 }}>
-                  <Button
-                    variant="outlined"
-                    component="label"
-                    startIcon={<AttachFileIcon />}
-                    size="small"
-                  >
-                    Add Images/Videos
-                    <input hidden multiple type="file" onChange={handleAttachmentChange} accept="image/*,video/*" />
-                  </Button>
-                </Box>
-
-                {/* Attached Files List */}
-                {bugForm.attachments.length > 0 && (
-                  <Box sx={{ border: '1px solid #e0e0e0', borderRadius: 1, p: 1.5, bgcolor: '#f9f9f9' }}>
-                    {bugForm.attachments.map((att) => (
-                      <Box key={att.id} sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1, p: 1, bgcolor: 'white', borderRadius: 0.5 }}>
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flex: 1, minWidth: 0 }}>
-                          {isImageFile(att.type) ? <ImageIcon sx={{ color: '#3b82f6' }} /> : <AttachFileIcon sx={{ color: '#666' }} />}
-                          <Box sx={{ minWidth: 0, flex: 1 }}>
-                            <div style={{ fontSize: '0.875rem', fontWeight: 500, wordBreak: 'break-word' }}>{att.name}</div>
-                            <div style={{ fontSize: '0.75rem', color: '#666' }}>{formatFileSize(att.size)}</div>
-                          </Box>
-                        </Box>
-                        <IconButton size="small" onClick={() => removeAttachment(att.id)}>
-                          <CloseIcon fontSize="small" />
-                        </IconButton>
-                      </Box>
+                          {tab}
+                        </button>
+                      </li>
                     ))}
-                  </Box>
-                )}
-              </Box>
-            </DialogContent>
-            <DialogActions>
-              <Button onClick={() => setBugDialog(false)}>Cancel</Button>
-              <Button onClick={handleAddBug} variant="contained">Create Bug</Button>
-            </DialogActions>
-          </Dialog>
-        </Box>
-      )}
+                  </ul>
+                </div>
+              </div>
+            </div>
 
-      {/* Activity Tab */}
-      {tabIndex === 3 && (
-        <Box>
-          <h3>Activity Log</h3>
-          {activityList.length === 0 ? (
-            <Box sx={{ p: 3, textAlign: 'center', color: '#999' }}>No activity yet</Box>
-          ) : (
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-              {activityList.map(a => (
-                <Card key={a.id}>
-                  <CardContent>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start' }}>
-                      <div>
-                        <strong>{a.createdByName}</strong> {a.action} {a.entityType} #{a.entityId}
-                        <div style={{ color: '#666', fontSize: '0.875rem', marginTop: '0.25rem' }}>
-                          {new Date(a.createdAt).toLocaleString()}
+            <div className="flex-auto p-4">
+              {/* Tab Content */}
+              {tabIndex === 0 && (
+                <div className="flex flex-wrap -mx-3">
+                  <div className="w-full max-w-full px-3 lg:w-7/12">
+                    <h6 className="mb-4 font-bold">Project Description</h6>
+                    <p className="text-sm leading-normal text-slate-600">
+                      {project.description || 'No description provided.'}
+                    </p>
+                    
+                    <div className="mt-8">
+                      <h6 className="mb-4 font-bold">Timeline & Settings</h6>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="p-4 bg-gray-50 rounded-xl">
+                          <p className="text-xs font-bold uppercase text-slate-400 mb-2">Start Date</p>
+                          <p className="font-bold">{project.startDate ? new Date(project.startDate).toLocaleDateString() : 'N/A'}</p>
                         </div>
-                        {Object.keys(a.changes).length > 0 && (
-                          <div style={{ marginTop: '0.5rem', fontSize: '0.875rem', color: '#666' }}>
-                            Changes: {JSON.stringify(a.changes)}
-                          </div>
-                        )}
+                        <div className="p-4 bg-gray-50 rounded-xl">
+                          <p className="text-xs font-bold uppercase text-slate-400 mb-2">Target End Date</p>
+                          <p className="font-bold">{project.endDate ? new Date(project.endDate).toLocaleDateString() : 'N/A'}</p>
+                        </div>
                       </div>
-                      <Chip label={a.action} size="small" variant="outlined" />
-                    </Box>
-                  </CardContent>
-                </Card>
-              ))}
-            </Box>
-          )}
-        </Box>
-      )}
+                      
+                      {user?.role === 'admin' && (
+                        <div className="mt-6 p-4 border border-dashed border-gray-300 rounded-xl">
+                          <p className="text-sm font-bold mb-4">Update Project Timeline</p>
+                          <div className="flex flex-wrap gap-4 items-end">
+                            <InputGroup 
+                              label="Start" 
+                              type="date" 
+                              value={projectStart} 
+                              onChange={(e) => setProjectStart(e.target.value)} 
+                              className="mb-0"
+                            />
+                            <InputGroup 
+                              label="End" 
+                              type="date" 
+                              value={projectEnd} 
+                              onChange={(e) => setProjectEnd(e.target.value)} 
+                              className="mb-0"
+                            />
+                            <Button size="sm" onClick={handleUpdateProjectDates}>Save</Button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  
+                  <div className="w-full max-w-full px-3 mt-6 lg:w-5/12 lg:mt-0">
+                    <h6 className="mb-4 font-bold">Team Members</h6>
+                    <div className="flex flex-col gap-4">
+                      {project?.developerNames?.map(dev => (
+                        <div key={dev.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-xl">
+                          <div className="flex items-center">
+                            <div className="w-10 h-10 rounded-lg bg-gradient-to-tl from-slate-600 to-slate-300 flex items-center justify-center text-white font-bold mr-3">
+                              {dev.name?.split(' ').map(n=>n[0]).slice(0,2).join('')}
+                            </div>
+                            <div>
+                              <p className="text-sm font-bold mb-0">{dev.name}</p>
+                              <p className="text-xs text-slate-500 mb-0">Developer</p>
+                            </div>
+                          </div>
+                          <Badge gradient="from-green-600 to-lime-400" size="sm">Active</Badge>
+                        </div>
+                      ))}
+                      <div className="flex items-center justify-between p-3 bg-gray-50 rounded-xl border-l-4 border-fuchsia-500">
+                        <div className="flex items-center">
+                          <div className="w-10 h-10 rounded-lg bg-gradient-to-tl from-purple-700 to-pink-500 flex items-center justify-center text-white font-bold mr-3">
+                            {project.testerName?.split(' ').map(n=>n[0]).slice(0,2).join('')}
+                          </div>
+                          <div>
+                            <p className="text-sm font-bold mb-0">{project.testerName}</p>
+                            <p className="text-xs text-slate-500 mb-0">QA Tester</p>
+                          </div>
+                        </div>
+                        <Badge gradient="from-purple-700 to-pink-500" size="sm">Lead</Badge>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {tabIndex === 1 && (
+                <div>
+                  <div className="flex justify-between items-center mb-4">
+                    <h6 className="font-bold mb-0">Screens & Tasks</h6>
+                    {user?.role === 'admin' && (
+                      <Button size="sm" onClick={() => { setEditingScreen(null); setScreenForm({ title: '', module: '', assigneeId: '', plannedDeadline: '', notes: '' }); setScreenDialog(true); }}>
+                        <Plus size={14} className="mr-2" /> New Screen
+                      </Button>
+                    )}
+                  </div>
+                  <Table columns={screenColumns} data={screensList} pagination={true} pageSize={10} />
+                </div>
+              )}
+
+              {tabIndex === 2 && (
+                <div>
+                  <div className="flex justify-between items-center mb-4">
+                    <h6 className="font-bold mb-0">Bug Tracker</h6>
+                    {(user?.role === 'admin' || user?.role === 'tester' || user?.role === 'developer') && (
+                      <Button size="sm" onClick={() => setBugDialog(true)}>
+                        <Plus size={14} className="mr-2" /> Report Bug
+                      </Button>
+                    )}
+                  </div>
+                  
+                  {/* Bug Filters */}
+                  <div className="flex flex-wrap gap-4 mb-6 p-4 bg-gray-50 rounded-xl">
+                    <div className="w-full md:w-auto min-w-[150px]">
+                      <Select 
+                        label="Status" 
+                        options={[
+                          { value: '', label: 'All Statuses' },
+                          { value: 'Open', label: 'Open' },
+                          { value: 'In Progress', label: 'In Progress' },
+                          { value: 'Resolved', label: 'Resolved' },
+                          { value: 'Closed', label: 'Closed' }
+                        ]} 
+                        value={bugStatusFilter} 
+                        onChange={(e) => setBugStatusFilter(e.target.value)}
+                        className="mb-0"
+                      />
+                    </div>
+                    <div className="w-full md:w-auto min-w-[150px]">
+                      <Select 
+                        label="Severity" 
+                        options={[
+                          { value: '', label: 'All Severities' },
+                          { value: 'low', label: 'Low' },
+                          { value: 'medium', label: 'Medium' },
+                          { value: 'high', label: 'High' },
+                          { value: 'critical', label: 'Critical' }
+                        ]} 
+                        value={bugSeverityFilter} 
+                        onChange={(e) => setBugSeverityFilter(e.target.value)}
+                        className="mb-0"
+                      />
+                    </div>
+                    <div className="w-full md:w-auto min-w-[150px]">
+                      <Select 
+                        label="Assignee" 
+                        options={[
+                          { value: '', label: 'All Developers' },
+                          ...(project?.developerNames?.map(d => ({ value: d.id, label: d.name })) || [])
+                        ]} 
+                        value={bugAssigneeFilter} 
+                        onChange={(e) => setBugAssigneeFilter(e.target.value)}
+                        className="mb-0"
+                      />
+                    </div>
+                  </div>
+                  
+                  <Table columns={bugColumns} data={filteredBugs} pagination={true} pageSize={10} />
+                </div>
+              )}
+
+              {tabIndex === 3 && (
+                <div>
+                  <h6 className="font-bold mb-4">Project Activity Feed</h6>
+                  <div className="relative flex flex-col gap-6 before:absolute before:top-0 before:left-4 before:h-full before:w-0.5 before:bg-gray-200">
+                    {activityList.length === 0 ? (
+                      <p className="text-slate-500 text-sm ml-8">No activity recorded yet.</p>
+                    ) : (
+                      activityList.map((act, idx) => (
+                        <div key={idx} className="relative flex items-start ml-4 pl-6">
+                          <div className="absolute left-[-12px] top-1 w-6 h-6 rounded-full bg-white border-4 border-fuchsia-500 z-10"></div>
+                          <div className="flex-auto">
+                            <p className="text-sm font-bold text-slate-700 mb-0">{act.description}</p>
+                            <div className="flex items-center gap-2 mt-1">
+                              <p className="text-xs text-slate-500 mb-0 font-semibold">{act.userName}</p>
+                              <span className="text-slate-300 text-xs">•</span>
+                              <p className="text-xs text-slate-400 mb-0">{new Date(act.createdAt).toLocaleString()}</p>
+                            </div>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Modals */}
+      <Modal
+        isOpen={screenDialog}
+        title={editingScreen ? 'Edit Screen' : 'New Screen'}
+        onClose={() => setScreenDialog(false)}
+        footer={
+          <>
+            <Button variant="secondary" size="sm" onClick={() => setScreenDialog(false)}>Cancel</Button>
+            <Button size="sm" onClick={handleAddScreen}>{editingScreen ? 'Update' : 'Create'}</Button>
+          </>
+        }
+      >
+        <div className="flex flex-col gap-4">
+          <InputGroup label="Title" value={screenForm.title} onChange={(e) => setScreenForm({ ...screenForm, title: e.target.value })} />
+          <InputGroup label="Module" value={screenForm.module} onChange={(e) => setScreenForm({ ...screenForm, module: e.target.value })} />
+          <Select 
+            label="Assignee" 
+            options={[
+              { value: '', label: 'Unassigned' },
+              ...(project?.developerNames?.map(d => ({ value: d.id, label: d.name })) || [])
+            ]} 
+            value={screenForm.assigneeId} 
+            onChange={(e) => setScreenForm({ ...screenForm, assigneeId: e.target.value })} 
+          />
+          <InputGroup label="Planned Deadline" type="date" value={screenForm.plannedDeadline} onChange={(e) => setScreenForm({ ...screenForm, plannedDeadline: e.target.value })} />
+          <div className="mb-4">
+            <label className="mb-2 ml-1 font-bold text-xs text-slate-700">Notes</label>
+            <textarea
+              className="focus:shadow-soft-primary-outline text-sm leading-5.6 block w-full appearance-none rounded-lg border border-solid border-gray-300 bg-white bg-clip-padding px-3 py-2 font-normal text-gray-700 transition-all focus:border-fuchsia-300 focus:outline-none focus:transition-shadow"
+              rows="3"
+              value={screenForm.notes}
+              onChange={(e) => setScreenForm({ ...screenForm, notes: e.target.value })}
+            />
+          </div>
+        </div>
+      </Modal>
+
+      {/* Screen Deadline Edit Modal */}
+      <Modal
+        isOpen={screenEditDeadlineDialog}
+        title="Edit Screen Deadline"
+        onClose={() => setScreenEditDeadlineDialog(false)}
+        footer={
+          <>
+            <Button variant="secondary" size="sm" onClick={() => setScreenEditDeadlineDialog(false)}>Cancel</Button>
+            <Button size="sm" onClick={handleSaveScreenDeadline}>Save Changes</Button>
+          </>
+        }
+      >
+        <InputGroup label="New Deadline" type="date" value={screenEditDeadlineValue} onChange={(e) => setScreenEditDeadlineValue(e.target.value)} />
+      </Modal>
+
+      {/* Bug Report Modal */}
+      <Modal
+        isOpen={bugDialog}
+        title="Report New Bug"
+        onClose={() => setBugDialog(false)}
+        footer={
+          <>
+            <Button variant="secondary" size="sm" onClick={() => setBugDialog(false)}>Cancel</Button>
+            <Button size="sm" onClick={handleAddBug}>Submit Bug</Button>
+          </>
+        }
+      >
+        <div className="flex flex-col gap-4">
+          <div className="mb-4">
+            <label className="mb-2 ml-1 font-bold text-xs text-slate-700">Description</label>
+            <textarea
+              className="focus:shadow-soft-primary-outline text-sm leading-5.6 block w-full appearance-none rounded-lg border border-solid border-gray-300 bg-white bg-clip-padding px-3 py-2 font-normal text-gray-700 transition-all focus:border-fuchsia-300 focus:outline-none focus:transition-shadow"
+              rows="3"
+              value={bugForm.description}
+              onChange={(e) => setBugForm({ ...bugForm, description: e.target.value })}
+              required
+            />
+          </div>
+          <Select 
+            label="Severity" 
+            options={[
+              { value: 'low', label: 'Low' },
+              { value: 'medium', label: 'Medium' },
+              { value: 'high', label: 'High' },
+              { value: 'critical', label: 'Critical' }
+            ]} 
+            value={bugForm.severity} 
+            onChange={(e) => setBugForm({ ...bugForm, severity: e.target.value })} 
+          />
+          <Select 
+            label="Related Screen" 
+            options={[
+              { value: '', label: 'General / No Screen' },
+              ...(screensList.map(s => ({ value: s.id, label: s.title })) || [])
+            ]} 
+            value={bugForm.screenId} 
+            onChange={(e) => setBugForm({ ...bugForm, screenId: e.target.value })} 
+          />
+          <Select 
+            label="Assign Developer" 
+            options={[
+              { value: '', label: 'Unassigned' },
+              ...(project?.developerNames?.map(d => ({ value: d.id, label: d.name })) || [])
+            ]} 
+            value={bugForm.assignedDeveloperId} 
+            onChange={(e) => setBugForm({ ...bugForm, assignedDeveloperId: e.target.value })} 
+          />
+          <InputGroup label="Deadline" type="date" value={bugForm.deadline} onChange={(e) => setBugForm({ ...bugForm, deadline: e.target.value })} />
+          
+          <div className="mb-4">
+            <label className="mb-2 ml-1 font-bold text-xs text-slate-700">Attachments</label>
+            <div className="flex items-center justify-center w-full">
+              <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100 transition-colors">
+                <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                  <Plus className="w-8 h-8 mb-4 text-gray-500" />
+                  <p className="mb-2 text-sm text-gray-500"><span className="font-semibold">Click to upload</span> or drag and drop</p>
+                  <p className="text-xs text-gray-400">PNG, JPG, GIF up to 10MB</p>
+                </div>
+                <input type="file" className="hidden" multiple onChange={handleAttachmentChange} />
+              </label>
+            </div>
+            {bugForm.attachments.length > 0 && (
+              <div className="flex flex-wrap gap-2 mt-4">
+                {bugForm.attachments.map(att => (
+                  <div key={att.id} className="flex items-center gap-2 p-2 bg-white border border-gray-200 rounded-lg">
+                    {isImageFile(att.type) ? <ImageIcon size={14} className="text-blue-500" /> : <Paperclip size={14} className="text-slate-400" />}
+                    <span className="text-xs truncate max-w-[100px]">{att.name}</span>
+                    <button onClick={() => removeAttachment(att.id)} className="text-red-500 hover:text-red-700">
+                      <X size={14} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      </Modal>
+
+      {/* Bug Edit Modal */}
+      <Modal
+        isOpen={bugEditDialog}
+        title="Edit Bug Deadline"
+        onClose={() => setBugEditDialog(false)}
+        footer={
+          <>
+            <Button variant="secondary" size="sm" onClick={() => setBugEditDialog(false)}>Cancel</Button>
+            <Button size="sm" onClick={handleSaveBugDeadline}>Save Changes</Button>
+          </>
+        }
+      >
+        <InputGroup label="New Deadline" type="date" value={bugEditDeadline} onChange={(e) => setBugEditDeadline(e.target.value)} />
+      </Modal>
 
       {/* Attachment Preview Modal */}
-      <Dialog open={previewDialog} onClose={() => setPreviewDialog(false)} maxWidth="md" fullWidth>
-        <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          {previewAttachment?.name}
-          <IconButton onClick={() => setPreviewDialog(false)} size="small">
-            <CloseIcon />
-          </IconButton>
-        </DialogTitle>
-        <DialogContent sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, py: 3 }}>
-          {previewAttachment && isImageFile(previewAttachment.type) ? (
-            <Box
-              component="img"
-              src={previewAttachment.data}
-              sx={{ maxWidth: '100%', maxHeight: '500px', borderRadius: 1 }}
-              alt={previewAttachment.name}
-            />
-          ) : previewAttachment && isVideoFile(previewAttachment.type) ? (
-            <Box
-              component="video"
-              src={previewAttachment.data}
-              controls
-              sx={{ maxWidth: '100%', maxHeight: '500px', borderRadius: 1 }}
-            />
-          ) : (
-            <Box sx={{ p: 3, bgcolor: '#f5f5f5', borderRadius: 1, width: '100%', textAlign: 'center' }}>
-              <AttachFileIcon sx={{ fontSize: 48, color: '#999', mb: 2 }} />
-              <Box sx={{ fontSize: '1rem', fontWeight: 500, mb: 2 }}>File Preview</Box>
-              <Box sx={{ fontSize: '0.875rem', color: '#666', mb: 1 }}>
-                <strong>Name:</strong> {previewAttachment?.name}
-              </Box>
-              <Box sx={{ fontSize: '0.875rem', color: '#666', mb: 1 }}>
-                <strong>Size:</strong> {formatFileSize(previewAttachment?.size)}
-              </Box>
-              <Box sx={{ fontSize: '0.875rem', color: '#666' }}>
-                <strong>Type:</strong> {previewAttachment?.type}
-              </Box>
-            </Box>
-          )}
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setPreviewDialog(false)}>Close</Button>
-        </DialogActions>
-      </Dialog>
-
-      {/* Bug Deadline Edit Dialog */}
-      <Dialog open={bugEditDialog} onClose={() => setBugEditDialog(false)} maxWidth="xs" fullWidth>
-        <DialogTitle>Edit Bug Deadline</DialogTitle>
-        <DialogContent>
-          <TextField
-            fullWidth
-            label="Deadline"
-            type="date"
-            value={bugEditDeadline}
-            onChange={(e) => setBugEditDeadline(e.target.value)}
-            InputLabelProps={{ shrink: true }}
-            margin="normal"
-          />
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setBugEditDialog(false)}>Cancel</Button>
-          <Button variant="contained" onClick={handleSaveBugDeadline}>Save</Button>
-        </DialogActions>
-      </Dialog>
-
-      {/* Screen Deadline Edit Dialog */}
-      <Dialog open={screenEditDeadlineDialog} onClose={() => setScreenEditDeadlineDialog(false)} maxWidth="xs" fullWidth>
-        <DialogTitle>Edit Screen Deadline</DialogTitle>
-        <DialogContent>
-          <TextField
-            fullWidth
-            label="Deadline"
-            type="date"
-            value={screenEditDeadlineValue}
-            onChange={(e) => setScreenEditDeadlineValue(e.target.value)}
-            InputLabelProps={{ shrink: true }}
-            margin="normal"
-          />
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setScreenEditDeadlineDialog(false)}>Cancel</Button>
-          <Button variant="contained" onClick={handleSaveScreenDeadline}>Save</Button>
-        </DialogActions>
-      </Dialog>
-
-      {/* Toast Notification */}
-      <Snackbar
-        open={toast.open}
-        autoHideDuration={4000}
-        onClose={closeToast}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+      <Modal
+        isOpen={previewDialog}
+        title={previewAttachment?.name || 'Preview'}
+        onClose={() => setPreviewDialog(false)}
       >
-        <Alert onClose={closeToast} severity={toast.severity} sx={{ width: '100%' }}>
-          {toast.message}
-        </Alert>
-      </Snackbar>
-    </Box>
+        {previewAttachment && (
+          <div className="flex flex-col items-center">
+            {isImageFile(previewAttachment.type) ? (
+              <img src={previewAttachment.data} alt={previewAttachment.name} className="max-w-full rounded-lg shadow-soft-xl" />
+            ) : isVideoFile(previewAttachment.type) ? (
+              <video src={previewAttachment.data} controls className="max-w-full rounded-lg shadow-soft-xl" />
+            ) : (
+              <div className="p-8 text-center">
+                <Paperclip size={48} className="text-slate-300 mb-4 mx-auto" />
+                <p className="text-slate-500 mb-4">Preview not available for this file type.</p>
+                <a 
+                  href={previewAttachment.data} 
+                  download={previewAttachment.name}
+                  className="inline-flex items-center px-4 py-2 bg-gradient-to-tl from-purple-700 to-pink-500 text-white rounded-lg font-bold text-sm shadow-soft-md"
+                >
+                  <Download size={16} className="mr-2" /> Download File
+                </a>
+              </div>
+            )}
+            <div className="mt-4 text-xs text-slate-500">
+              {formatFileSize(previewAttachment.size)} • {previewAttachment.type}
+            </div>
+          </div>
+        )}
+      </Modal>
+
+      <ToastContainer position="bottom-right" theme="colored" />
+    </div>
   )
 }
 

@@ -11,12 +11,22 @@ export function clearToken() {
   localStorage.removeItem('token');
 }
 
-export function authFetch(url, options = {}) {
+export async function authFetch(url, options = {}) {
   const token = getToken();
   const headers = options.headers || {};
   if (token) headers['Authorization'] = `Bearer ${token}`;
   headers['Content-Type'] = 'application/json';
-  return fetch(url, { ...options, headers });
+  const response = await fetch(url, { ...options, headers });
+
+  if (response.status === 401) {
+    clearToken();
+    clearUser();
+    // Optionally, you could redirect here if auth.js had access to history/navigate
+    // For now, we'll let the calling component handle the redirect.
+    throw new Error('Unauthorized: Token expired or invalid');
+  }
+
+  return response;
 }
 
 export function saveUser(user) {

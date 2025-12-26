@@ -37,8 +37,8 @@ export default {
         info: '#3b82f6',
       },
       fontFamily: {
-        sans: ['Inter', 'sans-serif'],
-        display: ['Montserrat', 'sans-serif'],
+        sans: ['"Roboto Slab"', 'serif'],
+        display: ['"Roboto Slab"', 'serif'],
       },
       boxShadow: {
         soft: '0 1px 3px rgba(0, 0, 0, 0.1), 0 1px 2px rgba(0, 0, 0, 0.06)',

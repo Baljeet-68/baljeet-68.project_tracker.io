@@ -87,7 +87,7 @@ async function enrichProject(p) {
   const testerName = p.testerId ? await getUserName(p.testerId) : 'Unassigned';
   const developerNames = await Promise.all((p.developerIds || []).map(async id => ({ id, name: await getUserName(id) })));
   const openBugsCount = localData.bugs.filter(b => b.projectId === p.id && (b.status === 'Open' || b.status === 'In Progress')).length;
-  const completedScreensCount = localData.screens.filter(s => s.projectId === p.id).length;
+  const completedScreensCount = localData.screens.filter(s => s.projectId === p.id && s.status === 'Done').length;
   const totalScreensCount = localData.screens.filter(s => s.projectId === p.id).length;
   const screenDeadlines = localData.screens.filter(s => s.projectId === p.id && s.plannedDeadline && new Date(s.plannedDeadline) > new Date()).length;
   const bugDeadlines = localData.bugs.filter(b => b.projectId === p.id && b.deadline && new Date(b.deadline) > new Date()).length;

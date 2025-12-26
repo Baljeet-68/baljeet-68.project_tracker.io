@@ -1,8 +1,8 @@
-// TailAdmin Card Component
+// Soft UI Card Component
 export const Card = ({ children, className = '', shadow = true }) => {
-  const shadowClass = shadow ? 'shadow-soft' : ''
+  const shadowClass = shadow ? 'shadow-soft-2xl' : ''
   return (
-    <div className={`bg-white rounded-sm border border-gray-200 ${shadowClass} ${className}`}>
+    <div className={`relative flex flex-col min-w-0 break-words bg-white border-0 ${shadowClass} rounded-3xl bg-clip-border ${className}`}>
       {children}
     </div>
   )
@@ -10,68 +10,56 @@ export const Card = ({ children, className = '', shadow = true }) => {
 
 // Card Header
 export const CardHeader = ({ children, className = '' }) => (
-  <div className={`px-4 py-6 border-b border-gray-200 ${className}`}>
+  <div className={`p-6 pb-0 mb-0 bg-white border-b-0 rounded-t-3xl ${className}`}>
     {children}
   </div>
 )
 
 // Card Body
 export const CardBody = ({ children, className = '' }) => (
-  <div className={`p-4 ${className}`}>
+  <div className={`flex-auto p-6 ${className}`}>
     {children}
   </div>
 )
 
 // Stat Card
-export const StatCard = ({ icon: Icon, title, value, change, changeType = 'positive', color = 'primary' }) => {
-  const colorClasses = {
-    primary: 'bg-primary-50 text-primary-600',
-    success: 'bg-green-50 text-green-600',
-    warning: 'bg-warning text-warning',
-    danger: 'bg-danger text-danger',
-    info: 'bg-info text-info',
-  }
-
+export const StatCard = ({ icon: Icon, title, value, change, changeType = 'positive', gradient = 'from-purple-700 to-pink-500' }) => {
   return (
-    <Card className="p-6">
-      <div className="flex items-center justify-between">
-        <div className="flex flex-col gap-1">
-          <p className="text-gray-500 text-sm font-medium">{title}</p>
-          <h4 className="text-2xl font-bold text-dark-900">{value}</h4>
-          {change && (
-            <p className={`text-xs font-medium ${changeType === 'positive' ? 'text-success' : 'text-danger'}`}>
-              <span>{changeType === 'positive' ? '▲' : '▼'}</span> {change}
-            </p>
-          )}
-        </div>
-        {Icon && (
-          <div className={`p-4 rounded-full ${colorClasses[color]}`}>
-            <Icon className="w-6 h-6" />
+    <Card className="p-4">
+      <div className="flex flex-row -mx-3">
+        <div className="flex-none w-2/3 max-w-full px-3">
+          <div>
+            <p className="mb-0 font-sans font-semibold leading-normal text-sm">{title}</p>
+            <h5 className="mb-0 font-bold">
+              {value}
+              {change && (
+                <span className={`leading-normal text-sm font-weight-bolder ${changeType === 'positive' ? 'text-lime-500' : 'text-red-600'}`}>
+                  {' '}{changeType === 'positive' ? '+' : '-'}{change}
+                </span>
+              )}
+            </h5>
           </div>
-        )}
+        </div>
+        <div className="px-3 text-right basis-1/3">
+          <div className={`inline-block w-12 h-12 text-center rounded-lg bg-gradient-to-tl ${gradient} shadow-soft-2xl`}>
+            {Icon && <Icon className="text-white h-full w-full p-3" />}
+          </div>
+        </div>
       </div>
     </Card>
   )
 }
 
 // Badge Component
-export const Badge = ({ children, variant = 'primary', size = 'md' }) => {
+export const Badge = ({ children, gradient = 'from-slate-600 to-slate-300', size = 'md' }) => {
   const sizeClasses = {
-    sm: 'px-2 py-1 text-xs',
-    md: 'px-3 py-1 text-sm',
-    lg: 'px-4 py-2 text-base',
-  }
-
-  const variantClasses = {
-    primary: 'bg-primary-100 text-primary-800',
-    success: 'bg-green-100 text-green-800',
-    warning: 'bg-warning/20 text-warning',
-    danger: 'bg-danger/20 text-danger',
-    gray: 'bg-gray-100 text-gray-800',
+    sm: 'px-3 py-1.5 text-xxs',
+    md: 'px-4 py-2 text-xs',
+    lg: 'px-5 py-2.5 text-sm',
   }
 
   return (
-    <span className={`inline-block rounded-full font-medium ${sizeClasses[size]} ${variantClasses[variant]}`}>
+    <span className={`bg-gradient-to-tl ${gradient} ${sizeClasses[size]} rounded-lg inline-block whitespace-nowrap text-center align-baseline font-bold uppercase leading-none text-white shadow-soft-sm`}>
       {children}
     </span>
   )
@@ -87,23 +75,25 @@ export const Button = ({
   ...props 
 }) => {
   const sizeClasses = {
-    sm: 'px-3 py-1.5 text-sm',
-    md: 'px-4 py-2 text-sm',
-    lg: 'px-6 py-3 text-base',
+    sm: 'px-4 py-2 text-xs',
+    md: 'px-6 py-3 text-xs',
+    lg: 'px-8 py-4 text-sm',
   }
 
   const variantClasses = {
-    primary: 'bg-primary-600 text-white hover:bg-primary-700 transition',
-    secondary: 'bg-gray-200 text-gray-900 hover:bg-gray-300 transition',
-    danger: 'bg-danger text-white hover:bg-red-700 transition',
-    outline: 'border border-gray-300 text-gray-900 hover:bg-gray-50 transition',
+    primary: 'bg-gradient-to-tl from-purple-700 to-pink-500 text-white hover:scale-102 active:opacity-85',
+    secondary: 'bg-gradient-to-tl from-slate-600 to-slate-300 text-white hover:scale-102 active:opacity-85',
+    danger: 'bg-gradient-to-tl from-red-600 to-rose-400 text-white hover:scale-102 active:opacity-85',
+    success: 'bg-gradient-to-tl from-green-600 to-lime-400 text-white hover:scale-102 active:opacity-85',
+    info: 'bg-gradient-to-tl from-blue-600 to-cyan-400 text-white hover:scale-102 active:opacity-85',
+    outline: 'border border-fuchsia-300 text-fuchsia-300 bg-transparent hover:bg-fuchsia-300 hover:text-white',
   }
 
   const widthClass = fullWidth ? 'w-full' : ''
 
   return (
     <button 
-      className={`rounded-md font-medium transition-colors ${sizeClasses[size]} ${variantClasses[variant]} ${widthClass} ${className}`}
+      className={`inline-block font-bold text-center uppercase align-middle transition-all border-0 rounded-lg cursor-pointer shadow-soft-md bg-x-25 bg-150 leading-pro ease-soft-in tracking-tight-soft ${sizeClasses[size]} ${variantClasses[variant]} ${widthClass} ${className}`}
       {...props}
     >
       {children}
@@ -113,5 +103,5 @@ export const Button = ({
 
 // Loading Skeleton
 export const Skeleton = ({ className = '' }) => (
-  <div className={`animate-pulse bg-gray-200 rounded ${className}`} />
+  <div className={`animate-pulse bg-gray-200 rounded-2xl ${className}`} />
 )

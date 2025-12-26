@@ -277,6 +277,7 @@ async function updateUserInDb(userId, changes) {
       values.push(hashedPassword);
     }
     if (changes.role !== undefined) { fields.push('role = ?'); values.push(changes.role); }
+    if (changes.profilePicture !== undefined) { fields.push('profilePicture = ?'); values.push(changes.profilePicture); }
 
     if (fields.length === 0) return;
 

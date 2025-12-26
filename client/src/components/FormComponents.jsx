@@ -1,48 +1,79 @@
 import React from 'react'
-import { Card, CardHeader, CardBody } from './TailAdminComponents'
+import { Card, CardHeader, CardBody, Button } from './TailAdminComponents'
+import { ChevronLeft, ChevronRight } from 'lucide-react'
 
-export const Table = ({ columns, data, loading = false }) => {
+export const Table = ({ columns, data, loading = false, pagination = false, pageSize = 10 }) => {
+  const [currentPage, setCurrentPage] = React.useState(1)
+
+  // Pagination Logic
+  const totalItems = data.length
+  const totalPages = Math.ceil(totalItems / pageSize)
+  const paginatedData = pagination 
+    ? data.slice((currentPage - 1) * pageSize, currentPage * pageSize)
+    : data
+
+  const getPageNumbers = () => {
+    const pages = []
+    if (totalPages <= 7) {
+      for (let i = 1; i <= totalPages; i++) pages.push(i)
+    } else {
+      if (currentPage <= 4) {
+        for (let i = 1; i <= 5; i++) pages.push(i)
+        pages.push('...')
+        pages.push(totalPages)
+      } else if (currentPage >= totalPages - 3) {
+        pages.push(1)
+        pages.push('...')
+        for (let i = totalPages - 4; i <= totalPages; i++) pages.push(i)
+      } else {
+        pages.push(1)
+        pages.push('...')
+        for (let i = currentPage - 1; i <= currentPage + 1; i++) pages.push(i)
+        pages.push('...')
+        pages.push(totalPages)
+      }
+    }
+    return pages
+  }
+
   if (loading) {
     return (
-      <Card>
-        <CardBody className="py-8">
-          <div className="text-center text-gray-500">Loading...</div>
-        </CardBody>
-      </Card>
+      <div className="py-8 text-center text-slate-500">
+        <div className="inline-block w-8 h-8 border-4 border-fuchsia-500 border-t-transparent rounded-full animate-spin mb-2"></div>
+        <p>Loading data...</p>
+      </div>
     )
   }
 
   if (!data || data.length === 0) {
     return (
-      <Card>
-        <CardBody className="py-8">
-          <div className="text-center text-gray-500">No data available</div>
-        </CardBody>
-      </Card>
+      <div className="py-8 text-center text-slate-500">
+        <p>No data available</p>
+      </div>
     )
   }
 
   return (
-    <Card className="overflow-hidden">
-      <div className="overflow-x-auto">
-        <table className="w-full">
-          <thead>
-            <tr className="border-b border-gray-200 bg-gray-50">
+    <div className="flex-auto px-0 pt-0 pb-2">
+      <div className="p-0 overflow-x-auto">
+        <table className="items-center w-full mb-0 align-top border-gray-200 text-slate-500">
+          <thead className="align-bottom">
+            <tr>
               {columns.map((col) => (
                 <th
                   key={col.key}
-                  className="px-6 py-3 text-left text-sm font-semibold text-gray-900"
+                  className="px-6 py-3 font-bold text-left uppercase align-middle bg-transparent border-b border-gray-200 shadow-none text-xxs border-b-solid tracking-tight-soft opacity-70"
                 >
                   {col.label}
                 </th>
               ))}
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-200">
-            {data.map((row, idx) => (
-              <tr key={idx} className="hover:bg-gray-50 transition-colors">
+          <tbody>
+            {paginatedData.map((row, idx) => (
+              <tr key={idx}>
                 {columns.map((col) => (
-                  <td key={`${idx}-${col.key}`} className="px-6 py-4 text-sm text-gray-700">
+                  <td key={`${idx}-${col.key}`} className="p-2 align-middle bg-transparent border-b whitespace-nowrap shadow-transparent px-6 text-sm">
                     {col.render ? col.render(row[col.key], row) : row[col.key]}
                   </td>
                 ))}
@@ -51,7 +82,71 @@ export const Table = ({ columns, data, loading = false }) => {
           </tbody>
         </table>
       </div>
-    </Card>
+      
+      {pagination && (
+        <div className="mt-8 mb-4 px-4">
+          <div className="flex flex-wrap items-center justify-between bg-white rounded-full border border-gray-100 shadow-sm px-6 py-3 gap-4">
+            {/* Left & Center: Navigation */}
+            <div className="flex items-center gap-4 md:gap-8">
+              {/* Previous Button */}
+              <button
+                onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                disabled={currentPage === 1}
+                className={`flex items-center gap-2 text-sm font-medium transition-all ${
+                  currentPage === 1 
+                    ? 'text-slate-300 cursor-not-allowed' 
+                    : 'text-slate-600 hover:text-indigo-600'
+                }`}
+              >
+                <ChevronLeft size={18} />
+                <span>Previous</span>
+              </button>
+              
+              {/* Page Numbers */}
+              <div className="flex items-center gap-1">
+                {getPageNumbers().map((page, idx) => (
+                  <React.Fragment key={idx}>
+                    {page === '...' ? (
+                      <span className="px-2 text-slate-400">...</span>
+                    ) : (
+                      <button
+                        onClick={() => setCurrentPage(page)}
+                        className={`w-9 h-9 flex items-center justify-center text-sm font-medium rounded-full transition-all ${
+                          currentPage === page 
+                            ? 'bg-indigo-600 text-white shadow-md shadow-indigo-200' 
+                            : 'text-slate-600 hover:bg-slate-50 hover:text-indigo-600'
+                        }`}
+                      >
+                        {page}
+                      </button>
+                    )}
+                  </React.Fragment>
+                ))}
+              </div>
+
+              {/* Next Button */}
+              <button
+                onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                disabled={currentPage === totalPages}
+                className={`flex items-center gap-2 text-sm font-medium transition-all ${
+                  currentPage === totalPages 
+                    ? 'text-slate-300 cursor-not-allowed' 
+                    : 'text-slate-600 hover:text-indigo-600'
+                }`}
+              >
+                <span>Next</span>
+                <ChevronRight size={18} />
+              </button>
+            </div>
+
+            {/* Right: Results Info */}
+            <div className="text-sm text-slate-500 whitespace-nowrap">
+              Showing <span className="font-medium text-slate-700">{Math.min(currentPage * pageSize, totalItems)}</span> of <span className="font-medium text-slate-700">{totalItems.toLocaleString()}</span> results
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
   )
 }
 
@@ -63,22 +158,22 @@ export const Modal = ({ isOpen, title, children, onClose, footer }) => {
     <>
       {/* Backdrop */}
       <div
-        className="fixed inset-0 bg-black bg-opacity-50 z-40"
+        className="fixed inset-0 bg-black/40 backdrop-blur-sm z-40 transition-opacity"
         onClick={onClose}
       />
 
       {/* Modal */}
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 pointer-events-none">
         <div
-          className="bg-white rounded-lg shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto"
+          className="bg-white rounded-2xl shadow-soft-2xl max-w-md w-full max-h-[90vh] overflow-y-auto pointer-events-auto transform transition-all"
           onClick={(e) => e.stopPropagation()}
         >
           {/* Header */}
-          <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
-            <h3 className="text-lg font-semibold text-gray-900">{title}</h3>
+          <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+            <h6 className="mb-0 font-bold text-slate-700">{title}</h6>
             <button
               onClick={onClose}
-              className="text-gray-500 hover:text-gray-700"
+              className="text-slate-400 hover:text-slate-600 transition-colors"
             >
               ✕
             </button>
@@ -89,7 +184,7 @@ export const Modal = ({ isOpen, title, children, onClose, footer }) => {
 
           {/* Footer */}
           {footer && (
-            <div className="px-6 py-4 border-t border-gray-200 flex gap-2 justify-end">
+            <div className="px-6 py-4 border-t border-gray-100 flex gap-2 justify-end">
               {footer}
             </div>
           )}
@@ -101,18 +196,11 @@ export const Modal = ({ isOpen, title, children, onClose, footer }) => {
 
 // Toast/Alert Component
 export const Toast = ({ message, type = 'info', onClose }) => {
-  const bgColor = {
-    success: 'bg-green-50 border-green-200',
-    error: 'bg-red-50 border-red-200',
-    warning: 'bg-amber-50 border-amber-200',
-    info: 'bg-blue-50 border-blue-200',
-  }
-
-  const textColor = {
-    success: 'text-green-800',
-    error: 'text-red-800',
-    warning: 'text-amber-800',
-    info: 'text-blue-800',
+  const gradient = {
+    success: 'from-green-600 to-lime-400',
+    error: 'from-red-600 to-rose-400',
+    warning: 'from-orange-500 to-yellow-400',
+    info: 'from-blue-600 to-cyan-400',
   }
 
   React.useEffect(() => {
@@ -121,7 +209,7 @@ export const Toast = ({ message, type = 'info', onClose }) => {
   }, [onClose])
 
   return (
-    <div className={`fixed top-4 right-4 max-w-sm p-4 rounded-lg border ${bgColor[type]} ${textColor[type]} shadow-lg`}>
+    <div className={`fixed top-4 right-4 max-w-sm p-4 rounded-lg bg-gradient-to-tl ${gradient[type]} text-white shadow-soft-2xl z-100`}>
       {message}
     </div>
   )
@@ -131,18 +219,18 @@ export const Toast = ({ message, type = 'info', onClose }) => {
 export const InputGroup = ({ label, type = 'text', error, ...props }) => (
   <div className="mb-4">
     {label && (
-      <label className="block text-sm font-medium text-gray-700 mb-1">
+      <label className="mb-2 ml-1 font-bold text-xs text-slate-700">
         {label}
       </label>
     )}
     <input
       type={type}
-      className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 ${
+      className={`focus:shadow-soft-primary-outline text-sm leading-5.6 block w-full appearance-none rounded-lg border border-solid bg-white bg-clip-padding px-3 py-2 font-normal text-gray-700 transition-all focus:border-fuchsia-300 focus:outline-none focus:transition-shadow ${
         error ? 'border-red-500' : 'border-gray-300'
       }`}
       {...props}
     />
-    {error && <p className="text-red-500 text-sm mt-1">{error}</p>}
+    {error && <p className="text-red-600 text-xs mt-1 ml-1">{error}</p>}
   </div>
 )
 
@@ -150,12 +238,12 @@ export const InputGroup = ({ label, type = 'text', error, ...props }) => (
 export const Select = ({ label, options, error, ...props }) => (
   <div className="mb-4">
     {label && (
-      <label className="block text-sm font-medium text-gray-700 mb-1">
+      <label className="mb-2 ml-1 font-bold text-xs text-slate-700">
         {label}
       </label>
     )}
     <select
-      className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 ${
+      className={`focus:shadow-soft-primary-outline text-sm leading-5.6 block w-full appearance-none rounded-lg border border-solid bg-white bg-clip-padding px-3 py-2 font-normal text-gray-700 transition-all focus:border-fuchsia-300 focus:outline-none focus:transition-shadow ${
         error ? 'border-red-500' : 'border-gray-300'
       }`}
       {...props}
@@ -166,25 +254,25 @@ export const Select = ({ label, options, error, ...props }) => (
         </option>
       ))}
     </select>
-    {error && <p className="text-red-500 text-sm mt-1">{error}</p>}
+    {error && <p className="text-red-600 text-xs mt-1 ml-1">{error}</p>}
   </div>
 )
 
 // Progress Bar Component
-export const ProgressBar = ({ value, max = 100, label, showLabel = true }) => {
+export const ProgressBar = ({ value, max = 100, label, showLabel = true, gradient = 'from-blue-600 to-cyan-400' }) => {
   const percentage = (value / max) * 100
 
   return (
-    <div>
+    <div className="w-full max-w-full px-3 mb-6 flex-none">
       {showLabel && (
         <div className="flex justify-between items-center mb-1">
-          <span className="text-sm font-medium text-gray-700">{label}</span>
-          <span className="text-sm font-semibold text-gray-900">{percentage.toFixed(0)}%</span>
+          <span className="text-xs font-semibold leading-tight">{label}</span>
+          <span className="text-xs font-semibold leading-tight">{percentage.toFixed(0)}%</span>
         </div>
       )}
-      <div className="w-full bg-gray-200 rounded-full h-2">
+      <div className="text-xs h-0.75 w-full bg-gray-200 rounded-lg overflow-hidden">
         <div
-          className="bg-primary-600 h-2 rounded-full transition-all duration-300"
+          className={`h-full bg-gradient-to-tl ${gradient} rounded-lg transition-all duration-300`}
           style={{ width: `${percentage}%` }}
         />
       </div>

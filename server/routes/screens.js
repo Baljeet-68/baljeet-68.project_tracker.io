@@ -48,7 +48,7 @@ router.get(`/projects/:id/screens`, authenticate, async (req, res) => {
       return res.status(403).json({ error: 'Forbidden' });
     }
     const screens = await screensSource();
-    const projectScreens = screens.filter(s => s.projectId === req.params.id).map(s => enrichScreen(s));
+    const projectScreens = await Promise.all(screens.filter(s => s.projectId === req.params.id).map(s => enrichScreen(s)));
     res.json(projectScreens);
   } catch (err) {
     res.status(500).json({ error: err.message });

@@ -5,6 +5,7 @@ import Dashboard from './pages/Dashboard'
 import ProjectPage from './pages/ProjectPage'
 import ProjectsList from './pages/ProjectsList'
 import Admin from './pages/Admin'
+import Settings from './pages/Settings'
 import { getToken, getUser } from './auth'
 import Layout from './Layout'
 
@@ -82,6 +83,18 @@ export default function App() {
                 <Admin />
               </Layout>
             </AdminRoute>
+          }
+        />
+
+        {/* Settings */}
+        <Route
+          path="settings"
+          element={
+            <ProtectedRoute>
+              <Layout>
+                <Settings />
+              </Layout>
+            </ProtectedRoute>
           }
         />
 

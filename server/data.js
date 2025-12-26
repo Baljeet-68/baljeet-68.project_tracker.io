@@ -3,7 +3,7 @@
 
 const users = [
   { id: 'u1', name: 'Admin User', email: 'admin@example.com', password: 'admin123', role: 'admin', active: true },
-  { id: 'u2', name: 'John', email: 'tester@example.com', password: 'tester123', role: 'tester', active: true },
+  { id: 'u2', name: 'John', email: 'tester@example.com', password: 'tester123', role: 'tester', active: false },
   { id: 'u3', name: 'Dev Alice', email: 'alice@example.com', password: 'dev123', role: 'developer', active: true },
   { id: 'u4', name: 'Dev Bob', email: 'bob@example.com', password: 'dev123', role: 'developer', active: true },
   { id: 'u5', name: 'Dev Charlie', email: 'charlie@example.com', password: 'dev123', role: 'developer', active: true }
@@ -83,6 +83,19 @@ const screens = [
     notes: 'JWT-based auth',
     createdAt: new Date('2025-01-05'),
     updatedAt: new Date('2025-01-28')
+  },
+  {
+    id: 'scr4',
+    projectId: 'proj2',
+    title: 'User Onboarding Flow',
+    module: 'Frontend',
+    assigneeId: 'u4',
+    plannedDeadline: new Date('2025-03-10'),
+    actualEndDate: null,
+    status: 'Planned',
+    notes: 'Initial user setup and tour',
+    createdAt: new Date('2025-02-01'),
+    updatedAt: new Date('2025-02-01')
   }
 ]
 
