@@ -98,7 +98,13 @@ router.patch(`/me`, authenticate, async (req, res) => {
         
         const base64Data = matches[2];
         const fileName = `profile_${req.user.userId}_${Date.now()}.${extension}`;
-        const filePath = path.join(__dirname, '..', 'uploads', fileName);
+        const uploadDir = path.join(__dirname, '..', 'uploads');
+        const filePath = path.join(uploadDir, fileName);
+
+        // Ensure uploads directory exists
+        if (!fs.existsSync(uploadDir)) {
+          fs.mkdirSync(uploadDir, { recursive: true });
+        }
 
         // Save file to disk
         fs.writeFileSync(filePath, base64Data, 'base64');

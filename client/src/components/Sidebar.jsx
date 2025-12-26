@@ -17,12 +17,23 @@ import {
   HelpCircle,
   ChevronsUpDown,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  LogOut
 } from 'lucide-react'
 
 export default function Sidebar({ open, onClose, collapsed, setCollapsed }) {
+  const [isHovered, setIsHovered] = React.useState(false)
   const user = getUser()
   const location = useLocation()
+
+  const handleLogout = () => {
+    localStorage.removeItem('token')
+    localStorage.removeItem('user')
+    window.location.href = '/login'
+  }
+
+  // Effective collapsed state: true if collapsed AND not hovered
+  const isActuallyCollapsed = collapsed && !isHovered
 
   const mainMenuItems = [
     // { label: 'Inbox', icon: Inbox, path: '/inbox', roles: ['admin', 'tester', 'developer'] },
@@ -67,18 +78,18 @@ export default function Sidebar({ open, onClose, collapsed, setCollapsed }) {
           ) : (
             <Icon size={18} className={active ? 'text-slate-900' : 'text-slate-400 group-hover:text-slate-600'} />
           )}
-          {!collapsed && <span className="text-sm">{item.label}</span>}
+          {!isActuallyCollapsed && <span className="text-sm">{item.label}</span>}
         </div>
-        {!collapsed && item.shortcut && (
+        {!isActuallyCollapsed && item.shortcut && (
           <span className="text-[10px] font-medium text-slate-300 group-hover:text-slate-400 transition-colors">
             {item.shortcut}
           </span>
         )}
-        {!collapsed && item.hasNotification && (
+        {!isActuallyCollapsed && item.hasNotification && (
           <div className="absolute left-6 top-3 w-1.5 h-1.5 bg-orange-500 rounded-full border border-white" />
         )}
         
-        {collapsed && (
+        {isActuallyCollapsed && (
           <div className="absolute left-full ml-2 px-2 py-1 bg-slate-800 text-white text-xs rounded opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity whitespace-nowrap z-50">
             {item.label}
           </div>
@@ -99,25 +110,27 @@ export default function Sidebar({ open, onClose, collapsed, setCollapsed }) {
 
       {/* Sidebar Container */}
       <aside
+        onMouseEnter={() => collapsed && setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
         className={`fixed left-0 top-0 z-40 h-screen transition-all duration-300 ease-in-out bg-white border-r border-slate-100 ${
-          collapsed ? 'w-20' : 'w-72'
+          isActuallyCollapsed ? 'w-20' : 'w-72'
         } ${open ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`}
       >
         <div className="flex flex-col h-full px-4 py-6">
           {/* Workspace Switcher */}
-          <div className={`flex items-center justify-between mb-6 ${collapsed ? 'justify-center px-0' : 'px-2'}`}>
+          <div className={`flex items-center justify-between mb-6 ${isActuallyCollapsed ? 'justify-center px-0' : 'px-2'}`}>
             <div className="flex items-center gap-3">
               <div className="w-14 h-14 bg-indigo-600 rounded-xl flex items-center justify-center text-white font-bold text-lg shadow-lg shadow-indigo-100">
                 MMF
               </div>
-              {!collapsed && (
+              {!isActuallyCollapsed && (
                 <div className="flex flex-col">
                   <span className="text-sm font-bold text-slate-900">MMF Project Tracker</span>
                   <span className="text-xs text-slate-400">Version 1.0.0</span>
                 </div>
               )}
             </div>
-            {!collapsed && <ChevronsUpDown size={16} className="text-slate-300" />}
+            {!isActuallyCollapsed && <ChevronsUpDown size={16} className="text-slate-300" />}
           </div>
 
           {/* Search Bar */}
@@ -180,11 +193,22 @@ export default function Sidebar({ open, onClose, collapsed, setCollapsed }) {
           <div className="mt-auto pt-6 space-y-4">
             <div className="space-y-1">
               <NavItem item={{ label: 'Settings', icon: Settings, path: '/settings' }} />
-              {/* <NavItem item={{ label: 'Help', icon: HelpCircle, path: '/help' }} /> */}
+              <button
+                onClick={handleLogout}
+                className={`group relative flex items-center gap-3 px-3 py-2 rounded-xl transition-all duration-200 text-red-500 hover:bg-red-50 w-full ${isActuallyCollapsed ? 'justify-center' : ''}`}
+              >
+                <LogOut size={18} className="flex-shrink-0" />
+                {!isActuallyCollapsed && <span className="text-sm font-medium">Sign Out</span>}
+                {isActuallyCollapsed && (
+                  <div className="absolute left-full ml-2 px-2 py-1 bg-red-600 text-white text-xs rounded opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity whitespace-nowrap z-50">
+                    Sign Out
+                  </div>
+                )}
+              </button>
             </div>
 
             {/* User Profile */}
-            <div className={`p-2 rounded-2xl bg-slate-50 border border-slate-100 flex items-center gap-3 ${collapsed ? 'justify-center p-1' : ''}`}>
+            <div className={`p-2 rounded-2xl bg-slate-50 border border-slate-100 flex items-center gap-3 ${isActuallyCollapsed ? 'justify-center p-1' : ''}`}>
               <div className="w-10 h-10 rounded-xl overflow-hidden shadow-sm flex-shrink-0 border-2 border-white">
                 <img 
                   src={user?.profilePicture || `https://ui-avatars.com/api/?name=${user?.name || user?.username || 'User'}&background=random&color=fff`} 
@@ -192,7 +216,7 @@ export default function Sidebar({ open, onClose, collapsed, setCollapsed }) {
                   className="w-full h-full object-cover"
                 />
               </div>
-              {!collapsed && (
+              {!isActuallyCollapsed && (
                 <div className="flex flex-1 items-center justify-between overflow-hidden">
                   <div className="flex flex-col overflow-hidden">
                     <span className="text-sm font-bold text-slate-900 truncate">{user?.name || user?.username || 'User Name'}</span>
