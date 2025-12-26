@@ -56,7 +56,7 @@ router.get(`/projects`, authenticate, async (req, res) => {
         return false;
       });
     }
-    res.json(await Promise.all(result.map(p => enrichProject(p))));
+    res.json(await Promise.all(result.map(p => enrichProject(req, p))));
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -77,9 +77,9 @@ router.get(`/projects/:id`, authenticate, async (req, res) => {
     // NOTE: screens and bugs are still in-memory for now, will be moved to DB later
     if (!USE_LIVE_DB) {
       p.screensList = screensSource.filter(s => s.projectId === p.id);
-      p.bugsList = await Promise.all(bugsSource.filter(b => b.projectId === p.id).map(b => enrichBug(b)));
+      p.bugsList = await Promise.all(bugsSource.filter(b => b.projectId === p.id).map(b => enrichBug(req, b)));
     }
-    const enriched = await enrichProject(p);
+    const enriched = await enrichProject(req, p);
     res.json(enriched);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -168,7 +168,7 @@ router.post(`/projects`, authenticate, requireRole('admin'), async (req, res) =>
     } else {
       projectsSource.push(project);
     }
-    res.status(201).json(await enrichProject(project));
+    res.status(201).json(await enrichProject(req, project));
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -212,7 +212,7 @@ router.patch(`/projects/:id`, authenticate, requireRole('admin'), async (req, re
     const updatedProject = await getProjectByIdSource(req.params.id);
     
     logActivity(updatedProject.id, 'project', updatedProject.id, 'updated', req.user.userId, changes);
-    res.json(await enrichProject(updatedProject));
+    res.json(await enrichProject(req, updatedProject));
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

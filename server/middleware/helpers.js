@@ -2,6 +2,20 @@ const localData = require('../data');
 const { USE_LIVE_DB } = require('../config');
 const { getProjectById, getUsersFromMySQL } = require('../api');
 
+// Helper: Get dynamic profile picture URL
+function getProfileUrl(req, filename) {
+  if (!filename) return '';
+  if (filename.startsWith('http')) return filename;
+  
+  const baseUrl = (process.env.BASE_URL || '').replace(/\/api$/, '');
+  const protocol = req.headers['x-forwarded-proto'] || req.protocol;
+  const host = req.get('host');
+  // Use https for production/cpanel, http for local
+  const finalProtocol = (host.includes('localhost') || host.includes('127.0.0.1')) ? protocol : 'https';
+  
+  return `${finalProtocol}://${host}${baseUrl}/uploads/${filename}`;
+}
+
 // Helper: normalize project object returned from DB or local
 function normalizeProjectObj(p) {
   if (!p) return null;
@@ -55,7 +69,7 @@ async function getUserName(userId) {
 }
 
 // Helper: Enrich bug with user details
-async function enrichBug(b) {
+async function enrichBug(req, b) {
   const users = await getUsers();
   const creator = users.find(u => u.id === b.createdBy);
   const assignee = b.assignedDeveloperId ? users.find(u => u.id === b.assignedDeveloperId) : null;
@@ -64,28 +78,41 @@ async function enrichBug(b) {
     ...b,
     createdByName: creator?.name || 'Unknown',
     createdByEmail: creator?.email || '',
+    createdByProfilePicture: creator ? getProfileUrl(req, creator.profilePicture) : '',
     assignedDeveloperName: assignee?.name || 'Unassigned',
     assignedDeveloperEmail: assignee?.email || '',
+    assignedDeveloperProfilePicture: assignee ? getProfileUrl(req, assignee.profilePicture) : '',
     screenTitle: screen?.title || b.module || 'Unknown'
   };
 }
 
 // Helper: Enrich screen with user details
-async function enrichScreen(s) {
+async function enrichScreen(req, s) {
   const users = await getUsers();
   const assignee = s.assigneeId ? users.find(u => u.id === s.assigneeId) : null;
   return {
     ...s,
     assigneeName: assignee?.name || 'Unassigned',
-    assigneeEmail: assignee?.email || ''
+    assigneeEmail: assignee?.email || '',
+    assigneeProfilePicture: assignee ? getProfileUrl(req, assignee.profilePicture) : ''
   };
 }
 
 // Helper: Enrich project with user details (and counts)
-async function enrichProject(p) {
+async function enrichProject(req, p) {
   p = normalizeProjectObj(p);
-  const testerName = p.testerId ? await getUserName(p.testerId) : 'Unassigned';
-  const developerNames = await Promise.all((p.developerIds || []).map(async id => ({ id, name: await getUserName(id) })));
+  const tester = p.testerId ? (await getUsers()).find(u => u.id === p.testerId) : null;
+  const testerName = tester?.name || 'Unassigned';
+  const testerProfilePicture = tester ? getProfileUrl(req, tester.profilePicture) : '';
+
+  const developerNames = await Promise.all((p.developerIds || []).map(async id => {
+    const user = (await getUsers()).find(u => u.id === id);
+    return { 
+      id, 
+      name: user?.name || 'Unknown',
+      profilePicture: user ? getProfileUrl(req, user.profilePicture) : ''
+    };
+  }));
   const openBugsCount = localData.bugs.filter(b => b.projectId === p.id && (b.status === 'Open' || b.status === 'In Progress')).length;
   const completedScreensCount = localData.screens.filter(s => s.projectId === p.id && s.status === 'Done').length;
   const totalScreensCount = localData.screens.filter(s => s.projectId === p.id).length;
@@ -95,6 +122,7 @@ async function enrichProject(p) {
   return {
     ...p,
     testerName,
+    testerProfilePicture,
     developerNames,
     openBugsCount,
     completedScreensCount,

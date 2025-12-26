@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const jwt = require('jsonwebtoken');
 const { authenticate, tokenBlacklist } = require('../middleware/auth');
+const { getProfileUrl } = require('../middleware/helpers');
 const { USE_LIVE_DB, USE_ENCRYPTION } = require('../config');
 const { comparePassword } = require('../utils/encryption');
 
@@ -27,7 +28,16 @@ router.post(`/login`, async (req, res) => {
   const passwordMatch = await comparePassword(password, user.password);
   if (!passwordMatch) return res.status(401).json({ error: 'Invalid credentials' });
   const token = jwt.sign({ userId: user.id, email: user.email, role: user.role }, JWT_SECRET, { expiresIn: '8h' });
-  return res.json({ token, user: { id: user.id, name: user.name, email: user.email, role: user.role } });
+  return res.json({ 
+    token, 
+    user: { 
+      id: user.id, 
+      name: user.name, 
+      email: user.email, 
+      role: user.role,
+      profilePicture: getProfileUrl(req, user.profilePicture)
+    } 
+  });
 });
 
 
@@ -52,7 +62,13 @@ router.get(`/me`, async (req, res) => {
     const payload = jwt.verify(token, JWT_SECRET);
     const users = await usersSource();
     const user = users.find(u => u.id === payload.userId);
-    return res.json({ id: payload.userId, email: payload.email, role: payload.role, name: user?.name });
+    return res.json({ 
+      id: payload.userId, 
+      email: payload.email, 
+      role: payload.role, 
+      name: user?.name,
+      profilePicture: user ? getProfileUrl(req, user.profilePicture) : ''
+    });
   } catch (err) {
     return res.status(401).json({ error: 'Invalid token' });
   }

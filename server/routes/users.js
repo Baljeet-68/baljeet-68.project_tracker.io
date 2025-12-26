@@ -3,7 +3,7 @@ const router = express.Router();
 const fs = require('fs');
 const path = require('path');
 const { authenticate, requireRole } = require('../middleware/auth');
-const { getUserName } = require('../middleware/helpers');
+const { getUserName, getProfileUrl } = require('../middleware/helpers');
 const { USE_LIVE_DB } = require('../config');
 
 let usersSource;
@@ -46,7 +46,8 @@ router.get(`/users`, authenticate, requireRole('admin'), async (req, res) => {
     const users = await usersSource();
     const usersWithNames = await Promise.all(users.map(async u => ({
       ...u,
-      name: await getUserName(u.id)
+      name: await getUserName(u.id),
+      profilePicture: getProfileUrl(req, u.profilePicture)
     })));
     res.json(usersWithNames);
   } catch (err) {
@@ -65,7 +66,8 @@ router.get(`/me`, authenticate, async (req, res) => {
     const { password, ...userProfile } = user;
     res.json({
       ...userProfile,
-      name: await getUserName(user.id)
+      name: await getUserName(user.id),
+      profilePicture: getProfileUrl(req, user.profilePicture)
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -109,10 +111,8 @@ router.patch(`/me`, authenticate, async (req, res) => {
         // Save file to disk
         fs.writeFileSync(filePath, base64Data, 'base64');
         
-        // Store the relative link in DB
-        const protocol = req.protocol;
-        const host = req.get('host');
-        changes.profilePicture = `${protocol}://${host}/uploads/${fileName}`;
+        // Store ONLY the filename in DB
+        changes.profilePicture = fileName;
       } else {
         // It's already a link or something else, keep it as is
         changes.profilePicture = profilePicture;
@@ -139,7 +139,8 @@ router.patch(`/me`, authenticate, async (req, res) => {
     
     res.json({
       ...userResponse,
-      name: await getUserName(req.user.userId)
+      name: await getUserName(req.user.userId),
+      profilePicture: getProfileUrl(req, updatedUser.profilePicture)
     });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -160,7 +161,12 @@ router.post(`/users`, authenticate, requireRole('admin'), async (req, res) => {
     } else {
       users.push(newUser);
     }
-    res.status(201).json(newUser);
+
+    const { password: _, ...userResponse } = newUser;
+    res.status(201).json({
+      ...userResponse,
+      profilePicture: getProfileUrl(req, newUser.profilePicture)
+    });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -194,7 +200,12 @@ router.patch(`/users/:id`, authenticate, requireRole('admin'), async (req, res) 
         users[userIndex] = updatedUser;
       }
     }
-    res.json(updatedUser);
+
+    const { password: _, ...userResponse } = updatedUser;
+    res.json({
+      ...userResponse,
+      profilePicture: getProfileUrl(req, updatedUser.profilePicture)
+    });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

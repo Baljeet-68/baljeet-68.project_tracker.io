@@ -42,7 +42,7 @@ router.get(`/projects/:id/bugs`, authenticate, async (req, res) => {
       return res.status(403).json({ error: 'Forbidden' });
     }
     const bugs = await bugsSource();
-    const projectBugs = await Promise.all(bugs.filter((b) => b.projectId === req.params.id).map(b => enrichBug(b)));
+    const projectBugs = await Promise.all(bugs.filter((b) => b.projectId === req.params.id).map(b => enrichBug(req, b)));
     res.json(projectBugs);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -122,7 +122,7 @@ router.post(`/projects/:id/bugs`, authenticate, requireRole('tester', 'admin'), 
       p.bugs.push(bug.id);
     }
     logActivity(req.params.id, 'bug', bug.id, 'created', req.user.userId, { bugNumber: bug.bugNumber });
-    res.status(201).json(await enrichBug(bug));
+    res.status(201).json(await enrichBug(req, bug));
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -146,7 +146,7 @@ router.patch(`/bugs/:id`, authenticate, async (req, res) => {
         await updateBugInDbSource(bug.id, changes);
         logActivity(bug.projectId, 'bug', bug.id, 'deadline_updated', req.user.userId, { deadline });
         const updatedBug = await bugByIdSource(bug.id);
-        return res.json(enrichBug(updatedBug));
+        return res.json(await enrichBug(req, updatedBug));
       }
       return res.status(403).json({ error: 'Forbidden - developers can only update deadline' });
     }
@@ -170,7 +170,7 @@ router.patch(`/bugs/:id`, authenticate, async (req, res) => {
     await updateBugInDbSource(bug.id, changes);
     const updatedBug = await bugByIdSource(bug.id);
     logActivity(bug.projectId, 'bug', bug.id, 'updated', req.user.userId, changes);
-    res.json(enrichBug(updatedBug));
+    res.json(await enrichBug(req, updatedBug));
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -208,7 +208,7 @@ router.patch(`/bugs/:id/status`, authenticate, requireRole('developer', 'tester'
     await updateBugInDbSource(bug.id, changes);
     const updatedBug = await bugByIdSource(bug.id);
     logActivity(bug.projectId, 'bug', bug.id, 'status_change', req.user.userId, changes);
-    res.json(enrichBug(updatedBug));
+    res.json(await enrichBug(req, updatedBug));
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

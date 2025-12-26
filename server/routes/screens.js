@@ -48,7 +48,7 @@ router.get(`/projects/:id/screens`, authenticate, async (req, res) => {
       return res.status(403).json({ error: 'Forbidden' });
     }
     const screens = await screensSource();
-    const projectScreens = await Promise.all(screens.filter(s => s.projectId === req.params.id).map(s => enrichScreen(s)));
+    const projectScreens = await Promise.all(screens.filter(s => s.projectId === req.params.id).map(s => enrichScreen(req, s)));
     res.json(projectScreens);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -97,7 +97,7 @@ router.post(`/projects/:id/screens`, authenticate, requireRole('admin'), async (
     }
 
     logActivity(project.id, 'screen', screen.id, 'created', req.user.userId, { title });
-    res.status(201).json(await enrichScreen(screen));
+    res.status(201).json(await enrichScreen(req, screen));
   } catch (err) {
     res.status(500).json({ error: error.message });
   }
@@ -155,7 +155,7 @@ router.patch(`/screens/:id`, authenticate, async (req, res) => {
     }
 
     if (Object.keys(changes).length === 0) {
-      return res.status(200).json(enrichScreen(scr)); // No changes, return existing screen
+      return res.status(200).json(await enrichScreen(req, scr)); // No changes, return existing screen
     }
 
     // Apply changes to the screen object
@@ -172,7 +172,7 @@ router.patch(`/screens/:id`, authenticate, async (req, res) => {
     }
 
     logActivity(scr.projectId, 'screen', scr.id, 'updated', req.user.userId, changes);
-    res.json(enrichScreen(updatedScreen));
+    res.json(await enrichScreen(req, updatedScreen));
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -209,7 +209,7 @@ router.patch(`/screens/:id/status`, authenticate, requireRole('admin', 'develope
 
     scr.updatedAt = new Date().toISOString();
     logActivity(scr.projectId, 'screen', scr.id, 'status_change', req.user.userId, changes);
-    res.json(enrichScreen(scr));
+    res.json(await enrichScreen(req, scr));
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
