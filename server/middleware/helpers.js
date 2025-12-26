@@ -146,4 +146,4 @@ function logActivity(projectId, entityType, entityId, action, userId, changes) {
   localData.activityLog.push(activity);
 }
 
-module.exports = { normalizeProjectObj, hasProjectAccess, getUserName, enrichBug, enrichScreen, enrichProject, logActivity, getUsers };
+module.exports = { normalizeProjectObj, hasProjectAccess, getUserName, enrichBug, enrichScreen, enrichProject, logActivity, getUsers, getProfileUrl };
