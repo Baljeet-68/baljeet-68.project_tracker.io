@@ -300,4 +300,53 @@ async function deleteUserFromDb(userId) {
   }
 }
 
-module.exports = { getProjectsFromMySQL, getProjectById, updateProjectInDb, getBugById, getUsersFromMySQL, updateBugInDb, deleteBugFromDb, createScreenInDb, updateScreenInDb, getScreensFromMySQL, getScreenById, deleteScreenFromDb, createUserInDb, updateUserInDb, deleteUserFromDb };
+async function getBugsFromMySQL() {
+  try {
+    const [rows] = await pool.query('SELECT * FROM bugs');
+    return rows.map(r => ({
+      ...r,
+      description: decrypt(r.description),
+      module: decrypt(r.module)
+    }));
+  } catch (error) {
+    console.error('Database query failed in getBugsFromMySQL:', error);
+    throw error;
+  }
+}
+
+async function getBugStatsByYear(year) {
+  try {
+    const [rows] = await pool.query(
+      `SELECT MONTH(createdAt) as month, COUNT(*) as count 
+       FROM bugs 
+       WHERE YEAR(createdAt) = ? 
+       GROUP BY MONTH(createdAt)`,
+      [year]
+    );
+    return rows;
+  } catch (error) {
+    console.error('Database query failed in getBugStatsByYear:', error);
+    throw error;
+  }
+}
+
+module.exports = {
+  pool,
+  getProjectsFromMySQL,
+  getProjectById,
+  updateProjectInDb,
+  getBugById,
+  getUsersFromMySQL,
+  updateBugInDb,
+  deleteBugFromDb,
+  createScreenInDb,
+  updateScreenInDb,
+  getScreensFromMySQL,
+  getScreenById,
+  deleteScreenFromDb,
+  createUserInDb,
+  updateUserInDb,
+  deleteUserFromDb,
+  getBugsFromMySQL,
+  getBugStatsByYear
+};

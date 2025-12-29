@@ -3,39 +3,73 @@ import { Link, useNavigate } from 'react-router-dom'
 import { authFetch, getUser, clearToken, clearUser } from '../auth'
 import { LineChart, BarChart, PieChart, AreaChart } from '../components/ChartComponents'
 import { StatCard, Card, CardHeader, CardBody, Badge } from '../components/TailAdminComponents'
-import { TrendingUp, AlertCircle, CheckCircle, Users, Activity } from 'lucide-react'
+import { TrendingUp, AlertCircle, CheckCircle, Users, Activity, ChevronDown } from 'lucide-react'
 import { API_BASE_URL } from '../apiConfig'
 
 export default function Dashboard() {
   const [projects, setProjects] = useState([])
+  const [bugTrend, setBugTrend] = useState([])
+  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear())
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(true)
+  const [trendLoading, setTrendLoading] = useState(false)
   const user = getUser()
 
   const nav = useNavigate()
 
+  // Generate last 5 years
+  const currentYear = new Date().getFullYear()
+  const availableYears = Array.from({ length: 5 }, (_, i) => currentYear - i)
+
   useEffect(() => {
-    loadProjects()
+    loadInitialData()
   }, [])
 
-  const loadProjects = async () => {
+  useEffect(() => {
+    loadBugTrend(selectedYear)
+  }, [selectedYear])
+
+  const loadInitialData = async () => {
     setLoading(true)
     try {
-      const res = await authFetch(`${API_BASE_URL}/projects`)
-      if (!res.ok) throw new Error('Failed to fetch projects')
-      const data = await res.json()
-      setProjects(data)
+      const projRes = await authFetch(`${API_BASE_URL}/projects`)
+      if (!projRes.ok) throw new Error('Failed to fetch projects')
+      const projData = await projRes.json()
+      setProjects(projData)
     } catch (e) {
-      if (e.message === 'Unauthorized: Token expired or invalid') {
-        clearToken()
-        clearUser()
-        nav('/login', { replace: true })
-      } else {
-        setError(e.message)
-      }
+      handleAuthError(e)
     } finally {
       setLoading(false)
     }
+  }
+
+  const loadBugTrend = async (year) => {
+    setTrendLoading(true)
+    try {
+      const res = await authFetch(`${API_BASE_URL}/bugs/stats/${year}`)
+      if (!res.ok) throw new Error('Failed to fetch bug trend')
+      const data = await res.json()
+      setBugTrend(data)
+    } catch (e) {
+      handleAuthError(e)
+    } finally {
+      setTrendLoading(false)
+    }
+  }
+
+  const handleAuthError = (e) => {
+    if (e.message === 'Unauthorized: Token expired or invalid') {
+      clearToken()
+      clearUser()
+      nav('/login', { replace: true })
+    } else {
+      setError(e.message)
+    }
+  }
+
+  const loadProjects = async () => {
+    // This function is now part of loadInitialData but kept for compatibility if needed elsewhere
+    loadInitialData()
   }
 
   const summary = {
@@ -58,24 +92,23 @@ export default function Dashboard() {
   const statusLabels = statusData.map(([status]) => status)
   const statusValues = statusData.map(([, count]) => count)
 
-  // Dynamic bug trend data based on actual projects
-  // Simulate a trend over 12 months by distributing bugs across months
-  const bugsPerProject = projects.map(p => p.openBugsCount || 0)
-  const totalOpenBugs = bugsPerProject.reduce((a, b) => a + b, 0)
-  const avgBugsPerMonth = Math.max(Math.ceil(totalOpenBugs / 12), 1)
-  
-  const bugTrendData = [
+  // Format bug trend data for chart
+  const bugTrendCategories = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+  const bugTrendSeries = [
     {
       name: 'Open Bugs',
-      data: Array.from({ length: 12 }, (_, i) => {
-        // Create a realistic trend with some variation
-        const base = avgBugsPerMonth
-        const variation = Math.floor(Math.random() * (base * 0.6)) - (base * 0.3)
-        return Math.max(1, base + variation)
+      data: bugTrendCategories.map((_, index) => {
+        const monthData = bugTrend.find(d => d.month === index + 1)
+        return monthData ? monthData.count : 0
       })
     }
   ]
-  const bugTrendCategories = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+
+  const hasTrendData = bugTrendSeries[0].data.some(val => val > 0)
+
+  // Calculate year-over-year comparison (mock for now as we only fetch one year)
+  const currentTotalBugs = bugTrendSeries[0].data.reduce((a, b) => a + b, 0)
+  const displayYear = selectedYear
 
   // Dynamic project progress data - handle both old and new status names
   const planningCount = projects.filter(p => p.status === 'Planning' || p.status === 'Under Planning').length
@@ -193,20 +226,51 @@ export default function Dashboard() {
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         <div className="lg:col-span-7">
           <div className="border-black/12.5 shadow-soft-xl relative z-20 flex min-w-0 flex-col break-words rounded-2xl border-0 border-solid bg-white bg-clip-border h-full">
-            <div className="border-black/12.5 mb-0 rounded-t-2xl border-b-0 border-solid bg-white p-6 pb-0">
-              <h6 className="font-bold">Bugs Trend</h6>
-              <p className="leading-normal text-sm">
-                <i className="fa fa-arrow-up text-lime-500"></i>
-                <span className="font-semibold ml-1">4% more</span> in 2023
-              </p>
+            <div className="border-black/12.5 mb-0 rounded-t-2xl border-b-0 border-solid bg-white p-6 pb-0 flex justify-between items-center">
+              <div>
+                <h6 className="font-bold">Bugs Trend</h6>
+                <p className="leading-normal text-sm">
+                  <span className="font-semibold">{currentTotalBugs} bugs</span> in {displayYear}
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="relative group">
+                  <select 
+                    value={selectedYear}
+                    onChange={(e) => setSelectedYear(parseInt(e.target.value))}
+                    className="appearance-none bg-white border-2 border-fuchsia-100 text-slate-700 text-[13px] font-bold rounded-full focus:outline-none focus:border-fuchsia-400 focus:ring-4 focus:ring-fuchsia-50/50 px-5 py-2 pr-10 shadow-sm cursor-pointer transition-all hover:border-fuchsia-300 hover:bg-fuchsia-50/30 min-w-[110px]"
+                  >
+                    {availableYears.map(year => (
+                      <option key={year} value={year}>{year}</option>
+                    ))}
+                  </select>
+                  <div className="absolute inset-y-0 right-0 flex items-center pr-4 pointer-events-none text-fuchsia-500 group-hover:text-fuchsia-600 transition-colors">
+                    <ChevronDown size={16} strokeWidth={3} />
+                  </div>
+                </div>
+              </div>
             </div>
-            <div className="flex-auto p-4">
-              <LineChart 
-                series={bugTrendData} 
-                categories={bugTrendCategories} 
-                height={300}
-                colors={['#cb0c9f']}
-              />
+            <div className="flex-auto p-4 relative min-h-[300px]">
+              {trendLoading ? (
+                <div className="absolute inset-0 flex items-center justify-center bg-white/50 z-10">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-700"></div>
+                </div>
+              ) : null}
+              
+              {!hasTrendData && !trendLoading ? (
+                <div className="absolute inset-0 flex items-center justify-center z-10">
+                  <p className="text-gray-500 font-medium">No data available for this year</p>
+                </div>
+              ) : null}
+
+              <div className={!hasTrendData ? 'opacity-20' : ''}>
+                <LineChart 
+                  series={bugTrendSeries} 
+                  categories={bugTrendCategories} 
+                  height={300}
+                  colors={['#cb0c9f']}
+                />
+              </div>
             </div>
           </div>
         </div>

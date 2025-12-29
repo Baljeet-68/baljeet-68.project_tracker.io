@@ -239,4 +239,64 @@ router.delete(`/bugs/:id`, authenticate, requireRole('admin'), async (req, res) 
   }
 });
 
+// GET /api/bugs/stats/:year - get bug stats grouped by month for a specific year
+router.get('/stats/:year', authenticate, async (req, res) => {
+  try {
+    const year = parseInt(req.params.year);
+    if (isNaN(year)) {
+      return res.status(400).json({ error: 'Invalid year' });
+    }
+
+    let stats;
+    if (USE_LIVE_DB) {
+      const dbApi = require('../api');
+      stats = await dbApi.getBugStatsByYear(year);
+    } else {
+      const localData = require('../data');
+      const monthlyCounts = Array(12).fill(0);
+      localData.bugs.forEach(bug => {
+        const createdAt = new Date(bug.createdAt);
+        if (createdAt.getFullYear() === year) {
+          monthlyCounts[createdAt.getMonth()]++;
+        }
+      });
+      stats = monthlyCounts.map((count, index) => ({
+        month: index + 1,
+        count: count
+      }));
+    }
+    res.json(stats);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// GET /api/bugs/years - get available years for bug reports
+router.get('/years', authenticate, async (req, res) => {
+  try {
+    let years;
+    if (USE_LIVE_DB) {
+      const { pool } = require('../api');
+      const [rows] = await pool.query('SELECT DISTINCT YEAR(createdAt) as year FROM bugs ORDER BY year DESC');
+      years = rows.map(r => r.year);
+    } else {
+      const localData = require('../data');
+      const yearsSet = new Set();
+      localData.bugs.forEach(bug => {
+        yearsSet.add(new Date(bug.createdAt).getFullYear());
+      });
+      years = Array.from(yearsSet).sort((a, b) => b - a);
+    }
+    
+    // If no years found, return current year as default
+    if (years.length === 0) {
+      years = [new Date().getFullYear()];
+    }
+    
+    res.json(years);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 module.exports = router;
