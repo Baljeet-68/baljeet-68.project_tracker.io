@@ -220,8 +220,8 @@ export default function Dashboard() {
               <PieChart 
                 labels={statusLabels} 
                 series={statusValues} 
-                height={300}
-                colors={['#cb0c9f', '#17c1e8', '#3a416f', '#f53939']}
+                height={350}
+                colors={['#FF5733', '#FFC300', '#FF33FF', '#8B5CF6', '#0EA5E9', '#10B981']}
               />
             </div>
           </div>

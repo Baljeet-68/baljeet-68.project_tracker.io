@@ -49,8 +49,12 @@ app.use(
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
-// Serve static files from the uploads directory
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+// Serve static files from the uploads directory with caching
+app.use('/uploads', express.static(path.join(__dirname, 'uploads'), {
+  maxAge: '1y', // Cache for 1 year (filenames are unique with timestamps)
+  etag: true,   // Enable ETag for "if-none-match" checks
+  lastModified: true // Enable Last-Modified header
+}));
 
 /* ===============================
    Port (LOCAL + CPANEL SAFE)

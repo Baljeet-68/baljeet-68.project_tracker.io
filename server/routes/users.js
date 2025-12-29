@@ -84,7 +84,18 @@ router.patch(`/me`, authenticate, async (req, res) => {
 
     // Handle profile picture storage as file
     if (profilePicture !== undefined) {
+      const users = await usersSource();
+      const currentUser = users.find(u => u.id === req.user.userId);
+      const uploadDir = path.join(__dirname, '..', 'uploads');
+
       if (profilePicture === '' || profilePicture === null) {
+        // Delete old picture if it exists
+        if (currentUser && currentUser.profilePicture && !currentUser.profilePicture.startsWith('http')) {
+          try {
+            const oldPath = path.join(uploadDir, currentUser.profilePicture);
+            if (fs.existsSync(oldPath)) fs.unlinkSync(oldPath);
+          } catch (err) { console.error('Delete error:', err); }
+        }
         changes.profilePicture = '';
       } else if (profilePicture.startsWith('data:image')) {
         // It's a base64 string, save it as a file
@@ -100,7 +111,6 @@ router.patch(`/me`, authenticate, async (req, res) => {
         
         const base64Data = matches[2];
         const fileName = `profile_${req.user.userId}_${Date.now()}.${extension}`;
-        const uploadDir = path.join(__dirname, '..', 'uploads');
         const filePath = path.join(uploadDir, fileName);
 
         // Ensure uploads directory exists
@@ -110,6 +120,18 @@ router.patch(`/me`, authenticate, async (req, res) => {
 
         // Save file to disk
         fs.writeFileSync(filePath, base64Data, 'base64');
+        
+        // Delete old profile picture if it exists
+        if (currentUser && currentUser.profilePicture && !currentUser.profilePicture.startsWith('http')) {
+          try {
+            const oldPath = path.join(uploadDir, currentUser.profilePicture);
+            if (fs.existsSync(oldPath)) {
+              fs.unlinkSync(oldPath);
+            }
+          } catch (err) {
+            console.error('Failed to delete old profile picture:', err);
+          }
+        }
         
         // Store ONLY the filename in DB
         changes.profilePicture = fileName;
@@ -226,6 +248,19 @@ router.delete(`/users/:id`, authenticate, requireRole('admin'), async (req, res)
     // Prevent admin from deleting other admins
     if (req.user.role === 'admin' && user.role === 'admin') {
       return res.status(400).json({ error: 'Cannot delete another admin' });
+    }
+
+    // Delete profile picture if it exists
+    if (user.profilePicture && !user.profilePicture.startsWith('http')) {
+      try {
+        const uploadDir = path.join(__dirname, '..', 'uploads');
+        const filePath = path.join(uploadDir, user.profilePicture);
+        if (fs.existsSync(filePath)) {
+          fs.unlinkSync(filePath);
+        }
+      } catch (err) {
+        console.error('Failed to delete profile picture during user deletion:', err);
+      }
     }
 
     await deleteUserFromDbSource(req.params.id);
