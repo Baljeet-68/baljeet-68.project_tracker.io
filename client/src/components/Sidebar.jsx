@@ -29,7 +29,7 @@ export default function Sidebar({ open, onClose, collapsed, setCollapsed }) {
   const handleLogout = () => {
     localStorage.removeItem('token')
     localStorage.removeItem('user')
-    window.location.href = '/login'
+    window.location.href = '/Project_Tracker_Tool/login'
   }
 
   // Effective collapsed state: true if collapsed AND not hovered

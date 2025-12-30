@@ -20,13 +20,27 @@ const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret';
 // Login - accepts { email, password } - returns JWT with userId, email, role
 router.post(`/login`, async (req, res) => {
   const { email, password } = req.body;
+  console.log(`[LOGIN ATTEMPT] Email: ${email}`);
+
   if (!email || !password) return res.status(400).json({ error: 'Missing email or password' });
+  
   const users = await usersSource();
-  const user = users.find((u) => u.email === email);
-  if (!user) return res.status(401).json({ error: 'Invalid credentials' });
+  console.log(`[LOGIN] Found ${users.length} users in source.`);
+  
+  const user = users.find((u) => u.email.toLowerCase() === email.toLowerCase());
+  
+  if (!user) {
+    console.log(`[LOGIN] User not found: ${email}`);
+    // Optional: log available emails for debugging (be careful with PII in production)
+    console.log(`[LOGIN] Available emails: ${users.map(u => u.email).join(', ')}`);
+    return res.status(401).json({ error: 'Invalid credentials' });
+  }
 
   const passwordMatch = await comparePassword(password, user.password);
-  if (!passwordMatch) return res.status(401).json({ error: 'Invalid credentials' });
+  if (!passwordMatch) {
+    console.log(`[LOGIN] Password mismatch for: ${email}`);
+    return res.status(401).json({ error: 'Invalid credentials' });
+  }
   const token = jwt.sign({ userId: user.id, email: user.email, role: user.role }, JWT_SECRET, { expiresIn: '8h' });
   return res.json({ 
     token, 
@@ -62,6 +76,7 @@ router.get(`/me`, async (req, res) => {
     const payload = jwt.verify(token, JWT_SECRET);
     const users = await usersSource();
     const user = users.find(u => u.id === payload.userId);
+    if (!user) return res.status(401).json({ error: 'User not found' });
     return res.json({ 
       id: payload.userId, 
       email: payload.email, 
