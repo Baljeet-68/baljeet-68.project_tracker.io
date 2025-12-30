@@ -395,3 +395,135 @@ export const AreaChart = ({ title, series, categories, height = 300 }) => {
     </Card>
   )
 }
+
+// Pareto Chart Component
+export const ParetoChart = ({ title, data = [], height = 350 }) => {
+  // Sort data in descending order by value
+  const sortedData = [...data].sort((a, b) => b.value - a.value);
+  const labels = sortedData.map(d => d.label);
+  const values = sortedData.map(d => d.value);
+  
+  // Calculate cumulative percentages
+  const total = values.reduce((a, b) => a + b, 0);
+  let cumulative = 0;
+  const cumulativePercentages = values.map(v => {
+    cumulative += v;
+    return total === 0 ? 0 : Math.round((cumulative / total) * 100);
+  });
+
+  const series = [
+    {
+      name: 'Issues',
+      type: 'column',
+      data: values
+    },
+    {
+      name: 'Cumulative %',
+      type: 'line',
+      data: cumulativePercentages
+    }
+  ];
+
+  const options = {
+    chart: {
+      height: height,
+      type: 'line',
+      toolbar: {
+        show: false
+      },
+      fontFamily: 'Inter, sans-serif'
+    },
+    stroke: {
+      width: [0, 3],
+      curve: 'smooth'
+    },
+    dataLabels: {
+      enabled: true,
+      enabledOnSeries: [1],
+      formatter: (val) => `${val}%`,
+      offsetY: -10,
+      style: {
+        fontSize: '12px',
+        colors: ['#10b981']
+      }
+    },
+    labels: labels,
+    colors: ['#cb0c9f', '#10b981'],
+    yaxis: [
+      {
+        title: {
+          text: 'Number of Issues',
+          style: {
+            color: '#cb0c9f',
+            fontWeight: 600
+          }
+        },
+        labels: {
+          style: {
+            colors: '#cb0c9f'
+          }
+        }
+      },
+      {
+        opposite: true,
+        title: {
+          text: 'Cumulative Percentage',
+          style: {
+            color: '#10b981',
+            fontWeight: 600
+          }
+        },
+        max: 100,
+        min: 0,
+        labels: {
+          formatter: (val) => `${val}%`,
+          style: {
+            colors: '#10b981'
+          }
+        }
+      }
+    ],
+    xaxis: {
+      type: 'category',
+      labels: {
+        style: {
+          fontSize: '11px',
+          fontWeight: 500
+        }
+      }
+    },
+    tooltip: {
+      shared: true,
+      intersect: false,
+      theme: 'light',
+      y: {
+        formatter: (y, { seriesIndex }) => {
+          if (seriesIndex === 1) return `${y}%`;
+          return `${y} issues`;
+        }
+      }
+    },
+    legend: {
+      position: 'top',
+      horizontalAlign: 'right',
+      fontFamily: 'Inter, sans-serif',
+      fontWeight: 500
+    },
+    grid: {
+      borderColor: '#f1f5f9'
+    }
+  };
+
+  return (
+    <Card className="h-full">
+      <CardHeader className="flex justify-between items-center">
+        <h3 className="text-base font-semibold text-dark-900">{title}</h3>
+      </CardHeader>
+      <CardBody>
+        <div className="w-full">
+          <Chart options={options} series={series} type="line" height={height} />
+        </div>
+      </CardBody>
+    </Card>
+  );
+};

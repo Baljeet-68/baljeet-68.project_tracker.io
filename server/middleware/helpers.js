@@ -1,6 +1,6 @@
 const localData = require('../data');
 const { USE_LIVE_DB } = require('../config');
-const { getProjectById, getUsersFromMySQL } = require('../api');
+const { getProjectById, getUsersFromMySQL, getBugsFromMySQL, getScreensFromMySQL } = require('../api');
 
 // Helper: Get dynamic profile picture URL
 function getProfileUrl(req, filename) {
@@ -51,13 +51,27 @@ async function hasProjectAccess(userId, projectId) {
   return false;
 }
 
-let allUsersCache = null;
-
 async function getUsers() {
   if (USE_LIVE_DB) {
     return await getUsersFromMySQL();
   } else {
     return localData.users;
+  }
+}
+
+async function getBugs() {
+  if (USE_LIVE_DB) {
+    return await getBugsFromMySQL();
+  } else {
+    return localData.bugs;
+  }
+}
+
+async function getScreens() {
+  if (USE_LIVE_DB) {
+    return await getScreensFromMySQL();
+  } else {
+    return localData.screens;
   }
 }
 
@@ -73,7 +87,8 @@ async function enrichBug(req, b) {
   const users = await getUsers();
   const creator = users.find(u => u.id === b.createdBy);
   const assignee = b.assignedDeveloperId ? users.find(u => u.id === b.assignedDeveloperId) : null;
-  const screen = b.screenId ? localData.screens.find(s => s.id === b.screenId) : null;
+  const screens = await getScreens();
+  const screen = b.screenId ? screens.find(s => s.id === b.screenId) : null;
   return {
     ...b,
     createdByName: creator?.name || 'Unknown',
@@ -101,23 +116,28 @@ async function enrichScreen(req, s) {
 // Helper: Enrich project with user details (and counts)
 async function enrichProject(req, p) {
   p = normalizeProjectObj(p);
-  const tester = p.testerId ? (await getUsers()).find(u => u.id === p.testerId) : null;
+  const users = await getUsers();
+  const tester = p.testerId ? users.find(u => u.id === p.testerId) : null;
   const testerName = tester?.name || 'Unassigned';
   const testerProfilePicture = tester ? getProfileUrl(req, tester.profilePicture) : '';
 
   const developerNames = await Promise.all((p.developerIds || []).map(async id => {
-    const user = (await getUsers()).find(u => u.id === id);
+    const user = users.find(u => u.id === id);
     return { 
       id, 
       name: user?.name || 'Unknown',
       profilePicture: user ? getProfileUrl(req, user.profilePicture) : ''
     };
   }));
-  const openBugsCount = localData.bugs.filter(b => b.projectId === p.id && (b.status === 'Open' || b.status === 'In Progress')).length;
-  const completedScreensCount = localData.screens.filter(s => s.projectId === p.id && s.status === 'Done').length;
-  const totalScreensCount = localData.screens.filter(s => s.projectId === p.id).length;
-  const screenDeadlines = localData.screens.filter(s => s.projectId === p.id && s.plannedDeadline && new Date(s.plannedDeadline) > new Date()).length;
-  const bugDeadlines = localData.bugs.filter(b => b.projectId === p.id && b.deadline && new Date(b.deadline) > new Date()).length;
+
+  const bugs = await getBugs();
+  const screens = await getScreens();
+
+  const openBugsCount = bugs.filter(b => b.projectId === p.id && (b.status === 'Open' || b.status === 'In Progress')).length;
+  const completedScreensCount = screens.filter(s => s.projectId === p.id && s.status === 'Done').length;
+  const totalScreensCount = screens.filter(s => s.projectId === p.id).length;
+  const screenDeadlines = screens.filter(s => s.projectId === p.id && s.plannedDeadline && new Date(s.plannedDeadline) > new Date()).length;
+  const bugDeadlines = bugs.filter(b => b.projectId === p.id && b.deadline && new Date(b.deadline) > new Date()).length;
 
   return {
     ...p,

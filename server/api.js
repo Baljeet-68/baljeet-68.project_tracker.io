@@ -3,13 +3,24 @@ const { hashPassword, encrypt, decrypt } = require('./utils/encryption');
 
 async function getProjectsFromMySQL() {
   try {
-    // Reads projects from MySQL `projects` table. Keeps the same exported name
-    // so existing imports don't need to be changed elsewhere.
     const [rows] = await pool.query('SELECT * FROM projects');
-    // Parse developerIds column if stored as JSON string
-    return rows;
+    return rows.map(r => ({
+      ...r,
+      name: decrypt(r.name),
+      client: decrypt(r.client),
+      description: decrypt(r.description),
+      developerIds: (() => {
+        try {
+          if (r.developerIds == null) return [];
+          if (Array.isArray(r.developerIds)) return r.developerIds;
+          return JSON.parse(r.developerIds);
+        } catch (e) {
+          return [];
+        }
+      })()
+    }));
   } catch (error) {
-    console.error('Database query failed in getProjectsFromSupabase:', error);
+    console.error('Database query failed in getProjectsFromMySQL:', error);
     throw error;
   }
 }

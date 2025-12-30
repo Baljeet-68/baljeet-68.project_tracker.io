@@ -13,8 +13,19 @@ let updateBugInDbSource;
 
 if (USE_LIVE_DB) {
   const dbApi = require('../api');
-  bugsSource = async () => []; // Placeholder for DB bugs
-  bugCountersSource = async () => ({}); // Placeholder for DB bug counters
+  bugsSource = async () => await dbApi.getBugsFromMySQL();
+  bugCountersSource = async () => {
+    // For live DB, we might need a better way to handle bug counters per project.
+    // For now, let's just fetch all bugs and find the max bugNumber for each project.
+    const allBugs = await dbApi.getBugsFromMySQL();
+    const counters = {};
+    allBugs.forEach(b => {
+      if (!counters[b.projectId] || b.bugNumber > counters[b.projectId]) {
+        counters[b.projectId] = b.bugNumber;
+      }
+    });
+    return counters;
+  };
   usersSource = async () => await dbApi.getUsersFromMySQL();
   projectsSource = async () => await dbApi.getProjectsFromMySQL();
   bugByIdSource = dbApi.getBugById;
@@ -34,6 +45,29 @@ if (USE_LIVE_DB) {
     }
   };
 }
+
+// GET /api/bugs - list all bugs (admin only for now)
+router.get(`/bugs`, authenticate, async (req, res) => {
+  try {
+    const allBugs = await bugsSource();
+    let result = [];
+    if (req.user.role === 'admin') {
+      result = allBugs;
+    } else {
+      // Filter bugs where user has project access
+      const projects = await projectsSource();
+      const userProjects = projects.filter(p => {
+        if (req.user.role === 'tester' && p.testerId === req.user.userId) return true;
+        if (req.user.role === 'developer' && p.developerIds && p.developerIds.includes(req.user.userId)) return true;
+        return false;
+      }).map(p => p.id);
+      result = allBugs.filter(b => userProjects.includes(b.projectId));
+    }
+    res.json(await Promise.all(result.map(b => enrichBug(req, b))));
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
 
 // GET /api/projects/:id/bugs - list bugs with per-project numbering
 router.get(`/projects/:id/bugs`, authenticate, async (req, res) => {

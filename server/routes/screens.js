@@ -41,6 +41,28 @@ if (USE_LIVE_DB) {
   };
 }
 
+// GET /api/screens - list all screens
+router.get(`/screens`, authenticate, async (req, res) => {
+  try {
+    const allScreens = await screensSource();
+    let result = [];
+    if (req.user.role === 'admin') {
+      result = allScreens;
+    } else {
+      const projects = await projectsSource();
+      const userProjects = projects.filter(p => {
+        if (req.user.role === 'tester' && p.testerId === req.user.userId) return true;
+        if (req.user.role === 'developer' && p.developerIds && p.developerIds.includes(req.user.userId)) return true;
+        return false;
+      }).map(p => p.id);
+      result = allScreens.filter(s => userProjects.includes(s.projectId));
+    }
+    res.json(await Promise.all(result.map(s => enrichScreen(req, s))));
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // GET /api/projects/:id/screens - list screens for a project
 router.get(`/projects/:id/screens`, authenticate, async (req, res) => {
   try {

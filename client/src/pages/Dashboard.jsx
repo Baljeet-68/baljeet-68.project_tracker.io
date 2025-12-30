@@ -1,13 +1,14 @@
 import React, { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { authFetch, getUser, clearToken, clearUser } from '../auth'
-import { LineChart, BarChart, PieChart, AreaChart } from '../components/ChartComponents'
+import { LineChart, BarChart, PieChart, AreaChart, ParetoChart } from '../components/ChartComponents'
 import { StatCard, Card, CardHeader, CardBody, Badge } from '../components/TailAdminComponents'
 import { TrendingUp, AlertCircle, CheckCircle, Users, Activity, ChevronDown } from 'lucide-react'
 import { API_BASE_URL } from '../apiConfig'
 
 export default function Dashboard() {
   const [projects, setProjects] = useState([])
+  const [projectIssuesData, setProjectIssuesData] = useState([])
   const [bugTrend, setBugTrend] = useState([])
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear())
   const [error, setError] = useState('')
@@ -32,10 +33,47 @@ export default function Dashboard() {
   const loadInitialData = async () => {
     setLoading(true)
     try {
-      const projRes = await authFetch(`${API_BASE_URL}/projects`)
+      const [projRes, bugsRes, screensRes] = await Promise.all([
+        authFetch(`${API_BASE_URL}/projects`),
+        authFetch(`${API_BASE_URL}/bugs`),
+        authFetch(`${API_BASE_URL}/screens`)
+      ])
+      
       if (!projRes.ok) throw new Error('Failed to fetch projects')
       const projData = await projRes.json()
       setProjects(projData)
+
+      // Calculate Pareto Chart Data (Module-wise Issues)
+      let allBugs = []
+      let allScreens = []
+      
+      if (bugsRes.ok) allBugs = await bugsRes.json()
+      if (screensRes.ok) allScreens = await screensRes.json()
+
+      const moduleMap = {}
+      
+      // Count open/in-progress bugs per module
+      allBugs.forEach(bug => {
+        if (bug.status === 'Open' || bug.status === 'In Progress') {
+          const moduleName = bug.module || 'General'
+          moduleMap[moduleName] = (moduleMap[moduleName] || 0) + 1
+        }
+      })
+      
+      // Count blocked/overdue screens per module
+      allScreens.forEach(screen => {
+        if (screen.status === 'Blocked' || (screen.plannedDeadline && new Date(screen.plannedDeadline) < new Date() && screen.status !== 'Done')) {
+          const moduleName = screen.module || 'General'
+          moduleMap[moduleName] = (moduleMap[moduleName] || 0) + 1
+        }
+      })
+      
+      const paretoData = Object.entries(moduleMap).map(([label, value]) => ({
+        label,
+        value
+      }))
+      
+      setProjectIssuesData(paretoData)
     } catch (e) {
       handleAuthError(e)
     } finally {
@@ -289,6 +327,16 @@ export default function Dashboard() {
               />
             </div>
           </div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        <div className="lg:col-span-12">
+          <ParetoChart 
+            title="Module-wise Issue Analysis (Pareto)" 
+            data={projectIssuesData} 
+            height={350} 
+          />
         </div>
       </div>
 
