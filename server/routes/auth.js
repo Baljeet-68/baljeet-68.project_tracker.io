@@ -25,6 +25,7 @@ router.post(`/login`, async (req, res) => {
   if (!email || !password) return res.status(400).json({ error: 'Missing email or password' });
   
   const users = await usersSource();
+  console.log(`[LOGIN] User source type: ${USE_LIVE_DB ? 'MySQL' : 'Local Data'}`);
   console.log(`[LOGIN] Found ${users.length} users in source.`);
   
   const user = users.find((u) => u.email.toLowerCase() === email.toLowerCase());
