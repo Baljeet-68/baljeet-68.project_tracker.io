@@ -20,10 +20,20 @@ async function hashPassword(password) {
 }
 
 async function comparePassword(password, hash) {
-  if (USE_ENCRYPTION) {
-    return await bcrypt.compare(password, hash);
-  } else {
-    return password === hash; // Compare plain passwords if encryption is off
+  if (!USE_ENCRYPTION) {
+    return password === hash;
+  }
+  
+  try {
+    // If it looks like a bcrypt hash, compare it
+    if (hash && (hash.startsWith('$2a$') || hash.startsWith('$2b$') || hash.startsWith('$2y$'))) {
+      return await bcrypt.compare(password, hash);
+    }
+    // Fallback: if not a hash, compare as plain text (useful for initial migration)
+    return password === hash;
+  } catch (error) {
+    console.error('Password comparison error:', error);
+    return password === hash;
   }
 }
 
@@ -49,16 +59,17 @@ function decrypt(text) {
   try {
     const textParts = text.split(':');
     if (textParts.length !== 2) {
-      // Not an encrypted string or invalid format, return as is
-      return text;
+      return text; // Returns original if not in iv:encrypted format
     }
-    const decipher = crypto.createDecipheriv(algorithm, Buffer.from(secretKey, 'hex'), Buffer.from(textParts[0], 'hex'));
-    let decrypted = decipher.update(Buffer.from(textParts[1], 'hex'));
+    const iv = Buffer.from(textParts.shift(), 'hex');
+    const encryptedText = Buffer.from(textParts.join(':'), 'hex');
+    const decipher = crypto.createDecipheriv(algorithm, Buffer.from(secretKey, 'hex'), iv);
+    let decrypted = decipher.update(encryptedText);
     decrypted = Buffer.concat([decrypted, decipher.final()]);
     return decrypted.toString();
   } catch (error) {
-    console.error('Decryption failed:', error);
-    return text; // Return original text on error
+    console.error('[ENCRYPTION] Decryption failed. This usually means the ENCRYPTION_KEY is incorrect or the data is not encrypted correctly.');
+    return text; // Return original as fallback
   }
 }
 

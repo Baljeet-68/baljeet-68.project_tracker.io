@@ -1,5 +1,6 @@
 // Toggle between local & live
-const USE_LIVE_API = true; // Set to true to use the DB mode
+// Use local API in development, live API in production
+const USE_LIVE_API = import.meta.env.PROD; 
 
 // LOCAL API BASE (backend routes start with /login, /api/projects etc.)
 const LOCAL_API_URL = "http://localhost:4000/api";
