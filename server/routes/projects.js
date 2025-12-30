@@ -73,9 +73,14 @@ router.get(`/projects/:id`, authenticate, async (req, res) => {
     if (!hasAccess) {
       return res.status(403).json({ error: 'Forbidden' });
     }
-    // Add screens and bugs details (still from in-memory for now)
-    // NOTE: screens and bugs are still in-memory for now, will be moved to DB later
-    if (!USE_LIVE_DB) {
+    // Add screens and bugs details
+    if (USE_LIVE_DB) {
+      const dbApi = require('../api');
+      const allScreens = await dbApi.getScreensFromMySQL();
+      const allBugs = await dbApi.getBugsFromMySQL();
+      p.screensList = allScreens.filter(s => s.projectId === p.id);
+      p.bugsList = await Promise.all(allBugs.filter(b => b.projectId === p.id).map(b => enrichBug(req, b)));
+    } else {
       p.screensList = screensSource.filter(s => s.projectId === p.id);
       p.bugsList = await Promise.all(bugsSource.filter(b => b.projectId === p.id).map(b => enrichBug(req, b)));
     }

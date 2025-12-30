@@ -3,6 +3,7 @@ const router = express.Router();
 const { authenticate, requireRole } = require('../middleware/auth');
 const { hasProjectAccess, enrichBug, logActivity } = require('../middleware/helpers');
 const { USE_LIVE_DB } = require('../config');
+const { pool } = require('../db');
 
 let bugsSource;
 let bugCountersSource;
@@ -117,7 +118,6 @@ router.get(`/bugs/years`, authenticate, async (req, res) => {
   try {
     let years;
     if (USE_LIVE_DB) {
-      const { pool } = require('../api');
       const [rows] = await pool.query('SELECT DISTINCT YEAR(createdAt) as year FROM bugs ORDER BY year DESC');
       years = rows.map(r => r.year);
     } else {

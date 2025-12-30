@@ -1,6 +1,12 @@
+const path = require('path');
+require('dotenv').config({ path: path.join(__dirname, '.env') });
+
 // Toggle this to switch between local and live DB
-const USE_LIVE_DB = process.env.MODE === 'live'; // Live = MariaDB, false = local
+const MODE = (process.env.MODE || 'local').trim().toLowerCase();
+const USE_LIVE_DB = MODE === 'live'; 
 const USE_ENCRYPTION = true; 
+
+console.log(`[CONFIG] MODE detected: "${MODE}", USE_LIVE_DB: ${USE_LIVE_DB}`);
 
 module.exports = {
   USE_LIVE_DB,
