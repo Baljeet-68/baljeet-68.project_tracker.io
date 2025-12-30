@@ -6,9 +6,6 @@ async function getProjectsFromMySQL() {
     const [rows] = await pool.query('SELECT * FROM projects');
     return rows.map(r => ({
       ...r,
-      name: decrypt(r.name),
-      client: decrypt(r.client),
-      description: decrypt(r.description),
       developerIds: (() => {
         try {
           if (r.developerIds == null) return [];
@@ -41,9 +38,9 @@ async function getProjectById(projectId) {
     })();
     return {
       id: r.id,
-      name: decrypt(r.name),
-      client: decrypt(r.client),
-      description: decrypt(r.description),
+      name: r.name,
+      client: r.client,
+      description: r.description,
       status: r.status,
       testerId: r.testerId,
       developerIds,
@@ -76,9 +73,9 @@ async function getBugById(bugId) {
       id: r.id,
       projectId: r.projectId,
       bugNumber: r.bugNumber,
-      description: decrypt(r.description),
+      description: r.description,
       screenId: r.screenId,
-      module: decrypt(r.module),
+      module: r.module,
       assignedDeveloperId: r.assignedDeveloperId,
       createdBy: r.createdBy,
       status: r.status,
@@ -98,11 +95,7 @@ async function getBugById(bugId) {
 async function getUsersFromMySQL() {
   try {
     const [rows] = await pool.query('SELECT * FROM users');
-    return rows.map(r => ({
-      ...r,
-      name: decrypt(r.name),
-      email: decrypt(r.email)
-    }));
+    return rows;
   } catch (error) {
     console.error('Database query failed in getUsersFromMySQL:', error);
     throw error;
@@ -114,9 +107,9 @@ async function updateBugInDb(bugId, changes) {
     const fields = [];
     const values = [];
 
-    if (changes.description !== undefined) { fields.push('description = ?'); values.push(encrypt(changes.description)); }
+    if (changes.description !== undefined) { fields.push('description = ?'); values.push(changes.description); }
     if (changes.screenId !== undefined) { fields.push('screenId = ?'); values.push(changes.screenId); }
-    if (changes.module !== undefined) { fields.push('module = ?'); values.push(encrypt(changes.module)); }
+    if (changes.module !== undefined) { fields.push('module = ?'); values.push(changes.module); }
     if (changes.assignedDeveloperId !== undefined) { fields.push('assignedDeveloperId = ?'); values.push(changes.assignedDeveloperId); }
     if (changes.severity !== undefined) { fields.push('severity = ?'); values.push(changes.severity); }
     if (changes.attachments !== undefined) { fields.push('attachments = ?'); values.push(JSON.stringify(changes.attachments)); }
@@ -154,13 +147,13 @@ async function createScreenInDb(screen) {
     const params = [
       screen.id,
       screen.projectId,
-      encrypt(screen.title),
-      encrypt(screen.module),
+      screen.title,
+      screen.module,
       screen.assigneeId,
       screen.plannedDeadline,
       screen.actualEndDate,
       screen.status,
-      encrypt(screen.notes),
+      screen.notes,
       screen.createdAt,
       screen.updatedAt
     ];
@@ -176,13 +169,13 @@ async function updateScreenInDb(screenId, changes) {
     const fields = [];
     const values = [];
 
-    if (changes.title !== undefined) { fields.push('title = ?'); values.push(encrypt(changes.title)); }
-    if (changes.module !== undefined) { fields.push('module = ?'); values.push(encrypt(changes.module)); }
+    if (changes.title !== undefined) { fields.push('title = ?'); values.push(changes.title); }
+    if (changes.module !== undefined) { fields.push('module = ?'); values.push(changes.module); }
     if (changes.assigneeId !== undefined) { fields.push('assigneeId = ?'); values.push(changes.assigneeId); }
     if (changes.plannedDeadline !== undefined) { fields.push('plannedDeadline = ?'); values.push(changes.plannedDeadline); }
     if (changes.actualEndDate !== undefined) { fields.push('actualEndDate = ?'); values.push(changes.actualEndDate); }
     if (changes.status !== undefined) { fields.push('status = ?'); values.push(changes.status); }
-    if (changes.notes !== undefined) { fields.push('notes = ?'); values.push(encrypt(changes.notes)); }
+    if (changes.notes !== undefined) { fields.push('notes = ?'); values.push(changes.notes); }
     if (changes.updatedAt !== undefined) { fields.push('updatedAt = ?'); values.push(changes.updatedAt); }
 
     if (fields.length === 0) return;
@@ -224,12 +217,7 @@ async function updateProjectInDb(projectId, changes) {
 async function getScreensFromMySQL() {
   try {
     const [rows] = await pool.query('SELECT * FROM screens');
-    return rows.map(r => ({
-      ...r,
-      title: decrypt(r.title),
-      module: decrypt(r.module),
-      notes: decrypt(r.notes)
-    }));
+    return rows;
   } catch (error) {
     console.error('Database query failed in getScreensFromMySQL:', error);
     throw error;
@@ -240,13 +228,7 @@ async function getScreenById(screenId) {
   try {
     const [rows] = await pool.query('SELECT * FROM screens WHERE id = ?', [screenId]);
     if (rows.length === 0) return null;
-    const r = rows[0];
-    return {
-      ...r,
-      title: decrypt(r.title),
-      module: decrypt(r.module),
-      notes: decrypt(r.notes)
-    };
+    return rows[0];
   } catch (error) {
     console.error('Database query failed in getScreenById:', error);
     throw error;
@@ -265,9 +247,8 @@ async function deleteScreenFromDb(screenId) {
 
 async function createUserInDb(user) {
   try {
-    const hashedPassword = await hashPassword(user.password);
     const sql = 'INSERT INTO users (id, name, email, password, role) VALUES (?, ?, ?, ?, ?)';
-    const params = [user.id, encrypt(user.name), encrypt(user.email), hashedPassword, user.role];
+    const params = [user.id, user.name, user.email, user.password, user.role];
     await pool.execute(sql, params);
   } catch (error) {
     console.error('Database insert failed in createUserInDb:', error);
@@ -280,12 +261,11 @@ async function updateUserInDb(userId, changes) {
     const fields = [];
     const values = [];
 
-    if (changes.name !== undefined) { fields.push('name = ?'); values.push(encrypt(changes.name)); }
-    if (changes.email !== undefined) { fields.push('email = ?'); values.push(encrypt(changes.email)); }
+    if (changes.name !== undefined) { fields.push('name = ?'); values.push(changes.name); }
+    if (changes.email !== undefined) { fields.push('email = ?'); values.push(changes.email); }
     if (changes.password !== undefined) {
-      const hashedPassword = await hashPassword(changes.password);
       fields.push('password = ?');
-      values.push(hashedPassword);
+      values.push(changes.password);
     }
     if (changes.role !== undefined) { fields.push('role = ?'); values.push(changes.role); }
     if (changes.profilePicture !== undefined) { fields.push('profilePicture = ?'); values.push(changes.profilePicture); }
