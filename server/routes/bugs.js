@@ -83,7 +83,32 @@ router.get(`/bugs/stats/:year`, authenticate, async (req, res) => {
     let stats;
     if (USE_LIVE_DB) {
       const dbApi = require('../api');
-      const rows = await dbApi.getBugStatsByYear(year);
+      let rows;
+      
+      if (req.user.role === 'admin') {
+        rows = await dbApi.getBugStatsByYear(year);
+      } else {
+        // For non-admin, only count bugs from projects they have access to
+        const projects = await dbApi.getProjectsFromMySQL();
+        const userProjectIds = projects.filter(p => {
+          if (req.user.role === 'tester' && p.testerId === req.user.userId) return true;
+          if (req.user.role === 'developer' && p.developerIds && p.developerIds.includes(req.user.userId)) return true;
+          return false;
+        }).map(p => p.id);
+
+        if (userProjectIds.length === 0) {
+          rows = [];
+        } else {
+          const sql = `
+            SELECT MONTH(createdAt) as month, COUNT(*) as count 
+            FROM bugs 
+            WHERE YEAR(createdAt) = ? AND projectId IN (${userProjectIds.map(() => '?').join(',')})
+            GROUP BY MONTH(createdAt)`;
+          const [dbRows] = await pool.execute(sql, [year, ...userProjectIds]);
+          rows = dbRows;
+        }
+      }
+
       // Map database result to standard format (ensure all 12 months are present)
       const monthlyCounts = Array(12).fill(0).map((_, i) => ({ month: i + 1, count: 0 }));
       rows.forEach(r => {
@@ -96,7 +121,18 @@ router.get(`/bugs/stats/:year`, authenticate, async (req, res) => {
     } else {
       const localData = require('../data');
       const monthlyCounts = Array(12).fill(0);
-      localData.bugs.forEach(bug => {
+      
+      let filteredBugs = localData.bugs;
+      if (req.user.role !== 'admin') {
+        const userProjectIds = localData.projects.filter(p => {
+          if (req.user.role === 'tester' && p.testerId === req.user.userId) return true;
+          if (req.user.role === 'developer' && p.developerIds && p.developerIds.includes(req.user.userId)) return true;
+          return false;
+        }).map(p => p.id);
+        filteredBugs = localData.bugs.filter(b => userProjectIds.includes(b.projectId));
+      }
+
+      filteredBugs.forEach(bug => {
         const createdAt = new Date(bug.createdAt);
         if (createdAt.getFullYear() === year) {
           monthlyCounts[createdAt.getMonth()]++;

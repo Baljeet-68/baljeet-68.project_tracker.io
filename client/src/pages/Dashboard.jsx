@@ -24,9 +24,6 @@ export default function Dashboard() {
 
   useEffect(() => {
     loadInitialData()
-  }, [])
-
-  useEffect(() => {
     loadBugTrend(selectedYear)
   }, [selectedYear])
 
@@ -38,20 +35,41 @@ export default function Dashboard() {
         authFetch(`${API_BASE_URL}/bugs`),
         authFetch(`${API_BASE_URL}/screens`)
       ])
-      
+
       if (!projRes.ok) throw new Error('Failed to fetch projects')
-      const projData = await projRes.json()
+      let projData = await projRes.json()
+
+      // Filter projects by year
+      projData = projData.filter(p => {
+        const createdAt = new Date(p.createdAt)
+        return createdAt.getFullYear() === selectedYear
+      })
       setProjects(projData)
 
       // Calculate Pareto Chart Data (Module-wise Issues)
       let allBugs = []
       let allScreens = []
-      
-      if (bugsRes.ok) allBugs = await bugsRes.json()
-      if (screensRes.ok) allScreens = await screensRes.json()
+
+      if (bugsRes.ok) {
+        allBugs = await bugsRes.json()
+        // Filter bugs by year
+        allBugs = allBugs.filter(b => {
+          const createdAt = new Date(b.createdAt)
+          return createdAt.getFullYear() === selectedYear
+        })
+      }
+
+      if (screensRes.ok) {
+        allScreens = await screensRes.json()
+        // Filter screens by year
+        allScreens = allScreens.filter(s => {
+          const createdAt = new Date(s.createdAt)
+          return createdAt.getFullYear() === selectedYear
+        })
+      }
 
       const moduleMap = {}
-      
+
       // Count open/in-progress bugs per module
       allBugs.forEach(bug => {
         if (bug.status === 'Open' || bug.status === 'In Progress') {
@@ -59,7 +77,7 @@ export default function Dashboard() {
           moduleMap[moduleName] = (moduleMap[moduleName] || 0) + 1
         }
       })
-      
+
       // Count blocked/overdue screens per module
       allScreens.forEach(screen => {
         if (screen.status === 'Blocked' || (screen.plannedDeadline && new Date(screen.plannedDeadline) < new Date() && screen.status !== 'Done')) {
@@ -67,12 +85,12 @@ export default function Dashboard() {
           moduleMap[moduleName] = (moduleMap[moduleName] || 0) + 1
         }
       })
-      
+
       const paretoData = Object.entries(moduleMap).map(([label, value]) => ({
         label,
         value
       }))
-      
+
       setProjectIssuesData(paretoData)
     } catch (e) {
       handleAuthError(e)
@@ -112,8 +130,26 @@ export default function Dashboard() {
 
   const summary = {
     total: projects.length,
-    openBugs: projects.reduce((acc, p) => acc + (p.openBugsCount || 0), 0),
-    completedScreens: projects.reduce((acc, p) => acc + (p.completedScreensCount || 0), 0),
+    running: projects.filter(p => p.status === 'Active' || p.status === 'Running').length,
+    completed: projects.filter(p => p.status === 'Completed' || p.status === 'Done').length,
+    onHold: projects.filter(p => p.status === 'On Hold').length,
+    maintenance: projects.filter(p => p.status === 'Maintenance').length,
+    openBugs: projects.reduce((acc, p) => {
+      // If user is admin, show all bugs for the project
+      // If user is developer, show only bugs assigned to them or bugs in their projects?
+      // User request: "as an users developer or tester show only logged in user data"
+      // So for bugs, we should only count bugs assigned to this developer or created by this tester
+      if (user.role === 'admin') {
+        return acc + (p.openBugsCount || 0)
+      } else if (user.role === 'developer') {
+        // We need to ensure openBugsCount on project object reflects the user's role if filtered by API
+        // But for dashboard summary, let's be explicit if the project object has this info
+        return acc + (p.userOpenBugsCount !== undefined ? p.userOpenBugsCount : (p.openBugsCount || 0))
+      } else if (user.role === 'tester') {
+        return acc + (p.userCreatedBugsCount !== undefined ? p.userCreatedBugsCount : (p.openBugsCount || 0))
+      }
+      return acc + (p.openBugsCount || 0)
+    }, 0),
     upcomingDeadlines: projects.reduce((acc, p) => acc + (p.upcomingDeadlines || 0), 0)
   }
 
@@ -129,6 +165,7 @@ export default function Dashboard() {
 
   const statusLabels = statusData.map(([status]) => status)
   const statusValues = statusData.map(([, count]) => count)
+  const hasStatusData = statusValues.length > 0 && statusValues.some(v => v > 0)
 
   // Format bug trend data for chart
   const bugTrendCategories = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
@@ -161,6 +198,9 @@ export default function Dashboard() {
     { name: 'Critical', data: [criticalCount, criticalCount, criticalCount, criticalCount] }
   ]
   const projectProgressCategories = ['Q1', 'Q2', 'Q3', 'Q4']
+  const hasProgressData = projects.length > 0
+
+  const hasIssuesData = projectIssuesData.length > 0 && projectIssuesData.some(d => d.value > 0)
 
   if (loading) {
     return (
@@ -175,8 +215,33 @@ export default function Dashboard() {
 
   return (
     <div className="flex flex-col gap-6">
+      {/* Dashboard Header & Year Selector */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-6 rounded-2xl shadow-soft-xl border-0">
+        <div>
+          <h4 className="font-bold text-slate-700 mb-1">Dashboard Overview</h4>
+          <p className="text-sm text-slate-500 font-medium">Tracking projects and performance for {selectedYear}</p>
+        </div>
+        <div className="relative">
+          <select
+            value={selectedYear}
+            onChange={(e) => setSelectedYear(parseInt(e.target.value))}
+            className="appearance-none bg-white border-2 border-fuchsia-400/30 text-slate-700 text-sm font-bold rounded-xl focus:outline-none focus:border-fuchsia-500 focus:ring-4 focus:ring-fuchsia-500/10 px-6 py-3 pr-12 shadow-soft-xl cursor-pointer transition-all hover:border-fuchsia-500 hover:shadow-fuchsia-500/5 min-w-[200px]"
+          >
+            {availableYears.map(year => (
+              <option key={year} value={year} className="py-2">
+                {year === currentYear ? `${year} (Current Year)` : year}
+              </option>
+            ))}
+          </select>
+          <div className="absolute inset-y-0 right-0 flex items-center pr-4 pointer-events-none text-fuchsia-500">
+            <ChevronDown size={20} strokeWidth={3} />
+          </div>
+        </div>
+      </div>
+
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+        {/* Total Projects */}
         <div className="relative flex flex-col min-w-0 break-words bg-white shadow-soft-xl rounded-2xl bg-clip-border">
           <div className="flex-auto p-4">
             <div className="flex flex-row items-center justify-between">
@@ -185,7 +250,6 @@ export default function Dashboard() {
                   <p className="mb-0 font-sans font-semibold leading-normal text-sm">Total Projects</p>
                   <h5 className="mb-0 font-bold">
                     {summary.total}
-                    <span className="leading-normal text-sm font-weight-bolder text-lime-500"> +5%</span>
                   </h5>
                 </div>
               </div>
@@ -198,35 +262,36 @@ export default function Dashboard() {
           </div>
         </div>
 
+        {/* Total Running Projects */}
         <div className="relative flex flex-col min-w-0 break-words bg-white shadow-soft-xl rounded-2xl bg-clip-border">
           <div className="flex-auto p-4">
             <div className="flex flex-row items-center justify-between">
               <div className="flex-none w-2/3">
                 <div>
-                  <p className="mb-0 font-sans font-semibold leading-normal text-sm">Open Bugs</p>
+                  <p className="mb-0 font-sans font-semibold leading-normal text-sm">Total Running Projects</p>
                   <h5 className="mb-0 font-bold">
-                    {summary.openBugs}
-                    <span className="leading-normal text-sm font-weight-bolder text-red-600"> +3%</span>
+                    {summary.running}
                   </h5>
                 </div>
               </div>
               <div className="flex-none">
-                <div className="inline-block w-12 h-12 text-center rounded-lg bg-gradient-to-tl from-red-600 to-rose-400 shadow-soft-2xl">
-                  <AlertCircle className="text-white h-full w-full p-3" />
+                <div className="inline-block w-12 h-12 text-center rounded-lg bg-gradient-to-tl from-blue-600 to-cyan-400 shadow-soft-2xl">
+                  <TrendingUp className="text-white h-full w-full p-3" />
                 </div>
               </div>
             </div>
           </div>
         </div>
 
+        {/* Total Completed Projects */}
         <div className="relative flex flex-col min-w-0 break-words bg-white shadow-soft-xl rounded-2xl bg-clip-border">
           <div className="flex-auto p-4">
             <div className="flex flex-row items-center justify-between">
               <div className="flex-none w-2/3">
                 <div>
-                  <p className="mb-0 font-sans font-semibold leading-normal text-sm">Completed Screens</p>
+                  <p className="mb-0 font-sans font-semibold leading-normal text-sm">Total Completed Projects</p>
                   <h5 className="mb-0 font-bold">
-                    {summary.completedScreens}
+                    {summary.completed}
                   </h5>
                 </div>
               </div>
@@ -239,6 +304,70 @@ export default function Dashboard() {
           </div>
         </div>
 
+        {/* Total Hold Projects */}
+        <div className="relative flex flex-col min-w-0 break-words bg-white shadow-soft-xl rounded-2xl bg-clip-border">
+          <div className="flex-auto p-4">
+            <div className="flex flex-row items-center justify-between">
+              <div className="flex-none w-2/3">
+                <div>
+                  <p className="mb-0 font-sans font-semibold leading-normal text-sm">Total Hold Projects</p>
+                  <h5 className="mb-0 font-bold">
+                    {summary.onHold}
+                  </h5>
+                </div>
+              </div>
+              <div className="flex-none">
+                <div className="inline-block w-12 h-12 text-center rounded-lg bg-gradient-to-tl from-orange-500 to-yellow-400 shadow-soft-2xl">
+                  <Activity className="text-white h-full w-full p-3" />
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Total Maintenance Projects */}
+        <div className="relative flex flex-col min-w-0 break-words bg-white shadow-soft-xl rounded-2xl bg-clip-border">
+          <div className="flex-auto p-4">
+            <div className="flex flex-row items-center justify-between">
+              <div className="flex-none w-2/3">
+                <div>
+                  <p className="mb-0 font-sans font-semibold leading-normal text-sm">Total Maintenance Projects</p>
+                  <h5 className="mb-0 font-bold">
+                    {summary.maintenance}
+                  </h5>
+                </div>
+              </div>
+              <div className="flex-none">
+                <div className="inline-block w-12 h-12 text-center rounded-lg bg-gradient-to-tl from-slate-600 to-slate-300 shadow-soft-2xl">
+                  <Activity className="text-white h-full w-full p-3" />
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Open Bugs */}
+        <div className="relative flex flex-col min-w-0 break-words bg-white shadow-soft-xl rounded-2xl bg-clip-border">
+          <div className="flex-auto p-4">
+            <div className="flex flex-row items-center justify-between">
+              <div className="flex-none w-2/3">
+                <div>
+                  <p className="mb-0 font-sans font-semibold leading-normal text-sm">Open Bugs</p>
+                  <h5 className="mb-0 font-bold">
+                    {summary.openBugs}
+                  </h5>
+                </div>
+              </div>
+              <div className="flex-none">
+                <div className="inline-block w-12 h-12 text-center rounded-lg bg-gradient-to-tl from-red-600 to-rose-400 shadow-soft-2xl">
+                  <AlertCircle className="text-white h-full w-full p-3" />
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Upcoming Deadlines */}
         <div className="relative flex flex-col min-w-0 break-words bg-white shadow-soft-xl rounded-2xl bg-clip-border">
           <div className="flex-auto p-4">
             <div className="flex flex-row items-center justify-between">
@@ -271,22 +400,6 @@ export default function Dashboard() {
                   <span className="font-semibold">{currentTotalBugs} bugs</span> in {displayYear}
                 </p>
               </div>
-              <div className="flex items-center gap-2">
-                <div className="relative group">
-                  <select 
-                    value={selectedYear}
-                    onChange={(e) => setSelectedYear(parseInt(e.target.value))}
-                    className="appearance-none bg-white border-2 border-fuchsia-100 text-slate-700 text-[13px] font-bold rounded-full focus:outline-none focus:border-fuchsia-400 focus:ring-4 focus:ring-fuchsia-50/50 px-5 py-2 pr-10 shadow-sm cursor-pointer transition-all hover:border-fuchsia-300 hover:bg-fuchsia-50/30 min-w-[110px]"
-                  >
-                    {availableYears.map(year => (
-                      <option key={year} value={year}>{year}</option>
-                    ))}
-                  </select>
-                  <div className="absolute inset-y-0 right-0 flex items-center pr-4 pointer-events-none text-fuchsia-500 group-hover:text-fuchsia-600 transition-colors">
-                    <ChevronDown size={16} strokeWidth={3} />
-                  </div>
-                </div>
-              </div>
             </div>
             <div className="flex-auto p-4 relative min-h-[300px]">
               {trendLoading ? (
@@ -294,7 +407,7 @@ export default function Dashboard() {
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-700"></div>
                 </div>
               ) : null}
-              
+
               {!hasTrendData && !trendLoading ? (
                 <div className="absolute inset-0 flex items-center justify-center z-10">
                   <p className="text-gray-500 font-medium">No data available for this year</p>
@@ -302,9 +415,9 @@ export default function Dashboard() {
               ) : null}
 
               <div className={!hasTrendData ? 'opacity-20' : ''}>
-                <LineChart 
-                  series={bugTrendSeries} 
-                  categories={bugTrendCategories} 
+                <AreaChart
+                  series={bugTrendSeries}
+                  categories={bugTrendCategories}
                   height={300}
                   colors={['#cb0c9f']}
                 />
@@ -318,13 +431,21 @@ export default function Dashboard() {
             <div className="border-black/12.5 mb-0 rounded-t-2xl border-b-0 border-solid bg-white p-6 pb-0">
               <h6 className="font-bold">Projects by Status</h6>
             </div>
-            <div className="flex-auto p-4">
-              <PieChart 
-                labels={statusLabels} 
-                series={statusValues} 
-                height={350}
-                colors={['#FF5733', '#FFC300', '#FF33FF', '#8B5CF6', '#0EA5E9', '#10B981']}
-              />
+            <div className="flex-auto p-4 relative min-h-[350px]">
+              {!hasStatusData ? (
+                <div className="absolute inset-0 flex items-center justify-center z-10">
+                  <p className="text-gray-500 font-medium">No data available for this year</p>
+                </div>
+              ) : null}
+
+              <div className={!hasStatusData ? 'opacity-0' : ''}>
+                <PieChart
+                  labels={statusLabels}
+                  series={statusValues}
+                  height={350}
+                  colors={['#FF5733', '#FFC300', '#FF33FF', '#8B5CF6', '#0EA5E9', '#10B981']}
+                />
+              </div>
             </div>
           </div>
         </div>
@@ -332,27 +453,46 @@ export default function Dashboard() {
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         <div className="lg:col-span-12">
-          <ParetoChart 
-            title="Module-wise Issue Analysis (Pareto)" 
-            data={projectIssuesData} 
-            height={350} 
-          />
+          <div className="border-black/12.5 shadow-soft-xl relative z-20 flex min-w-0 flex-col break-words rounded-2xl border-0 border-solid bg-white bg-clip-border h-full overflow-hidden">
+            <div className="flex-auto relative min-h-[350px]">
+              {!hasIssuesData ? (
+                <div className="absolute inset-0 flex flex-col items-center justify-center z-10 bg-white p-6">
+                  <h6 className="font-bold text-slate-700 mb-2">Module-wise Issue Analysis (Pareto)</h6>
+                  <p className="text-gray-500 font-medium">No data available for this year</p>
+                </div>
+              ) : (
+                <ParetoChart
+                  title="Module-wise Issue Analysis (Pareto)"
+                  data={projectIssuesData}
+                  height={350}
+                />
+              )}
+            </div>
+          </div>
         </div>
       </div>
 
       <div className="grid grid-cols-1 gap-6">
         <div className="w-full">
-          <div className="border-black/12.5 shadow-soft-xl relative z-20 flex min-w-0 flex-col break-words rounded-2xl border-0 border-solid bg-white bg-clip-border">
+          <div className="border-black/12.5 shadow-soft-xl relative z-20 flex min-w-0 flex-col break-words rounded-2xl border-0 border-solid bg-white bg-clip-border h-full">
             <div className="border-black/12.5 mb-0 rounded-t-2xl border-b-0 border-solid bg-white p-6 pb-0">
               <h6 className="font-bold">Project Status Progress</h6>
             </div>
-            <div className="flex-auto p-4">
-              <BarChart 
-                series={projectProgressData} 
-                categories={projectProgressCategories} 
-                height={300}
-                colors={['#cb0c9f', '#17c1e8', '#3a416f', '#f53939']}
-              />
+            <div className="flex-auto p-4 relative min-h-[300px]">
+              {!hasProgressData ? (
+                <div className="absolute inset-0 flex items-center justify-center z-10">
+                  <p className="text-gray-500 font-medium">No data available for this year</p>
+                </div>
+              ) : null}
+
+              <div className={!hasProgressData ? 'opacity-0' : ''}>
+                <BarChart
+                  series={projectProgressData}
+                  categories={projectProgressCategories}
+                  height={300}
+                  colors={['#cb0c9f', '#17c1e8', '#3a416f', '#f53939']}
+                />
+              </div>
             </div>
           </div>
         </div>

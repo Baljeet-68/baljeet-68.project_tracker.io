@@ -3,7 +3,7 @@ import Chart from 'react-apexcharts'
 import { Card, CardHeader, CardBody } from './TailAdminComponents'
 
 // Line Chart Component
-export const LineChart = ({ title, series, categories, height = 300 }) => {
+export const LineChart = ({ title, series, categories, height = 300, colors }) => {
   const options = {
     chart: {
       type: 'line',
@@ -14,6 +14,13 @@ export const LineChart = ({ title, series, categories, height = 300 }) => {
       sparkline: {
         enabled: false,
       },
+    },
+    markers: {
+      size: 4,
+      strokeWidth: 0,
+      hover: {
+        size: 6,
+      }
     },
     grid: {
       show: true,
@@ -59,20 +66,16 @@ export const LineChart = ({ title, series, categories, height = 300 }) => {
         fontSize: '12px',
       },
     },
-    colors: ['#0ea5e9'],
+    colors: colors || ['#0ea5e9'],
     stroke: {
-      width: 2,
+      width: 3,
       curve: 'smooth',
     },
-    fill: {
-      type: 'gradient',
-      gradient: {
-        shade: 'light',
-        opacityFrom: 0.1,
-        opacityTo: 0,
-      },
-    },
   }
+
+  const chartContent = <Chart type="line" series={series} options={options} height={height} />
+
+  if (!title) return chartContent;
 
   return (
     <Card>
@@ -80,14 +83,14 @@ export const LineChart = ({ title, series, categories, height = 300 }) => {
         <h3 className="text-base font-semibold text-dark-900">{title}</h3>
       </CardHeader>
       <CardBody>
-        <Chart type="line" series={series} options={options} height={height} />
+        {chartContent}
       </CardBody>
     </Card>
   )
 }
 
 // Bar Chart Component
-export const BarChart = ({ title, series, categories, height = 300 }) => {
+export const BarChart = ({ title, series, categories, height = 300, colors }) => {
   const options = {
     chart: {
       type: 'bar',
@@ -140,7 +143,7 @@ export const BarChart = ({ title, series, categories, height = 300 }) => {
         fontSize: '12px',
       },
     },
-    colors: ['#0ea5e9', '#10b981', '#f59e0b'],
+    colors: colors || ['#0ea5e9', '#10b981', '#f59e0b'],
     plotOptions: {
       bar: {
         borderRadius: 2,
@@ -152,13 +155,17 @@ export const BarChart = ({ title, series, categories, height = 300 }) => {
     },
   }
 
+  const chartContent = <Chart type="bar" series={series} options={options} height={height} />
+
+  if (!title) return chartContent;
+
   return (
     <Card>
       <CardHeader>
         <h3 className="text-base font-semibold text-dark-900">{title}</h3>
       </CardHeader>
       <CardBody>
-        <Chart type="bar" series={series} options={options} height={height} />
+        {chartContent}
       </CardBody>
     </Card>
   )
@@ -296,24 +303,28 @@ export const PieChart = ({ title, series, labels, height = 300, colors }) => {
     }]
   }
 
+  const chartContent = (
+    <div className="w-full">
+      <Chart type="donut" series={series} options={options} height={height} />
+    </div>
+  )
+
+  if (!title) return chartContent;
+
   return (
     <Card className="h-full">
-      {title && (
-        <CardHeader>
-          <h3 className="text-base font-semibold text-dark-900">{title}</h3>
-        </CardHeader>
-      )}
+      <CardHeader>
+        <h3 className="text-base font-semibold text-dark-900">{title}</h3>
+      </CardHeader>
       <CardBody className="flex justify-center">
-        <div className="w-full">
-          <Chart type="donut" series={series} options={options} height={height} />
-        </div>
+        {chartContent}
       </CardBody>
     </Card>
   )
 }
 
 // Area Chart Component
-export const AreaChart = ({ title, series, categories, height = 300 }) => {
+export const AreaChart = ({ title, series, categories, height = 300, colors }) => {
   const options = {
     chart: {
       type: 'area',
@@ -324,6 +335,13 @@ export const AreaChart = ({ title, series, categories, height = 300 }) => {
       sparkline: {
         enabled: false,
       },
+    },
+    markers: {
+      size: 4,
+      strokeWidth: 0,
+      hover: {
+        size: 6,
+      }
     },
     grid: {
       show: true,
@@ -369,20 +387,24 @@ export const AreaChart = ({ title, series, categories, height = 300 }) => {
         fontSize: '12px',
       },
     },
-    colors: ['#0ea5e9'],
+    colors: colors || ['#0ea5e9'],
     fill: {
       type: 'gradient',
       gradient: {
         shade: 'light',
         opacityFrom: 0.6,
-        opacityTo: 0,
+        opacityTo: 0.1,
       },
     },
     stroke: {
-      width: 2,
+      width: 3,
       curve: 'smooth',
     },
   }
+
+  const chartContent = <Chart type="area" series={series} options={options} height={height} />
+
+  if (!title) return chartContent;
 
   return (
     <Card>
@@ -390,7 +412,7 @@ export const AreaChart = ({ title, series, categories, height = 300 }) => {
         <h3 className="text-base font-semibold text-dark-900">{title}</h3>
       </CardHeader>
       <CardBody>
-        <Chart type="area" series={series} options={options} height={height} />
+        {chartContent}
       </CardBody>
     </Card>
   )
