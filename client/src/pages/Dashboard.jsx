@@ -316,7 +316,7 @@ export default function Dashboard() {
         <div className="lg:col-span-5">
           <div className="border-black/12.5 shadow-soft-xl relative z-20 flex min-w-0 flex-col break-words rounded-2xl border-0 border-solid bg-white bg-clip-border h-full">
             <div className="border-black/12.5 mb-0 rounded-t-2xl border-b-0 border-solid bg-white p-6 pb-0">
-              <h6 className="font-bold">Projects by status</h6>
+              <h6 className="font-bold">Projects by Status</h6>
             </div>
             <div className="flex-auto p-4">
               <PieChart 
