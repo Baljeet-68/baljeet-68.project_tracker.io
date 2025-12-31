@@ -198,15 +198,23 @@ router.patch(`/projects/:id`, authenticate, requireRole('admin'), async (req, re
     if (endDate !== undefined) changes.endDate = endDate ? new Date(endDate) : null;
     
     if (testerId !== undefined) {
-      if (testerId && !users.find(u => u.id === testerId && u.role === 'tester')) {
-        return res.status(400).json({ error: 'Invalid tester ID' });
+      // Allow if testerId is same as current, or if it's a valid tester
+      if (testerId && testerId !== p.testerId) {
+        if (!users.find(u => u.id === testerId && (u.role === 'tester' || u.role === 'admin'))) {
+          return res.status(400).json({ error: 'Invalid tester ID' });
+        }
       }
       changes.testerId = testerId;
     }
     if (developerIds !== undefined) {
       if (developerIds && developerIds.length > 0) {
-        const invalid = developerIds.filter(id => !users.find(u => u.id === id && u.role === 'developer'));
-        if (invalid.length > 0) return res.status(400).json({ error: 'Invalid developer IDs' });
+        // Only validate IDs that were ADDED
+        const currentIds = p.developerIds || [];
+        const newIds = developerIds.filter(id => !currentIds.includes(id));
+        if (newIds.length > 0) {
+          const invalid = newIds.filter(id => !users.find(u => u.id === id && (u.role === 'developer' || u.role === 'admin')));
+          if (invalid.length > 0) return res.status(400).json({ error: 'Invalid developer IDs' });
+        }
       }
       changes.developerIds = developerIds;
     }

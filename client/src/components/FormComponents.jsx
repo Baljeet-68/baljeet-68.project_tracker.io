@@ -216,20 +216,27 @@ export const Toast = ({ message, type = 'info', onClose }) => {
 }
 
 // Input Group Component
-export const InputGroup = ({ label, type = 'text', error, ...props }) => (
+export const InputGroup = ({ label, type = 'text', error, rightElement, ...props }) => (
   <div className="mb-4">
     {label && (
       <label className="mb-2 ml-1 font-bold text-xs text-slate-700">
         {label}
       </label>
     )}
-    <input
-      type={type}
-      className={`focus:shadow-soft-primary-outline text-sm leading-5.6 block w-full appearance-none rounded-lg border border-solid bg-white bg-clip-padding px-3 py-2 font-normal text-gray-700 transition-all focus:border-fuchsia-300 focus:outline-none focus:transition-shadow ${
-        error ? 'border-red-500' : 'border-gray-300'
-      }`}
-      {...props}
-    />
+    <div className="relative flex items-center">
+      <input
+        type={type}
+        className={`focus:shadow-soft-primary-outline text-sm leading-5.6 block w-full appearance-none rounded-lg border border-solid bg-white bg-clip-padding px-3 py-2 font-normal text-gray-700 transition-all focus:border-fuchsia-300 focus:outline-none focus:transition-shadow ${
+          error ? 'border-red-500' : 'border-gray-300'
+        } ${rightElement ? 'pr-20' : ''}`}
+        {...props}
+      />
+      {rightElement && (
+        <div className="absolute right-3 flex items-center gap-2">
+          {rightElement}
+        </div>
+      )}
+    </div>
     {error && <p className="text-red-600 text-xs mt-1 ml-1">{error}</p>}
   </div>
 )

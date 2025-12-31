@@ -3,7 +3,7 @@ import { authFetch, getUser } from '../auth'
 import { API_BASE_URL } from '../apiConfig'
 import { Card, CardHeader, CardBody, Badge, Button } from '../components/TailAdminComponents'
 import { Modal, InputGroup, Select, Table } from '../components/FormComponents'
-import { Users, FolderPlus, UserPlus, RefreshCw, Edit, Trash2 } from 'lucide-react'
+import { Users, FolderPlus, UserPlus, RefreshCw, Edit, Trash2, Eye, EyeOff, Wand2 } from 'lucide-react'
 
 export default function Admin() {
   const [users, setUsers] = useState([])
@@ -14,6 +14,7 @@ export default function Admin() {
   // User form
   const [userForm, setUserForm] = useState({ name: '', email: '', password: '', role: 'developer' })
   const [userDialog, setUserDialog] = useState(false)
+  const [showPassword, setShowPassword] = useState(false)
 
   // Project form
   const [projectForm, setProjectForm] = useState({ name: '', client: '', description: '', testerId: '', developerIds: [] })
@@ -26,8 +27,28 @@ export default function Admin() {
   // Edit User form
   const [editUserForm, setEditUserForm] = useState({ id: '', name: '', email: '', role: '', status: '', password: '' })
   const [editUserDialog, setEditUserDialog] = useState(false)
+  const [editShowPassword, setEditShowPassword] = useState(false)
+
+  // Delete User confirmation
+  const [deleteUserDialog, setDeleteUserDialog] = useState(false)
+  const [userToDelete, setUserToDelete] = useState(null)
 
   const me = getUser()
+
+  const generatePassword = (isEdit = false) => {
+    const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()_+'
+    let pass = ''
+    for (let i = 0; i < 12; i++) {
+      pass += chars.charAt(Math.floor(Math.random() * chars.length))
+    }
+    if (isEdit) {
+      setEditUserForm({ ...editUserForm, password: pass })
+      setEditShowPassword(true)
+    } else {
+      setUserForm({ ...userForm, password: pass })
+      setShowPassword(true)
+    }
+  }
 
   useEffect(() => {
     load()
@@ -66,6 +87,7 @@ export default function Admin() {
       await load()
       setUserForm({ name: '', email: '', password: '', role: 'developer' })
       setUserDialog(false)
+      setShowPassword(false)
     } catch (e) {
       setError(e.message)
     }
@@ -98,7 +120,7 @@ export default function Admin() {
       client: project.client || '',
       description: project.description || '',
       testerId: project.testerId || '',
-      developerIds: project.developerIds || []
+      developerIds: Array.isArray(project.developerIds) ? project.developerIds : []
     })
     setEditProjectDialog(true)
   }
@@ -109,12 +131,18 @@ export default function Admin() {
       return
     }
     try {
-      const res = await authFetch(`${API_BASE_URL}/projects/${editProjectForm.id}`, {
+      const { id, name, client, description, testerId, developerIds } = editProjectForm;
+      const payload = { name, client, description, testerId, developerIds };
+      
+      const res = await authFetch(`${API_BASE_URL}/projects/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(editProjectForm)
+        body: JSON.stringify(payload)
       })
-      if (!res.ok) throw new Error('Failed to update project')
+      if (!res.ok) {
+        const data = await res.json()
+        throw new Error(data.error || 'Failed to update project')
+      }
       await load()
       setEditProjectDialog(false)
     } catch (e) {
@@ -155,8 +183,28 @@ export default function Admin() {
       if (!res.ok) throw new Error('Failed to update user')
       await load()
       setEditUserDialog(false)
+      setEditShowPassword(false)
     } catch (e) {
       setError(e.message)
+    }
+  }
+
+  const handleDeleteUser = async () => {
+    if (!userToDelete) return
+    try {
+      const res = await authFetch(`${API_BASE_URL}/users/${userToDelete.id}`, {
+        method: 'DELETE'
+      })
+      if (!res.ok) {
+        const data = await res.json()
+        throw new Error(data.error || 'Failed to delete user')
+      }
+      await load()
+      setDeleteUserDialog(false)
+      setUserToDelete(null)
+    } catch (e) {
+      setError(e.message)
+      setDeleteUserDialog(false)
     }
   }
 
@@ -188,9 +236,21 @@ export default function Admin() {
       label: 'Actions',
       render: (_, user) => (
         <div className="flex gap-2">
-          <button onClick={() => handleEditUser(user)} className="text-slate-400 hover:text-blue-500">
+          <button onClick={() => handleEditUser(user)} className="text-slate-400 hover:text-blue-500 transition-colors" title="Edit User">
             <Edit size={16} />
           </button>
+          {user.role !== 'admin' && (
+            <button 
+              onClick={() => {
+                setUserToDelete(user)
+                setDeleteUserDialog(true)
+              }} 
+              className="text-slate-400 hover:text-red-500 transition-colors"
+              title="Delete User"
+            >
+              <Trash2 size={16} />
+            </button>
+          )}
         </div>
       )
     }
@@ -273,10 +333,16 @@ export default function Admin() {
       <Modal 
         isOpen={userDialog} 
         title="Add New User" 
-        onClose={() => setUserDialog(false)}
+        onClose={() => {
+          setUserDialog(false)
+          setShowPassword(false)
+        }}
         footer={
           <>
-            <Button variant="secondary" size="sm" onClick={() => setUserDialog(false)}>Cancel</Button>
+            <Button variant="secondary" size="sm" onClick={() => {
+              setUserDialog(false)
+              setShowPassword(false)
+            }}>Cancel</Button>
             <Button variant="info" size="sm" onClick={handleCreateUser}>Create User</Button>
           </>
         }
@@ -296,9 +362,29 @@ export default function Admin() {
         />
         <InputGroup 
           label="Password" 
-          type="password"
+          type={showPassword ? 'text' : 'password'}
           value={userForm.password} 
           onChange={(e) => setUserForm({...userForm, password: e.target.value})} 
+          rightElement={
+            <>
+              <button 
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="text-slate-400 hover:text-slate-600 transition-colors"
+                title={showPassword ? "Hide Password" : "Show Password"}
+              >
+                {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+              </button>
+              <button 
+                type="button"
+                onClick={() => generatePassword(false)}
+                className="text-slate-400 hover:text-blue-500 transition-colors"
+                title="Generate Password"
+              >
+                <Wand2 size={16} />
+              </button>
+            </>
+          }
         />
         <Select 
           label="Role"
@@ -316,10 +402,16 @@ export default function Admin() {
       <Modal 
         isOpen={editUserDialog} 
         title="Edit User" 
-        onClose={() => setEditUserDialog(false)}
+        onClose={() => {
+          setEditUserDialog(false)
+          setEditShowPassword(false)
+        }}
         footer={
           <>
-            <Button variant="secondary" size="sm" onClick={() => setEditUserDialog(false)}>Cancel</Button>
+            <Button variant="secondary" size="sm" onClick={() => {
+              setEditUserDialog(false)
+              setEditShowPassword(false)
+            }}>Cancel</Button>
             <Button variant="info" size="sm" onClick={handleUpdateUser}>Save Changes</Button>
           </>
         }
@@ -337,9 +429,29 @@ export default function Admin() {
         />
         <InputGroup 
           label="New Password (leave blank to keep current)" 
-          type="password"
+          type={editShowPassword ? 'text' : 'password'}
           value={editUserForm.password} 
           onChange={(e) => setEditUserForm({...editUserForm, password: e.target.value})} 
+          rightElement={
+            <>
+              <button 
+                type="button"
+                onClick={() => setEditShowPassword(!editShowPassword)}
+                className="text-slate-400 hover:text-slate-600 transition-colors"
+                title={editShowPassword ? "Hide Password" : "Show Password"}
+              >
+                {editShowPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+              </button>
+              <button 
+                type="button"
+                onClick={() => generatePassword(true)}
+                className="text-slate-400 hover:text-blue-500 transition-colors"
+                title="Generate Password"
+              >
+                <Wand2 size={16} />
+              </button>
+            </>
+          }
         />
         <Select 
           label="Role"
@@ -360,6 +472,31 @@ export default function Admin() {
             { label: 'Inactive', value: 'inactive' },
           ]}
         />
+      </Modal>
+
+      {/* Delete User Confirmation Modal */}
+      <Modal
+        isOpen={deleteUserDialog}
+        title="Confirm Deletion"
+        onClose={() => setDeleteUserDialog(false)}
+        footer={
+          <>
+            <Button variant="secondary" size="sm" onClick={() => setDeleteUserDialog(false)}>Cancel</Button>
+            <Button variant="danger" size="sm" onClick={handleDeleteUser}>Delete User</Button>
+          </>
+        }
+      >
+        <div className="text-center py-4">
+          <div className="w-16 h-16 bg-red-100 text-red-600 rounded-full flex items-center justify-center mx-auto mb-4">
+            <Trash2 size={32} />
+          </div>
+          <p className="text-slate-600">
+            Are you sure you want to delete <span className="font-bold text-slate-800">{userToDelete?.name}</span>?
+          </p>
+          <p className="text-xs text-slate-400 mt-2">
+            This action cannot be undone and will remove all associated data.
+          </p>
+        </div>
       </Modal>
 
       {/* Add Project Modal */}
@@ -398,9 +535,33 @@ export default function Admin() {
           onChange={(e) => setProjectForm({...projectForm, testerId: e.target.value})}
           options={[
             { label: 'Select Tester', value: '' },
-            ...(users?.filter(u => u.role === 'tester').map(u => ({ label: u.name, value: u.id })) || [])
+            ...(users?.filter(u => u.role === 'tester' || u.role === 'admin').map(u => ({ label: u.name, value: u.id })) || [])
           ]}
         />
+        <div className="mb-4">
+          <label className="mb-2 ml-1 font-bold text-xs text-slate-700 block">
+            Assign Developers
+          </label>
+          <div className="max-h-40 overflow-y-auto border border-gray-200 rounded-lg p-2 bg-slate-50">
+            {users?.filter(u => u.role === 'developer' || u.role === 'admin').map(dev => (
+              <label key={dev.id} className="flex items-center gap-2 p-1 hover:bg-white rounded cursor-pointer transition-colors">
+                <input 
+                  type="checkbox"
+                  checked={projectForm.developerIds.includes(dev.id)}
+                  onChange={(e) => {
+                    const ids = e.target.checked 
+                      ? [...projectForm.developerIds, dev.id]
+                      : projectForm.developerIds.filter(id => id !== dev.id);
+                    setProjectForm({...projectForm, developerIds: ids});
+                  }}
+                  className="rounded border-gray-300 text-fuchsia-600 focus:ring-fuchsia-500"
+                />
+                <span className="text-sm text-slate-600">{dev.name}</span>
+                {dev.role === 'admin' && <span className="text-[10px] bg-red-100 text-red-600 px-1 rounded">Admin</span>}
+              </label>
+            ))}
+          </div>
+        </div>
       </Modal>
 
       {/* Edit Project Modal */}
@@ -436,9 +597,34 @@ export default function Admin() {
           onChange={(e) => setEditProjectForm({...editProjectForm, testerId: e.target.value})}
           options={[
             { label: 'Select Tester', value: '' },
-            ...(users?.filter(u => u.role === 'tester').map(u => ({ label: u.name, value: u.id })) || [])
+            ...(users?.filter(u => u.role === 'tester' || u.role === 'admin').map(u => ({ label: u.name, value: u.id })) || [])
           ]}
         />
+        <div className="mb-4">
+          <label className="mb-2 ml-1 font-bold text-xs text-slate-700 block">
+            Assign Developers
+          </label>
+          <div className="max-h-40 overflow-y-auto border border-gray-200 rounded-lg p-2 bg-slate-50">
+            {users?.filter(u => u.role === 'developer' || u.role === 'admin').map(dev => (
+              <label key={dev.id} className="flex items-center gap-2 p-1 hover:bg-white rounded cursor-pointer transition-colors">
+                <input 
+                  type="checkbox"
+                  checked={editProjectForm.developerIds?.includes(dev.id)}
+                  onChange={(e) => {
+                    const currentIds = editProjectForm.developerIds || [];
+                    const ids = e.target.checked 
+                      ? [...currentIds, dev.id]
+                      : currentIds.filter(id => id !== dev.id);
+                    setEditProjectForm({...editProjectForm, developerIds: ids});
+                  }}
+                  className="rounded border-gray-300 text-fuchsia-600 focus:ring-fuchsia-500"
+                />
+                <span className="text-sm text-slate-600">{dev.name}</span>
+                {dev.role === 'admin' && <span className="text-[10px] bg-red-100 text-red-600 px-1 rounded">Admin</span>}
+              </label>
+            ))}
+          </div>
+        </div>
       </Modal>
     </div>
   )
