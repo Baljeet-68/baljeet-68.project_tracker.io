@@ -98,6 +98,10 @@ export default function Users() {
     }
     try {
       const { id, name, email, role, status, password } = editUserForm;
+      if (!id) {
+        setError('User ID is missing. Please refresh and try again.');
+        return;
+      }
       const activeStatus = status === 'active' ? 1 : 0;
       const payload = { name, email, role, active: activeStatus };
       if (password) {

@@ -69,6 +69,7 @@ app.get(`${BASE_URL}/hello`, (req, res) => {
   res.json({
     status: "ok",
     message: "API is working!",
+    base_url: BASE_URL,
     timestamp: now.toISOString(),
     time: now.toLocaleTimeString(),
   });
