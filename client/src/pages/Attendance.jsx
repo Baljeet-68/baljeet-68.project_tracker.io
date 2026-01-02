@@ -15,6 +15,7 @@ export default function Attendance() {
   
   // Leave state
   const [leaves, setLeaves] = useState([])
+  const [activeTab, setActiveTab] = useState('onLeaveToday')
   const [summary, setSummary] = useState({
     onLeaveToday: 0,
     onHalfDayToday: 0,
@@ -27,6 +28,23 @@ export default function Attendance() {
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
   
+  const formatDateISO = (dateStr) => {
+    if (!dateStr) return ''
+    return dateStr.split('T')[0]
+  }
+
+  const formatDateDisplay = (dateStr) => {
+    if (!dateStr) return ''
+    const cleanDateStr = dateStr.includes('T') ? dateStr.split('T')[0] : dateStr
+    const parts = cleanDateStr.split('-')
+    if (parts.length !== 3) return cleanDateStr
+    
+    const [year, month, day] = parts
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+    const monthIndex = parseInt(month, 10) - 1
+    return `${day}-${months[monthIndex]}-${year}`
+  }
+  
   // Leave Form State
   const [leaveForm, setLeaveForm] = useState({
     type: 'Full Day',
@@ -36,7 +54,8 @@ export default function Attendance() {
     short_leave_time: '',
     compensation_worked_date: '',
     compensation_worked_time: '',
-    reason: ''
+    reason: '',
+    is_emergency: false
   })
 
   useEffect(() => {
@@ -81,10 +100,33 @@ export default function Attendance() {
   const handleLeaveSubmit = async (e) => {
     e.preventDefault()
     
+    // 0. Date validations
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    const startDate = new Date(leaveForm.start_date)
+    startDate.setHours(0, 0, 0, 0)
+
+    // Only Compensation can have past dates
+    if (leaveForm.type !== 'Compensation' && startDate < today) {
+      setError('Leave request cannot be for a past date.')
+      return
+    }
+
+    // 3-day advance rule for Paid Leave and Full Day Leave (unless emergency)
+    if (!leaveForm.is_emergency && (leaveForm.type === 'Paid Leave' || leaveForm.type === 'Full Day')) {
+      const threeDaysFromNow = new Date(today)
+      threeDaysFromNow.setDate(today.getDate() + 3)
+      
+      if (startDate < threeDaysFromNow) {
+        setError('Paid Leave and Full Day Leave must be requested at least 3 days in advance. Use "Emergency Leave" if needed.')
+        return
+      }
+    }
+
     // 1. Max 2 short leaves per month warning
     if (leaveForm.type === 'Short Leave' || leaveForm.type === 'Early Leave') {
       const monthStart = leaveForm.start_date.substring(0, 7) // YYYY-MM
-      const existingShort = myLeaves.filter(l => 
+      const existingShort = leaveHistory.filter(l => 
         (l.type === 'Short Leave' || l.type === 'Early Leave') && 
         l.start_date.startsWith(monthStart) &&
         l.status !== 'Rejected'
@@ -100,6 +142,11 @@ export default function Attendance() {
     setError('')
     setSuccess('')
 
+    const submitData = { ...leaveForm }
+    if (!submitData.end_date || submitData.type !== 'Full Day') {
+      submitData.end_date = submitData.start_date
+    }
+
     try {
       const res = await fetch(`${API_BASE_URL}/leaves`, {
         method: 'POST',
@@ -107,7 +154,7 @@ export default function Attendance() {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${localStorage.getItem('token')}`
         },
-        body: JSON.stringify(leaveForm)
+        body: JSON.stringify(submitData)
       })
 
       const data = await res.json()
@@ -125,7 +172,8 @@ export default function Attendance() {
         short_leave_time: '',
         compensation_worked_date: '',
         compensation_worked_time: '',
-        reason: ''
+        reason: '',
+        is_emergency: false
       })
     } catch (err) {
       setError(err.message)
@@ -177,13 +225,28 @@ export default function Attendance() {
         <span className="text-xs text-slate-400 font-medium">{row.userRole}</span>
       </div>
     )},
-    { label: 'Type', key: 'type', render: (type) => (
-      <span className="font-medium text-slate-600">{type}</span>
+    { label: 'Type', key: 'type', render: (type, row) => (
+      <div className="flex flex-col">
+        <span className="font-medium text-slate-600">{type}</span>
+        {row.is_emergency && (
+          <span className="text-[10px] font-bold text-red-500 uppercase tracking-tight flex items-center gap-0.5">
+            <AlertCircle size={10} /> Emergency
+          </span>
+        )}
+      </div>
     )},
     { label: 'Period', key: 'dates', render: (_, row) => (
       <div className="flex flex-col text-xs font-medium text-slate-500">
-        <span>From: {row.start_date}</span>
-        {row.end_date && row.end_date !== row.start_date && <span>To: {row.end_date}</span>}
+        {row.type === 'Half Day' ? (
+          <span>{formatDateDisplay(row.start_date)} ({row.half_day_period})</span>
+        ) : formatDateISO(row.start_date) === formatDateISO(row.end_date) ? (
+          <span>{formatDateDisplay(row.start_date)}</span>
+        ) : (
+          <>
+            <span>From: {formatDateDisplay(row.start_date)}</span>
+            {row.end_date && <span>To: {formatDateDisplay(row.end_date)}</span>}
+          </>
+        )}
       </div>
     )},
     { label: 'Status', key: 'status', render: (status) => {
@@ -249,11 +312,34 @@ export default function Attendance() {
 
   const todayOnLeave = leaves.filter(l => {
     const today = new Date().toISOString().split('T')[0]
-    return l.status === 'Approved' && today >= l.start_date && today <= l.end_date
+    const startDate = formatDateISO(l.start_date)
+    const endDate = formatDateISO(l.end_date)
+    return l.status === 'Approved' && today >= startDate && today <= endDate && l.type !== 'Half Day'
   })
 
+  const todayOnHalfDay = leaves.filter(l => {
+    const today = new Date().toISOString().split('T')[0]
+    const startDate = formatDateISO(l.start_date)
+    const endDate = formatDateISO(l.end_date)
+    return l.status === 'Approved' && today >= startDate && today <= endDate && l.type === 'Half Day'
+  })
+
+  const pendingApproval = leaves.filter(l => {
+    if (l.status !== 'Submitted' && l.status !== 'Pending Approval') return false
+    if (user.role === 'admin') {
+      return ['hr', 'management', 'accountant'].includes(l.userRole?.toLowerCase())
+    }
+    if (user.role === 'hr') {
+      return ['tester', 'developer', 'ecommerce'].includes(l.userRole?.toLowerCase())
+    }
+    // For regular users, show their own pending
+    return l.user_id === user.id
+  })
+
+  const leaveHistory = leaves.filter(l => l.user_id === user.id)
+
   const canConvertHalfDays = () => {
-    const approvedHalfDays = myLeaves.filter(l => l.type === 'Half Day' && l.status === 'Approved')
+    const approvedHalfDays = leaveHistory.filter(l => l.type === 'Half Day' && l.status === 'Approved')
     return approvedHalfDays.length >= 2
   }
 
@@ -286,10 +372,20 @@ export default function Attendance() {
     }
   }
 
-  const filteredTodayOnLeave = todayOnLeave.filter(l => 
-    l.userName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    l.type?.toLowerCase().includes(searchTerm.toLowerCase())
-  )
+  const getFilteredData = () => {
+    let data = []
+    if (activeTab === 'onLeaveToday') data = todayOnLeave
+    else if (activeTab === 'onHalfDayToday') data = todayOnHalfDay
+    else if (activeTab === 'pendingApproval') data = pendingApproval
+    else if (activeTab === 'leaveHistory') data = leaveHistory
+
+    return data.filter(l => 
+      l.userName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      l.type?.toLowerCase().includes(searchTerm.toLowerCase())
+    )
+  }
+
+  const activeTableData = getFilteredData()
 
   return (
     <div className="flex flex-col gap-6">
@@ -301,11 +397,9 @@ export default function Attendance() {
             <p className="text-sm text-slate-500 font-medium">Manage and track leave requests</p>
           </div>
           <div className="flex gap-3">
-            {user.role !== 'admin' && (
-              <Button variant="primary" size="sm" className="flex items-center gap-2" onClick={() => setShowLeaveModal(true)}>
-                <Plus size={14} /> Request Leave
-              </Button>
-            )}
+            <Button variant="primary" size="sm" className="flex items-center gap-2" onClick={() => setShowLeaveModal(true)}>
+              <Plus size={14} /> Request Leave
+            </Button>
           </div>
         </div>
       </Card>
@@ -374,81 +468,64 @@ export default function Attendance() {
       </div>
 
       <div className="flex flex-col gap-6">
-        {/* Today's Leaves Table */}
         <Card>
           <CardHeader className="flex flex-col md:flex-row justify-between items-center gap-4">
-            <div className="flex items-center gap-2">
-              <CalendarIcon size={18} className="text-purple-600" />
-              <h6 className="font-bold text-slate-700">Today's Leaves (Full & Half Day)</h6>
+            <div className="flex items-center gap-2 overflow-x-auto pb-2 md:pb-0 w-full md:w-auto">
+              <button 
+                onClick={() => setActiveTab('onLeaveToday')}
+                className={`px-4 py-2 text-sm font-bold rounded-lg transition-all whitespace-nowrap ${activeTab === 'onLeaveToday' ? 'bg-purple-600 text-white shadow-md' : 'text-slate-500 hover:bg-slate-100'}`}
+              >
+                On Leave Today
+              </button>
+              <button 
+                onClick={() => setActiveTab('onHalfDayToday')}
+                className={`px-4 py-2 text-sm font-bold rounded-lg transition-all whitespace-nowrap ${activeTab === 'onHalfDayToday' ? 'bg-purple-600 text-white shadow-md' : 'text-slate-500 hover:bg-slate-100'}`}
+              >
+                On Half Day Today
+              </button>
+              <button 
+                onClick={() => setActiveTab('pendingApproval')}
+                className={`px-4 py-2 text-sm font-bold rounded-lg transition-all whitespace-nowrap ${activeTab === 'pendingApproval' ? 'bg-purple-600 text-white shadow-md' : 'text-slate-500 hover:bg-slate-100'}`}
+              >
+                Pending for Approval
+              </button>
+              <button 
+                onClick={() => setActiveTab('leaveHistory')}
+                className={`px-4 py-2 text-sm font-bold rounded-lg transition-all whitespace-nowrap ${activeTab === 'leaveHistory' ? 'bg-purple-600 text-white shadow-md' : 'text-slate-500 hover:bg-slate-100'}`}
+              >
+                My Leaves History
+              </button>
             </div>
-            <div className="relative w-full md:w-64">
-              <InputGroup
-                placeholder="Search name or type..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                icon={<Search size={16} className="text-slate-400" />}
-              />
+            <div className="flex items-center gap-3 w-full md:w-auto">
+              {activeTab === 'leaveHistory' && canConvertHalfDays() && (
+                <Button variant="outline" size="xs" onClick={handleConvert} className="text-xs">
+                  Convert 2 Half Days
+                </Button>
+              )}
+              <div className="relative w-full md:w-64">
+                <InputGroup
+                  placeholder="Search..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  icon={<Search size={16} className="text-slate-400" />}
+                />
+              </div>
             </div>
           </CardHeader>
           <CardBody>
             <Table 
-              columns={leaveColumns.filter(c => c.key !== 'actions')} 
-              data={filteredTodayOnLeave} 
+              columns={activeTab === 'onLeaveToday' || activeTab === 'onHalfDayToday' ? leaveColumns.filter(c => c.key !== 'actions') : leaveColumns} 
+              data={activeTableData} 
               pagination={true} 
-              pageSize={5} 
+              pageSize={10} 
             />
           </CardBody>
         </Card>
-
-        {/* Admin/HR Approval Table */}
-        {(user.role === 'admin' || user.role === 'hr') && (
-          <Card>
-            <CardHeader className="flex items-center gap-2">
-              <ClipboardList size={18} className="text-purple-600" />
-              <h6 className="font-bold text-slate-700">
-                {user.role === 'admin' ? 'Pending Admin Approvals' : 'Pending HR Approvals'}
-              </h6>
-            </CardHeader>
-            <CardBody>
-              <Table 
-                columns={leaveColumns} 
-                data={pendingRequests} 
-                pagination={true} 
-                pageSize={5} 
-              />
-            </CardBody>
-          </Card>
-        )}
-
-        {/* My History Table */}
-        {user.role !== 'admin' && (
-          <Card>
-            <CardHeader className="flex flex-col md:flex-row justify-between items-center gap-4">
-              <div className="flex items-center gap-2">
-                <History size={18} className="text-purple-600" />
-                <h6 className="font-bold text-slate-700">My Leave History</h6>
-              </div>
-              {canConvertHalfDays() && (
-                <Button variant="outline" size="xs" onClick={handleConvert} className="text-xs">
-                  Convert 2 Half Days to Paid Leave
-                </Button>
-              )}
-            </CardHeader>
-            <CardBody>
-              <Table 
-                columns={leaveColumns} 
-                data={myLeaves} 
-                pagination={true} 
-                pageSize={10} 
-              />
-            </CardBody>
-          </Card>
-        )}
       </div>
 
       {/* Leave Request Modal */}
       <Modal
-        show={showLeaveModal}
+        isOpen={showLeaveModal}
         onClose={() => setShowLeaveModal(false)}
         title="Request Leave"
         size="lg"
@@ -472,20 +549,36 @@ export default function Attendance() {
               required
             />
             <InputGroup
-              label="Start Date"
+              label={leaveForm.type === 'Full Day' ? "Start Date" : "Date of Leave"}
               type="date"
               value={leaveForm.start_date}
               onChange={(e) => setLeaveForm({...leaveForm, start_date: e.target.value})}
+              min={leaveForm.type === 'Compensation' ? undefined : new Date().toISOString().split('T')[0]}
               required
             />
           </div>
 
-          {leaveForm.type === 'Full Day' || leaveForm.type === 'Paid Leave' ? (
+          <div className="flex items-center gap-2 px-1">
+            <input
+              type="checkbox"
+              id="is_emergency"
+              checked={leaveForm.is_emergency}
+              onChange={(e) => setLeaveForm({...leaveForm, is_emergency: e.target.checked})}
+              className="w-4 h-4 text-purple-600 rounded border-slate-300 focus:ring-purple-500"
+            />
+            <label htmlFor="is_emergency" className="text-sm font-bold text-slate-600 cursor-pointer flex items-center gap-1">
+              Emergency Leave 
+              <span className="text-[10px] font-medium text-slate-400 normal-case">(Bypass 3-day rule)</span>
+            </label>
+          </div>
+
+          {leaveForm.type === 'Full Day' ? (
             <InputGroup
               label="End Date"
               type="date"
               value={leaveForm.end_date}
               onChange={(e) => setLeaveForm({...leaveForm, end_date: e.target.value})}
+              min={leaveForm.start_date || new Date().toISOString().split('T')[0]}
               placeholder="Leave blank if same as start date"
             />
           ) : null}

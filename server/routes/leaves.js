@@ -54,17 +54,39 @@ router.post(`/leaves`, authenticate, async (req, res) => {
       short_leave_time, 
       compensation_worked_date, 
       compensation_worked_time,
-      reason 
+      reason,
+      is_emergency
     } = req.body;
 
+    // Determine approver and initial status
+    let approver_role = 'hr';
+    let status = 'Submitted';
+
     if (role === 'admin') {
-      return res.status(400).json({ error: 'Admin cannot submit leave requests' });
+      status = 'Approved'; // Admin leaves are auto-approved
+      approver_role = 'admin';
+    } else if (['hr', 'management', 'accountant'].includes(role.toLowerCase())) {
+      approver_role = 'admin';
     }
 
-    // Determine approver based on Matrix
-    let approver_role = 'hr';
-    if (['hr', 'management', 'accountant'].includes(role.toLowerCase())) {
-      approver_role = 'admin';
+    // Rules Validation
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const startDate = new Date(start_date);
+    startDate.setHours(0, 0, 0, 0);
+
+    // 0. Past date check (except Compensation)
+    if (type !== 'Compensation' && startDate < today) {
+      return res.status(400).json({ error: 'Leave request cannot be for a past date' });
+    }
+
+    // 0.1 3-day rule for Paid/Full leaves
+    if (!is_emergency && (type === 'Paid Leave' || type === 'Full Day')) {
+      const threeDaysFromNow = new Date(today);
+      threeDaysFromNow.setDate(today.getDate() + 3);
+      if (startDate < threeDaysFromNow) {
+        return res.status(400).json({ error: 'Paid/Full Day leaves must be requested 3 days in advance' });
+      }
     }
 
     // Find an approver of that role (simplified: just assign to any admin/hr for now or leave null for "role-based" queue)
@@ -112,12 +134,38 @@ router.post(`/leaves`, authenticate, async (req, res) => {
     }
 
     const sql = `INSERT INTO leaves 
-      (user_id, type, status, start_date, end_date, half_day_period, short_leave_time, compensation_worked_date, compensation_worked_time, reason, approver_id) 
-      VALUES (?, ?, 'Submitted', ?, ?, ?, ?, ?, ?, ?, ?)`;
+      (user_id, type, status, start_date, end_date, half_day_period, short_leave_time, compensation_worked_date, compensation_worked_time, reason, approver_id, is_emergency) 
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
     
-    await pool.execute(sql, [
-      userId, type, start_date, end_date || start_date, half_day_period, short_leave_time, compensation_worked_date, compensation_worked_time, reason, approver_id
+    const [inserted] = await pool.execute(sql, [
+      userId, type, status, start_date, end_date || start_date, half_day_period, short_leave_time, compensation_worked_date, compensation_worked_time, reason, approver_id, is_emergency ? 1 : 0
     ]);
+
+    // Create Notifications for HR or Admin
+    if (status === 'Submitted') {
+      const [user] = await pool.query('SELECT name FROM users WHERE id = ?', [userId]);
+      const userName = user[0]?.name || 'Someone';
+      
+      let notifyRole = 'hr';
+      if (['hr', 'management', 'accountant'].includes(role.toLowerCase())) {
+        notifyRole = 'admin';
+      }
+
+      const [targetUsers] = await pool.query('SELECT id FROM users WHERE role = ?', [notifyRole]);
+      
+      for (const targetUser of targetUsers) {
+        await pool.query(
+          'INSERT INTO notifications (user_id, type, title, message, category) VALUES (?, ?, ?, ?, ?)',
+          [
+            targetUser.id, 
+            'leave_request', 
+            'New Leave Request', 
+            `${userName} has submitted a ${type} request for ${start_date}${end_date ? ' to ' + end_date : ''}.`,
+            'HR'
+          ]
+        );
+      }
+    }
 
     res.json({ message: 'Leave request submitted successfully' });
   } catch (error) {
@@ -160,6 +208,21 @@ router.patch(`/leaves/:id/status`, authenticate, isAdminOrHR, async (req, res) =
 
     await pool.execute('UPDATE leaves SET status = ?, approver_id = ? WHERE id = ?', [status, userId, id]);
     
+    // Notify the user about approval/rejection
+    const [leaveInfo] = await pool.query('SELECT user_id, type, start_date FROM leaves WHERE id = ?', [id]);
+    if (leaveInfo.length > 0) {
+      await pool.query(
+        'INSERT INTO notifications (user_id, type, title, message, category) VALUES (?, ?, ?, ?, ?)',
+        [
+          leaveInfo[0].user_id,
+          'leave_status',
+          `Leave Request ${status}`,
+          `Your ${leaveInfo[0].type} request for ${leaveInfo[0].start_date} has been ${status.toLowerCase()}.`,
+          'HR'
+        ]
+      );
+    }
+    
     res.json({ message: `Leave ${status.toLowerCase()} successfully` });
   } catch (error) {
     console.error('Error updating leave status:', error);
@@ -181,6 +244,32 @@ router.patch(`/leaves/:id/cancel`, authenticate, async (req, res) => {
     }
 
     await pool.execute('UPDATE leaves SET status = "Cancelled" WHERE id = ?', [id]);
+
+    // Notify HR or Admin about cancellation
+    const [user] = await pool.query('SELECT name, role FROM users WHERE id = ?', [userId]);
+    const userName = user[0]?.name || 'Someone';
+    const userRole = user[0]?.role || '';
+
+    let notifyRole = 'hr';
+    if (['hr', 'management', 'accountant'].includes(userRole.toLowerCase())) {
+      notifyRole = 'admin';
+    }
+
+    const [targetUsers] = await pool.query('SELECT id FROM users WHERE role = ?', [notifyRole]);
+    
+    for (const targetUser of targetUsers) {
+      await pool.query(
+        'INSERT INTO notifications (user_id, type, title, message, category) VALUES (?, ?, ?, ?, ?)',
+        [
+          targetUser.id, 
+          'leave_cancelled', 
+          'Leave Request Cancelled', 
+          `${userName} has cancelled their ${leave[0].type} request for ${leave[0].start_date}.`,
+          'HR'
+        ]
+      );
+    }
+
     res.json({ message: 'Leave cancelled successfully' });
   } catch (error) {
     console.error('Error cancelling leave:', error);
@@ -293,6 +382,19 @@ router.post(`/leaves/convert`, authenticate, async (req, res) => {
       );
 
       await connection.commit();
+
+      // Notify the user about the conversion
+      await pool.query(
+        'INSERT INTO notifications (user_id, type, title, message, category) VALUES (?, ?, ?, ?, ?)',
+        [
+          userId,
+          'leave_status',
+          'Leave Converted',
+          'Successfully converted 2 Half Day leaves to 1 Paid Leave.',
+          'HR'
+        ]
+      );
+
       res.json({ message: 'Successfully converted 2 half days to 1 paid leave.' });
     } catch (err) {
       await connection.rollback();

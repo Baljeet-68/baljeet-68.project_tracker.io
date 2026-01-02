@@ -85,8 +85,8 @@ export default function Users() {
       name: user.name,
       email: user.email,
       role: user.role,
-      status: user.active === 1 ? 'active' : 'inactive',
-      password: ''
+      status: user.active ? 'active' : 'inactive',
+      password: user.password || ''
     })
     setEditUserDialog(true)
   }
@@ -331,7 +331,7 @@ export default function Users() {
           onChange={(e) => setEditUserForm({...editUserForm, email: e.target.value})} 
         />
         <InputGroup 
-          label="New Password (leave blank to keep current)" 
+          label="Password" 
           type={editShowPassword ? 'text' : 'password'}
           icon={<Lock size={16} className="text-slate-400" />}
           value={editUserForm.password} 

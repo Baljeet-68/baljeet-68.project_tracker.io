@@ -18,6 +18,7 @@ async function migrate() {
                 compensation_worked_time VARCHAR(50) NULL,
                 reason TEXT NOT NULL,
                 approver_id INT NULL,
+                is_emergency BOOLEAN DEFAULT FALSE,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
                 FOREIGN KEY (approver_id) REFERENCES users(id) ON DELETE SET NULL

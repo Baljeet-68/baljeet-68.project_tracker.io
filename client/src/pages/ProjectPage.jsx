@@ -397,6 +397,18 @@ export default function ProjectPage() {
     </div>
   )
 
+  const formatDateDisplay = (dateStr) => {
+    if (!dateStr) return '—'
+    const cleanDateStr = typeof dateStr === 'string' && dateStr.includes('T') ? dateStr.split('T')[0] : (typeof dateStr === 'string' ? dateStr : new Date(dateStr).toISOString().split('T')[0])
+    const parts = cleanDateStr.split('-')
+    if (parts.length !== 3) return cleanDateStr
+    
+    const [year, month, day] = parts
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+    const monthIndex = parseInt(month, 10) - 1
+    return `${day}-${months[monthIndex]}-${year}`
+  }
+
   const screenColumns = [
     { key: 'title', label: 'Title' },
     { key: 'module', label: 'Module' },
@@ -406,7 +418,7 @@ export default function ProjectPage() {
       label: 'Deadline',
       render: (val, s) => (
         <div className="flex items-center gap-2">
-          <span>{val ? new Date(val).toLocaleDateString() : '—'}</span>
+          <span>{formatDateDisplay(val)}</span>
           {(user?.role === 'admin' || (user?.role === 'developer' && s.assigneeId === user.id)) && (
             <button onClick={() => openScreenDeadlineEdit(s)} className="text-slate-400 hover:text-blue-500 transition-colors">
               <Edit size={14} />
@@ -492,7 +504,7 @@ export default function ProjectPage() {
       label: 'Deadline',
       render: (val, b) => (
         <div className="flex items-center gap-2">
-          <span>{val ? new Date(val).toLocaleDateString() : '—'}</span>
+          <span>{formatDateDisplay(val)}</span>
           {(user?.role === 'admin' || (user?.role === 'developer' && b.assignedDeveloperId === user.id)) && (
             <button onClick={() => openBugEdit(b)} className="text-slate-400 hover:text-blue-500 transition-colors">
               <Edit size={14} />
@@ -646,11 +658,11 @@ export default function ProjectPage() {
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="p-4 bg-gray-50 rounded-xl border border-gray-100">
                           <p className="text-xs font-bold uppercase text-slate-400 mb-2">Start Date</p>
-                          <p className="font-bold text-slate-700">{project.startDate ? new Date(project.startDate).toLocaleDateString() : 'N/A'}</p>
+                          <p className="font-bold text-slate-700">{formatDateDisplay(project.startDate)}</p>
                         </div>
                         <div className="p-4 bg-gray-50 rounded-xl border border-gray-100">
                           <p className="text-xs font-bold uppercase text-slate-400 mb-2">Target End Date</p>
-                          <p className="font-bold text-slate-700">{project.endDate ? new Date(project.endDate).toLocaleDateString() : 'N/A'}</p>
+                          <p className="font-bold text-slate-700">{formatDateDisplay(project.endDate)}</p>
                         </div>
                       </div>
                       

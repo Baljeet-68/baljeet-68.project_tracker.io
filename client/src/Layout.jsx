@@ -36,6 +36,13 @@ export default function Layout({ children }) {
 
   const pageTitle = getPageTitle()
 
+  // Automatically close sidebar on mobile when navigating
+  React.useEffect(() => {
+    if (window.innerWidth < 1024 && sidebarOpen) {
+      setSidebarOpen(false)
+    }
+  }, [location.pathname])
+
   const doLogout = async () => {
     clearToken(); clearUser(); nav('/login', { replace: true })
   }

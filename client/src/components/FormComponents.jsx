@@ -151,8 +151,16 @@ export const Table = ({ columns, data, loading = false, pagination = false, page
 }
 
 // Modal Component
-export const Modal = ({ isOpen, title, children, onClose, footer }) => {
+export const Modal = ({ isOpen, title, children, onClose, footer, size = 'md' }) => {
   if (!isOpen) return null
+
+  const sizes = {
+    sm: 'max-w-sm',
+    md: 'max-w-md',
+    lg: 'max-w-lg',
+    xl: 'max-w-xl',
+    '2xl': 'max-w-2xl',
+  }
 
   return (
     <>
@@ -165,7 +173,7 @@ export const Modal = ({ isOpen, title, children, onClose, footer }) => {
       {/* Modal */}
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4 pointer-events-none">
         <div
-          className="bg-white rounded-2xl shadow-soft-2xl max-w-md w-full max-h-[90vh] overflow-y-auto pointer-events-auto transform transition-all"
+          className={`bg-white rounded-2xl shadow-soft-2xl ${sizes[size] || sizes.md} w-full max-h-[90vh] overflow-y-auto pointer-events-auto transform transition-all`}
           onClick={(e) => e.stopPropagation()}
         >
           {/* Header */}

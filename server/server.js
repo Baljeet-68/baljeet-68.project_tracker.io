@@ -84,6 +84,7 @@ const projectRoutes = require("./routes/projects");
 const screenRoutes = require("./routes/screens");
 const bugRoutes = require("./routes/bugs");
 const leaveRoutes = require("./routes/leaves");
+const notificationRoutes = require("./routes/notifications");
 
 /* ===============================
    Mount Routes (NO double prefix)
@@ -94,6 +95,7 @@ app.use(BASE_URL, projectRoutes);
 app.use(BASE_URL, screenRoutes);
 app.use(BASE_URL, bugRoutes);
 app.use(BASE_URL, leaveRoutes);
+app.use(BASE_URL, notificationRoutes);
 
 /* ===============================
    404 Handler

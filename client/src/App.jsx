@@ -7,6 +7,8 @@ import Projects from './pages/Projects'
 import Users from './pages/Users'
 import Settings from './pages/Settings'
 import Attendance from './pages/Attendance'
+import ECommerceProjects from './pages/ECommerceProjects'
+import Notifications from './pages/Notifications'
 import { getToken, getUser } from './auth'
 import Layout from './Layout'
 
@@ -99,7 +101,31 @@ export default function App() {
           }
         />
 
-        {/* Settings */}
+        {/* E-Commerce Projects Management */}
+        <Route
+          path="ECommerceProjects"
+          element={
+            <ProtectedRoute>
+              <Layout>
+                <ECommerceProjects />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Notifications */}
+        <Route
+          path="notifications"
+          element={
+            <ProtectedRoute>
+              <Layout>
+                <Notifications />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Settings page */}
         <Route
           path="settings"
           element={
