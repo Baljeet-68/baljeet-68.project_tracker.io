@@ -58,11 +58,11 @@ export const Table = ({ columns, data, loading = false, pagination = false, page
       <div className="p-0 overflow-x-auto">
         <table className="items-center w-full mb-0 align-top border-gray-200 text-slate-500">
           <thead className="align-bottom">
-            <tr>
+            <tr className="bg-gradient-to-r from-gray-50 via-slate-50 to-gray-100/50">
               {columns.map((col) => (
                 <th
                   key={col.key}
-                  className="px-6 py-3 font-bold text-left uppercase align-middle bg-transparent border-b border-gray-200 shadow-none text-xxs border-b-solid tracking-tight-soft opacity-70"
+                  className="px-6 py-4 font-bold text-left uppercase align-middle border-b border-gray-200 shadow-none text-xxs border-b-solid tracking-tight-soft text-slate-500"
                 >
                   {col.label}
                 </th>

@@ -30,7 +30,7 @@ export default function Layout({ children }) {
     if (path === '/' || path === '/Project_Tracker_Tool' || path === '/Project_Tracker_Tool/') return 'Dashboard'
     if (path.includes('projects/')) return 'Project Details'
     if (path.includes('projects')) return 'Projects'
-    if (path.includes('admin')) return 'Admin Console'
+    if (path.includes('users')) return 'User Management'
     return 'Dashboard'
   }
 

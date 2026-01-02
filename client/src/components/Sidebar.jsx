@@ -5,6 +5,7 @@ import {
   X, 
   LayoutDashboard, 
   BarChart3, 
+  Users,
   Settings, 
   Search, 
   Inbox, 
@@ -36,12 +37,9 @@ export default function Sidebar({ open, onClose, collapsed, setCollapsed }) {
   const isActuallyCollapsed = collapsed && !isHovered
 
   const mainMenuItems = [
-    // { label: 'Inbox', icon: Inbox, path: '/inbox', roles: ['admin', 'tester', 'developer'] },
-    // { label: 'Activity', icon: Bell, path: '/activity', roles: ['admin', 'tester', 'developer'], hasNotification: true },
-    // { label: 'Schedule', icon: Calendar, path: '/schedule', roles: ['admin', 'tester', 'developer'] },
-    { label: 'Dashboard', icon: LayoutDashboard, path: '/', roles: ['admin', 'tester', 'developer'] },
-    { label: 'Projects', icon: BarChart3, path: '/projects', roles: ['admin', 'tester', 'developer'] },
-    { label: 'Admin Console', icon: Settings, path: '/admin', roles: ['admin'] },
+    { label: 'Dashboard', icon: LayoutDashboard, path: '/', roles: ['admin', 'tester', 'developer', 'hr', 'ecommerce', 'management', 'accountant'] },
+    { label: 'Projects', icon: BarChart3, path: '/projects', roles: ['admin', 'tester', 'developer', 'hr', 'ecommerce', 'management', 'accountant'] },
+    { label: 'User Management', icon: Users, path: '/users', roles: ['admin'] },
   ]
 
   const sharedItems = [

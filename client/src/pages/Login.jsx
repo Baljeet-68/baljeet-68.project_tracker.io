@@ -5,12 +5,11 @@ import { API_BASE_URL } from '../apiConfig';
 import { Eye, EyeOff, Lock, LayoutDashboard, Mail } from 'lucide-react'
 
 export default function Login() {
-  const [email, setEmail] = useState('admin@example.com')
-  const [password, setPassword] = useState('admin123')
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const [showPwd, setShowPwd] = useState(false)
-  const [remember, setRemember] = useState(false)
   const nav = useNavigate()
 
   useEffect(() => {
@@ -34,7 +33,7 @@ export default function Login() {
       const data = await res.json()
       saveToken(data.token)
       saveUser(data.user)
-      if (remember) localStorage.setItem('username', email)
+      
       nav('/', { replace: true })
     } catch (err) {
       setError(err.message || 'Login failed. Please try again.')
@@ -54,15 +53,15 @@ export default function Login() {
                 <div className="w-12 h-12 rounded-xl bg-gradient-to-tl from-purple-700 to-pink-500 flex items-center justify-center shadow-soft-lg">
                   <LayoutDashboard className="text-white" size={24} />
                 </div>
-                <h2 className="text-2xl font-bold text-slate-800 tracking-tight">Project Tracker</h2>
+                <h2 className="text-2xl font-bold text-slate-800 tracking-tight">MMF Infotech Tool</h2>
               </div>
               <h3 className="text-4xl font-extrabold text-transparent bg-gradient-to-tl from-purple-700 to-pink-500 bg-clip-text mb-3">
-                Welcome back
+                Welcome!
               </h3>
               <p className="text-slate-500 text-lg font-medium">Enter your credentials to access your workspace</p>
             </div>
 
-            <form onSubmit={submit} className="space-y-6">
+            <form onSubmit={submit} className="space-y-6" name="loginForm">
               <div>
                 <label className="block text-sm font-bold text-slate-700 mb-2 ml-1 uppercase tracking-wider">Email Address</label>
                 <div className="relative group">
@@ -71,8 +70,10 @@ export default function Login() {
                   </div>
                   <input
                     type="email"
+                    name="email"
+                    autoComplete="email"
                     className="block w-full pl-12 pr-4 py-4 border border-gray-200 rounded-2xl text-base placeholder-gray-400 focus:outline-none focus:border-purple-400 focus:ring-4 focus:ring-purple-500/10 transition-all bg-gray-50/50"
-                    placeholder="name@company.com"
+                    placeholder="Enter your email address"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     required
@@ -88,8 +89,10 @@ export default function Login() {
                   </div>
                   <input
                     type={showPwd ? "text" : "password"}
+                    name="password"
+                    autoComplete="current-password"
                     className="block w-full pl-12 pr-12 py-4 border border-gray-200 rounded-2xl text-base placeholder-gray-400 focus:outline-none focus:border-purple-400 focus:ring-4 focus:ring-purple-500/10 transition-all bg-gray-50/50"
-                    placeholder="••••••••"
+                    placeholder="Enter your password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     required
@@ -102,23 +105,6 @@ export default function Login() {
                     {showPwd ? <EyeOff size={20} /> : <Eye size={20} />}
                   </button>
                 </div>
-              </div>
-
-              <div className="flex items-center justify-between py-2">
-                <label className="flex items-center cursor-pointer group">
-                  <div className="relative">
-                    <input
-                      type="checkbox"
-                      className="sr-only"
-                      checked={remember}
-                      onChange={(e) => setRemember(e.target.checked)}
-                    />
-                    <div className={`w-11 h-6 rounded-full shadow-inner transition-colors ${remember ? 'bg-purple-500' : 'bg-gray-200'}`}></div>
-                    <div className={`absolute left-1 top-1 bg-white w-4 h-4 rounded-full shadow transition-transform ${remember ? 'translate-x-5' : ''}`}></div>
-                  </div>
-                  <span className="ml-3 text-sm font-semibold text-slate-600 group-hover:text-slate-800 transition-colors">Remember me</span>
-                </label>
-                <a href="#" className="text-sm font-bold text-purple-600 hover:text-purple-700 transition-colors">Forgot password?</a>
               </div>
 
               {error && (
@@ -148,7 +134,10 @@ export default function Login() {
 
             <div className="mt-12 text-center">
               <p className="text-slate-400 text-sm font-medium">
-                &copy; {new Date().getFullYear()} Project Tracker Tool. All rights reserved.
+                &copy;2026 MMF Infotech Tool. All rights reserved.
+              </p>
+              <p className="text-slate-400 text-sm font-medium">
+                version 1.0.0
               </p>
             </div>
           </div>

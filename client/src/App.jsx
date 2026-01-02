@@ -3,8 +3,8 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import Login from './pages/Login'
 import Dashboard from './pages/Dashboard'
 import ProjectPage from './pages/ProjectPage'
-import ProjectsList from './pages/ProjectsList'
-import Admin from './pages/Admin'
+import Projects from './pages/Projects'
+import Users from './pages/Users'
 import Settings from './pages/Settings'
 import { getToken, getUser } from './auth'
 import Layout from './Layout'
@@ -56,7 +56,7 @@ export default function App() {
           element={
             <ProtectedRoute>
               <Layout>
-                <ProjectsList />
+                <Projects />
               </Layout>
             </ProtectedRoute>
           }
@@ -74,13 +74,13 @@ export default function App() {
           }
         />
 
-        {/* Admin only */}
+        {/* User Management only */}
         <Route
-          path="admin"
+          path="users"
           element={
             <AdminRoute>
               <Layout>
-                <Admin />
+                <Users />
               </Layout>
             </AdminRoute>
           }

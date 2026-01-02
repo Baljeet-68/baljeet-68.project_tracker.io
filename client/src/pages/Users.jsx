@@ -3,11 +3,10 @@ import { authFetch, getUser } from '../auth'
 import { API_BASE_URL } from '../apiConfig'
 import { Card, CardHeader, CardBody, Badge, Button } from '../components/TailAdminComponents'
 import { Modal, InputGroup, Select, Table } from '../components/FormComponents'
-import { Users, FolderPlus, UserPlus, RefreshCw, Edit, Trash2, Eye, EyeOff, Wand2 } from 'lucide-react'
+import { Users as UsersIcon, UserPlus, RefreshCw, Edit, Trash2, Eye, EyeOff, Wand2 } from 'lucide-react'
 
-export default function Admin() {
+export default function Users() {
   const [users, setUsers] = useState([])
-  const [projects, setProjects] = useState([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
@@ -15,14 +14,6 @@ export default function Admin() {
   const [userForm, setUserForm] = useState({ name: '', email: '', password: '', role: 'developer' })
   const [userDialog, setUserDialog] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
-
-  // Project form
-  const [projectForm, setProjectForm] = useState({ name: '', client: '', description: '', testerId: '', developerIds: [] })
-  const [projectDialog, setProjectDialog] = useState(false)
-
-  // Edit Project form
-  const [editProjectForm, setEditProjectForm] = useState({ id: '', name: '', client: '', description: '', testerId: '', developerIds: [] })
-  const [editProjectDialog, setEditProjectDialog] = useState(false)
 
   // Edit User form
   const [editUserForm, setEditUserForm] = useState({ id: '', name: '', email: '', role: '', status: '', password: '' })
@@ -58,13 +49,8 @@ export default function Admin() {
     setLoading(true)
     setError('')
     try {
-      const [usersRes, projectsRes] = await Promise.all([
-        authFetch(`${API_BASE_URL}/users`),
-        authFetch(`${API_BASE_URL}/projects`)
-      ])
-
-      if (usersRes.ok) setUsers(await usersRes.json())
-      if (projectsRes.ok) setProjects(await projectsRes.json())
+      const res = await authFetch(`${API_BASE_URL}/users`)
+      if (res.ok) setUsers(await res.json())
     } catch (e) {
       setError(e.message)
     } finally {
@@ -88,63 +74,6 @@ export default function Admin() {
       setUserForm({ name: '', email: '', password: '', role: 'developer' })
       setUserDialog(false)
       setShowPassword(false)
-    } catch (e) {
-      setError(e.message)
-    }
-  }
-
-  const handleCreateProject = async () => {
-    if (!projectForm.name) {
-      setError('Please enter project name')
-      return
-    }
-    try {
-      const res = await authFetch(`${API_BASE_URL}/projects`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(projectForm)
-      })
-      if (!res.ok) throw new Error('Failed to create project')
-      await load()
-      setProjectForm({ name: '', client: '', description: '', testerId: '', developerIds: [] })
-      setProjectDialog(false)
-    } catch (e) {
-      setError(e.message)
-    }
-  }
-
-  const handleEditProject = (project) => {
-    setEditProjectForm({
-      id: project.id,
-      name: project.name,
-      client: project.client || '',
-      description: project.description || '',
-      testerId: project.testerId || '',
-      developerIds: Array.isArray(project.developerIds) ? project.developerIds : []
-    })
-    setEditProjectDialog(true)
-  }
-
-  const handleUpdateProject = async () => {
-    if (!editProjectForm.name) {
-      setError('Please enter project name')
-      return
-    }
-    try {
-      const { id, name, client, description, testerId, developerIds } = editProjectForm;
-      const payload = { name, client, description, testerId, developerIds };
-      
-      const res = await authFetch(`${API_BASE_URL}/projects/${id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      })
-      if (!res.ok) {
-        const data = await res.json()
-        throw new Error(data.error || 'Failed to update project')
-      }
-      await load()
-      setEditProjectDialog(false)
     } catch (e) {
       setError(e.message)
     }
@@ -219,6 +148,10 @@ export default function Admin() {
         if (role === 'admin') gradient = 'from-red-600 to-rose-400'
         if (role === 'tester') gradient = 'from-blue-600 to-cyan-400'
         if (role === 'developer') gradient = 'from-green-600 to-lime-400'
+        if (role === 'hr') gradient = 'from-purple-600 to-fuchsia-400'
+        if (role === 'ecommerce') gradient = 'from-orange-600 to-yellow-400'
+        if (role === 'management') gradient = 'from-indigo-600 to-blue-400'
+        if (role === 'accountant') gradient = 'from-teal-600 to-emerald-400'
         return <Badge gradient={gradient}>{role}</Badge>
       }
     },
@@ -256,46 +189,17 @@ export default function Admin() {
     }
   ]
 
-  const projectColumns = [
-    { key: 'name', label: 'Project Name' },
-    { key: 'client', label: 'Client' },
-    {
-      key: 'status',
-      label: 'Status',
-      render: (status) => {
-        let gradient = 'from-slate-600 to-slate-300'
-        if (status === 'Running') gradient = 'from-green-600 to-lime-400'
-        if (status === 'Critical') gradient = 'from-red-600 to-rose-400'
-        return <Badge gradient={gradient}>{status}</Badge>
-      }
-    },
-    {
-      key: 'actions',
-      label: 'Actions',
-      render: (_, project) => (
-        <div className="flex gap-2">
-          <button onClick={() => handleEditProject(project)} className="text-slate-400 hover:text-blue-500">
-            <Edit size={16} />
-          </button>
-        </div>
-      )
-    }
-  ]
-
   return (
     <div className="flex flex-wrap -mx-3">
       <div className="w-full max-w-full px-3 mb-6">
         <div className="flex justify-between items-center mb-4">
-          <h4 className="font-bold text-slate-700">Admin Console</h4>
+          <h4 className="font-bold text-slate-700">User Management</h4>
           <div className="flex gap-2">
             <Button variant="outline" size="sm" onClick={load}>
               <RefreshCw size={14} className="mr-1 inline" /> Refresh
             </Button>
             <Button variant="info" size="sm" onClick={() => setUserDialog(true)}>
               <UserPlus size={14} className="mr-1 inline" /> Add User
-            </Button>
-            <Button variant="primary" size="sm" onClick={() => setProjectDialog(true)}>
-              <FolderPlus size={14} className="mr-1 inline" /> Add Project
             </Button>
           </div>
         </div>
@@ -309,22 +213,8 @@ export default function Admin() {
 
       <div className="w-full max-w-full px-3 mb-6">
         <Card>
-          <CardHeader>
-            <h6 className="font-bold"><Users size={18} className="mr-2 inline" /> Users Management</h6>
-          </CardHeader>
-          <CardBody>
+                    <CardBody>
             <Table columns={userColumns} data={users} loading={loading} pagination={true} pageSize={10} />
-          </CardBody>
-        </Card>
-      </div>
-
-      <div className="w-full max-w-full px-3 mb-6">
-        <Card>
-          <CardHeader>
-            <h6 className="font-bold"><FolderPlus size={18} className="mr-2 inline" /> Projects Management</h6>
-          </CardHeader>
-          <CardBody>
-            <Table columns={projectColumns} data={projects} loading={loading} pagination={true} pageSize={10} />
           </CardBody>
         </Card>
       </div>
@@ -391,9 +281,12 @@ export default function Admin() {
           value={userForm.role}
           onChange={(e) => setUserForm({...userForm, role: e.target.value})}
           options={[
-            { label: 'Developer', value: 'developer' },
-            { label: 'Tester', value: 'tester' },
             { label: 'Admin', value: 'admin' },
+            { label: 'Developer', value: 'developer' },
+            { label: 'HR', value: 'hr' },
+            { label: 'E-commerce', value: 'ecommerce' },
+            { label: 'Management', value: 'management' },
+            { label: 'Accountant', value: 'accountant' },
           ]}
         />
       </Modal>
@@ -458,9 +351,12 @@ export default function Admin() {
           value={editUserForm.role}
           onChange={(e) => setEditUserForm({...editUserForm, role: e.target.value})}
           options={[
-            { label: 'Developer', value: 'developer' },
-            { label: 'Tester', value: 'tester' },
             { label: 'Admin', value: 'admin' },
+            { label: 'Developer', value: 'developer' },
+            { label: 'HR', value: 'hr' },
+            { label: 'E-commerce', value: 'ecommerce' },
+            { label: 'Management', value: 'management' },
+            { label: 'Accountant', value: 'accountant' },
           ]}
         />
         <Select 
@@ -496,134 +392,6 @@ export default function Admin() {
           <p className="text-xs text-slate-400 mt-2">
             This action cannot be undone and will remove all associated data.
           </p>
-        </div>
-      </Modal>
-
-      {/* Add Project Modal */}
-      <Modal 
-        isOpen={projectDialog} 
-        title="Create New Project" 
-        onClose={() => setProjectDialog(false)}
-        footer={
-          <>
-            <Button variant="secondary" size="sm" onClick={() => setProjectDialog(false)}>Cancel</Button>
-            <Button variant="primary" size="sm" onClick={handleCreateProject}>Create Project</Button>
-          </>
-        }
-      >
-        <InputGroup 
-          label="Project Name" 
-          value={projectForm.name} 
-          onChange={(e) => setProjectForm({...projectForm, name: e.target.value})} 
-          placeholder="My Awesome App"
-        />
-        <InputGroup 
-          label="Client Name" 
-          value={projectForm.client} 
-          onChange={(e) => setProjectForm({...projectForm, client: e.target.value})} 
-          placeholder="Acme Corp"
-        />
-        <InputGroup 
-          label="Description" 
-          value={projectForm.description} 
-          onChange={(e) => setProjectForm({...projectForm, description: e.target.value})} 
-          placeholder="Brief project description..."
-        />
-        <Select 
-          label="Assign Tester"
-          value={projectForm.testerId}
-          onChange={(e) => setProjectForm({...projectForm, testerId: e.target.value})}
-          options={[
-            { label: 'Select Tester', value: '' },
-            ...(users?.filter(u => u.role === 'tester' || u.role === 'admin').map(u => ({ label: u.name, value: u.id })) || [])
-          ]}
-        />
-        <div className="mb-4">
-          <label className="mb-2 ml-1 font-bold text-xs text-slate-700 block">
-            Assign Developers
-          </label>
-          <div className="max-h-40 overflow-y-auto border border-gray-200 rounded-lg p-2 bg-slate-50">
-            {users?.filter(u => u.role === 'developer' || u.role === 'admin').map(dev => (
-              <label key={dev.id} className="flex items-center gap-2 p-1 hover:bg-white rounded cursor-pointer transition-colors">
-                <input 
-                  type="checkbox"
-                  checked={projectForm.developerIds.includes(dev.id)}
-                  onChange={(e) => {
-                    const ids = e.target.checked 
-                      ? [...projectForm.developerIds, dev.id]
-                      : projectForm.developerIds.filter(id => id !== dev.id);
-                    setProjectForm({...projectForm, developerIds: ids});
-                  }}
-                  className="rounded border-gray-300 text-fuchsia-600 focus:ring-fuchsia-500"
-                />
-                <span className="text-sm text-slate-600">{dev.name}</span>
-                {dev.role === 'admin' && <span className="text-[10px] bg-red-100 text-red-600 px-1 rounded">Admin</span>}
-              </label>
-            ))}
-          </div>
-        </div>
-      </Modal>
-
-      {/* Edit Project Modal */}
-      <Modal 
-        isOpen={editProjectDialog} 
-        title="Edit Project" 
-        onClose={() => setEditProjectDialog(false)}
-        footer={
-          <>
-            <Button variant="secondary" size="sm" onClick={() => setEditProjectDialog(false)}>Cancel</Button>
-            <Button variant="primary" size="sm" onClick={handleUpdateProject}>Save Changes</Button>
-          </>
-        }
-      >
-        <InputGroup 
-          label="Project Name" 
-          value={editProjectForm.name} 
-          onChange={(e) => setEditProjectForm({...editProjectForm, name: e.target.value})} 
-        />
-        <InputGroup 
-          label="Client Name" 
-          value={editProjectForm.client} 
-          onChange={(e) => setEditProjectForm({...editProjectForm, client: e.target.value})} 
-        />
-        <InputGroup 
-          label="Description" 
-          value={editProjectForm.description} 
-          onChange={(e) => setEditProjectForm({...editProjectForm, description: e.target.value})} 
-        />
-        <Select 
-          label="Assign Tester"
-          value={editProjectForm.testerId}
-          onChange={(e) => setEditProjectForm({...editProjectForm, testerId: e.target.value})}
-          options={[
-            { label: 'Select Tester', value: '' },
-            ...(users?.filter(u => u.role === 'tester' || u.role === 'admin').map(u => ({ label: u.name, value: u.id })) || [])
-          ]}
-        />
-        <div className="mb-4">
-          <label className="mb-2 ml-1 font-bold text-xs text-slate-700 block">
-            Assign Developers
-          </label>
-          <div className="max-h-40 overflow-y-auto border border-gray-200 rounded-lg p-2 bg-slate-50">
-            {users?.filter(u => u.role === 'developer' || u.role === 'admin').map(dev => (
-              <label key={dev.id} className="flex items-center gap-2 p-1 hover:bg-white rounded cursor-pointer transition-colors">
-                <input 
-                  type="checkbox"
-                  checked={editProjectForm.developerIds?.includes(dev.id)}
-                  onChange={(e) => {
-                    const currentIds = editProjectForm.developerIds || [];
-                    const ids = e.target.checked 
-                      ? [...currentIds, dev.id]
-                      : currentIds.filter(id => id !== dev.id);
-                    setEditProjectForm({...editProjectForm, developerIds: ids});
-                  }}
-                  className="rounded border-gray-300 text-fuchsia-600 focus:ring-fuchsia-500"
-                />
-                <span className="text-sm text-slate-600">{dev.name}</span>
-                {dev.role === 'admin' && <span className="text-[10px] bg-red-100 text-red-600 px-1 rounded">Admin</span>}
-              </label>
-            ))}
-          </div>
         </div>
       </Modal>
     </div>
