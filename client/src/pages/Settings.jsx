@@ -2,8 +2,8 @@ import React, { useState, useEffect } from 'react'
 import { authFetch, getUser, saveUser } from '../auth'
 import { API_BASE_URL } from '../apiConfig'
 import { Card, CardHeader, CardBody, Button } from '../components/TailAdminComponents'
-import { InputGroup } from '../components/FormComponents'
-import { User, Lock, Camera, CheckCircle2, AlertCircle, Loader2, Trash2 } from 'lucide-react'
+import { InputGroup, Alert } from '../components/FormComponents'
+import { User, Lock, Camera, CheckCircle2, AlertCircle, Loader2, Trash2, Mail } from 'lucide-react'
 
 export default function Settings() {
   const [user, setUser] = useState(null)
@@ -186,16 +186,20 @@ export default function Settings() {
               </CardHeader>
               <CardBody className="space-y-6">
                 {error && (
-                  <div className="p-4 bg-red-50 border border-red-100 text-red-600 rounded-xl flex items-center gap-3 text-sm animate-shake">
-                    <AlertCircle size={18} />
-                    {error}
-                  </div>
+                  <Alert variant="danger" className="mb-4">
+                    <div className="flex items-center gap-3">
+                      <AlertCircle size={18} />
+                      {error}
+                    </div>
+                  </Alert>
                 )}
                 {success && (
-                  <div className="p-4 bg-emerald-50 border border-emerald-100 text-emerald-600 rounded-xl flex items-center gap-3 text-sm animate-fade-in">
-                    <CheckCircle2 size={18} />
-                    {success}
-                  </div>
+                  <Alert variant="success" className="mb-4">
+                    <div className="flex items-center gap-3">
+                      <CheckCircle2 size={18} />
+                      {success}
+                    </div>
+                  </Alert>
                 )}
 
                 <div className="space-y-4">
@@ -210,6 +214,7 @@ export default function Settings() {
                     />
                     <InputGroup
                       label="Email Address"
+                      icon={<Mail size={18} className="text-slate-400" />}
                       value={user?.email}
                       disabled
                       className="bg-slate-50 cursor-not-allowed opacity-75"

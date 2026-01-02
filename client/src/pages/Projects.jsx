@@ -3,8 +3,8 @@ import { Link, useNavigate } from 'react-router-dom'
 import { authFetch, getUser, clearToken, clearUser } from '../auth'
 import { API_BASE_URL } from '../apiConfig';
 import { Card, CardHeader, CardBody, Badge, Button } from '../components/TailAdminComponents'
-import { Table, Select, Modal, InputGroup } from '../components/FormComponents'
-import { Eye, Plus, Edit, FolderPlus } from 'lucide-react'
+import { Table, Select, Modal, InputGroup, Alert } from '../components/FormComponents'
+import { Eye, Plus, Edit, FolderPlus, Briefcase, User, FileText } from 'lucide-react'
 
 export default function Projects() {
   const [projects, setProjects] = useState([])
@@ -199,7 +199,10 @@ export default function Projects() {
         <Card>
           <CardHeader>
             <div className="flex justify-between items-center">
-              <h6 className="font-bold">Projects Management</h6>
+              <div>
+                <h6 className="font-bold text-slate-700 mb-0">Projects Management</h6>
+                <p className="text-xs text-slate-500 font-medium">Track and organize all your projects</p>
+              </div>
               {user?.role === 'admin' && (
                 <Button size="sm" variant="primary" onClick={() => setProjectDialog(true)}>
                   <Plus size={14} className="mr-2" /> New Project
@@ -207,9 +210,9 @@ export default function Projects() {
               )}
             </div>
             {error && (
-              <div className="mt-4 p-4 text-white bg-gradient-to-tl from-red-600 to-rose-400 rounded-lg text-sm">
+              <Alert variant="danger" className="mt-4">
                 {error}
-              </div>
+              </Alert>
             )}
             
             <div className="mt-4 max-w-xs">
@@ -249,18 +252,21 @@ export default function Projects() {
       >
         <InputGroup 
           label="Project Name" 
+          icon={<Briefcase size={16} className="text-slate-400" />}
           value={projectForm.name} 
           onChange={(e) => setProjectForm({...projectForm, name: e.target.value})} 
           placeholder="My Awesome App"
         />
         <InputGroup 
           label="Client Name" 
+          icon={<User size={16} className="text-slate-400" />}
           value={projectForm.client} 
           onChange={(e) => setProjectForm({...projectForm, client: e.target.value})} 
           placeholder="Acme Corp"
         />
         <InputGroup 
           label="Description" 
+          icon={<FileText size={16} className="text-slate-400" />}
           value={projectForm.description} 
           onChange={(e) => setProjectForm({...projectForm, description: e.target.value})} 
           placeholder="Brief project description..."
@@ -314,16 +320,19 @@ export default function Projects() {
       >
         <InputGroup 
           label="Project Name" 
+          icon={<Briefcase size={16} className="text-slate-400" />}
           value={editProjectForm.name} 
           onChange={(e) => setEditProjectForm({...editProjectForm, name: e.target.value})} 
         />
         <InputGroup 
           label="Client Name" 
+          icon={<User size={16} className="text-slate-400" />}
           value={editProjectForm.client} 
           onChange={(e) => setEditProjectForm({...editProjectForm, client: e.target.value})} 
         />
         <InputGroup 
           label="Description" 
+          icon={<FileText size={16} className="text-slate-400" />}
           value={editProjectForm.description} 
           onChange={(e) => setEditProjectForm({...editProjectForm, description: e.target.value})} 
         />

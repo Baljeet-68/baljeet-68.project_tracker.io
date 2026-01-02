@@ -216,7 +216,7 @@ export const Toast = ({ message, type = 'info', onClose }) => {
 }
 
 // Input Group Component
-export const InputGroup = ({ label, type = 'text', error, rightElement, ...props }) => (
+export const InputGroup = ({ label, type = 'text', error, icon, rightElement, ...props }) => (
   <div className="mb-4">
     {label && (
       <label className="mb-2 ml-1 font-bold text-xs text-slate-700">
@@ -224,11 +224,16 @@ export const InputGroup = ({ label, type = 'text', error, rightElement, ...props
       </label>
     )}
     <div className="relative flex items-center">
+      {icon && (
+        <div className="absolute left-3 flex items-center pointer-events-none">
+          {icon}
+        </div>
+      )}
       <input
         type={type}
-        className={`focus:shadow-soft-primary-outline text-sm leading-5.6 block w-full appearance-none rounded-lg border border-solid bg-white bg-clip-padding px-3 py-2 font-normal text-gray-700 transition-all focus:border-fuchsia-300 focus:outline-none focus:transition-shadow ${
+        className={`focus:shadow-soft-primary-outline text-sm leading-5.6 block w-full appearance-none rounded-lg border border-solid bg-white bg-clip-padding py-2 font-normal text-gray-700 transition-all focus:border-fuchsia-300 focus:outline-none focus:transition-shadow ${
           error ? 'border-red-500' : 'border-gray-300'
-        } ${rightElement ? 'pr-20' : ''}`}
+        } ${icon ? 'pl-10' : 'px-3'} ${rightElement ? 'pr-20' : ''}`}
         {...props}
       />
       {rightElement && (
@@ -240,6 +245,22 @@ export const InputGroup = ({ label, type = 'text', error, rightElement, ...props
     {error && <p className="text-red-600 text-xs mt-1 ml-1">{error}</p>}
   </div>
 )
+
+// Alert Component
+export const Alert = ({ children, variant = 'info', className = '' }) => {
+  const variants = {
+    info: 'from-blue-600 to-cyan-400',
+    success: 'from-green-600 to-lime-400',
+    danger: 'from-red-600 to-rose-400',
+    warning: 'from-orange-500 to-yellow-400',
+  }
+
+  return (
+    <div className={`p-4 text-white bg-gradient-to-tl ${variants[variant]} rounded-xl text-sm shadow-soft-md animate-fade-in ${className}`}>
+      {children}
+    </div>
+  )
+}
 
 // Select Component
 export const Select = ({ label, options, error, ...props }) => (

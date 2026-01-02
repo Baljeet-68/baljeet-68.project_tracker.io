@@ -1,6 +1,6 @@
 import React from 'react'
-import { Link, useLocation } from 'react-router-dom'
-import { getUser } from '../auth'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
+import { getUser, clearToken, clearUser } from '../auth'
 import { 
   X, 
   LayoutDashboard, 
@@ -26,11 +26,12 @@ export default function Sidebar({ open, onClose, collapsed, setCollapsed }) {
   const [isHovered, setIsHovered] = React.useState(false)
   const user = getUser()
   const location = useLocation()
+  const navigate = useNavigate()
 
   const handleLogout = () => {
-    localStorage.removeItem('token')
-    localStorage.removeItem('user')
-    window.location.href = '/Project_Tracker_Tool/login'
+    clearToken()
+    clearUser()
+    navigate('/login', { replace: true })
   }
 
   // Effective collapsed state: true if collapsed AND not hovered
@@ -39,6 +40,7 @@ export default function Sidebar({ open, onClose, collapsed, setCollapsed }) {
   const mainMenuItems = [
     { label: 'Dashboard', icon: LayoutDashboard, path: '/', roles: ['admin', 'tester', 'developer', 'hr', 'ecommerce', 'management', 'accountant'] },
     { label: 'Projects', icon: BarChart3, path: '/projects', roles: ['admin', 'tester', 'developer', 'hr', 'ecommerce', 'management', 'accountant'] },
+    { label: 'Attendance', icon: Calendar, path: '/attendance', roles: ['admin', 'hr', 'management'] },
     { label: 'User Management', icon: Users, path: '/users', roles: ['admin'] },
   ]
 
@@ -64,9 +66,9 @@ export default function Sidebar({ open, onClose, collapsed, setCollapsed }) {
     return (
       <Link
         to={item.path}
-        className={`group relative flex items-center justify-between px-3 py-2 rounded-xl transition-all duration-200 ${
+        className={`group relative flex items-center justify-between px-4 py-3 rounded-2xl transition-all duration-300 ${
           active 
-            ? 'bg-slate-100 text-slate-900 font-medium' 
+            ? 'bg-white shadow-soft-xl text-slate-700' 
             : 'text-slate-500 hover:bg-slate-50 hover:text-slate-700'
         }`}
       >
@@ -74,21 +76,20 @@ export default function Sidebar({ open, onClose, collapsed, setCollapsed }) {
           {isProject ? (
             <div className={`w-2 h-2 rounded-full ${item.color}`} />
           ) : (
-            <Icon size={18} className={active ? 'text-slate-900' : 'text-slate-400 group-hover:text-slate-600'} />
+            <div className={`flex items-center justify-center w-8 h-8 rounded-lg transition-all duration-300 ${active ? 'bg-gradient-to-tl from-purple-700 to-pink-500 shadow-soft-2xl text-white' : 'bg-white shadow-soft-sm text-slate-700 group-hover:shadow-soft-md'}`}>
+              <Icon size={16} strokeWidth={active ? 2.5 : 2} />
+            </div>
           )}
-          {!isActuallyCollapsed && <span className="text-sm">{item.label}</span>}
+          {!isActuallyCollapsed && <span className={`text-sm ${active ? 'font-bold' : 'font-medium'}`}>{item.label}</span>}
         </div>
         {!isActuallyCollapsed && item.shortcut && (
           <span className="text-[10px] font-medium text-slate-300 group-hover:text-slate-400 transition-colors">
             {item.shortcut}
           </span>
         )}
-        {!isActuallyCollapsed && item.hasNotification && (
-          <div className="absolute left-6 top-3 w-1.5 h-1.5 bg-orange-500 rounded-full border border-white" />
-        )}
         
         {isActuallyCollapsed && (
-          <div className="absolute left-full ml-2 px-2 py-1 bg-slate-800 text-white text-xs rounded opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity whitespace-nowrap z-50">
+          <div className="absolute left-full ml-4 px-3 py-2 bg-slate-800 text-white text-xs font-bold rounded-xl opacity-0 group-hover:opacity-100 pointer-events-none transition-all whitespace-nowrap z-50 shadow-soft-2xl translate-x-[-10px] group-hover:translate-x-0">
             {item.label}
           </div>
         )}
@@ -101,7 +102,7 @@ export default function Sidebar({ open, onClose, collapsed, setCollapsed }) {
       {/* Overlay for mobile */}
       {open && (
         <div
-          className="fixed inset-0 bg-black/20 backdrop-blur-sm z-30 lg:hidden"
+          className="fixed inset-0 bg-slate-900/20 backdrop-blur-sm z-30 lg:hidden"
           onClick={onClose}
         />
       )}
@@ -110,95 +111,47 @@ export default function Sidebar({ open, onClose, collapsed, setCollapsed }) {
       <aside
         onMouseEnter={() => collapsed && setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
-        className={`fixed left-0 top-0 z-40 h-screen transition-all duration-300 ease-in-out bg-white border-r border-slate-100 ${
-          isActuallyCollapsed ? 'w-20' : 'w-72'
+        className={`fixed left-0 top-0 z-40 h-screen transition-all duration-400 ease-soft-in-out bg-slate-50/50 backdrop-blur-md border-r border-slate-100 ${
+          isActuallyCollapsed ? 'w-24' : 'w-72'
         } ${open ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`}
       >
-        <div className="flex flex-col h-full px-4 py-6">
+        <div className="flex flex-col h-full px-4 py-8">
           {/* Workspace Switcher */}
-          <div className={`flex items-center justify-between mb-6 ${isActuallyCollapsed ? 'justify-center px-0' : 'px-2'}`}>
+          <div className={`flex items-center justify-between mb-8 ${isActuallyCollapsed ? 'justify-center px-0' : 'px-2'}`}>
             <div className="flex items-center gap-3">
-              <div className="w-14 h-14 bg-indigo-600 rounded-xl flex items-center justify-center text-white font-bold text-lg shadow-lg shadow-indigo-100">
-                MMF
+              <div className="w-12 h-12 bg-gradient-to-tl from-purple-700 to-pink-500 rounded-xl flex items-center justify-center text-white font-bold text-lg shadow-soft-2xl">
+                MM
               </div>
               {!isActuallyCollapsed && (
                 <div className="flex flex-col">
-                  <span className="text-sm font-bold text-slate-900">MMF Project Tracker</span>
-                  <span className="text-xs text-slate-400">Version 1.0.0</span>
+                  <span className="text-sm font-bold text-slate-700 leading-tight">Project Tracker</span>
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Soft UI Dashboard</span>
                 </div>
               )}
             </div>
-            {!isActuallyCollapsed && <ChevronsUpDown size={16} className="text-slate-300" />}
           </div>
 
-          {/* Search Bar */}
-          {/* <div className={`relative mb-6 ${collapsed ? 'px-0' : 'px-2'}`}>
-            <div className={`flex items-center bg-slate-50 rounded-xl border border-slate-100 transition-all focus-within:border-indigo-200 focus-within:bg-white ${collapsed ? 'justify-center p-2' : 'px-3 py-2'}`}>
-              <Search size={18} className="text-slate-400" />
-              {!collapsed && (
-                <>
-                  <input 
-                    type="text" 
-                    placeholder="Search" 
-                    className="ml-2 bg-transparent border-none text-sm focus:outline-none w-full text-slate-600 placeholder:text-slate-400"
-                  />
-                  <span className="text-[10px] font-medium text-slate-300">⌘1</span>
-                </>
-              )}
-            </div>
-          </div> */}
-
           {/* Navigation Menu */}
-          <div className="flex-1 overflow-y-auto space-y-6 no-scrollbar">
-            {/* Main Section */}
-            <div className="space-y-1">
-              {filteredMenuItems.map((item) => (
-                <NavItem key={item.path} item={item} />
-              ))}
-            </div>
-
-            {/* Shared Section */}
-            {/* <div className="space-y-1">
-              {!collapsed && (
-                <div className="flex items-center justify-between px-3 mb-2">
-                  <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Shared</span>
-                  <Plus size={14} className="text-slate-300 cursor-pointer hover:text-slate-500" />
-                </div>
-              )}
-              {sharedItems.map((item) => (
-                <NavItem key={item.path} item={item} />
-              ))}
-            </div> */}
-
-            {/* Projects Section */}
-            {/* <div className="space-y-1">
-              {!collapsed && (
-                <div className="flex items-center justify-between px-3 mb-2">
-                  <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Projects</span>
-                </div>
-              )}
-              {projectItems.map((item) => (
-                <NavItem key={item.path} item={item} isProject={true} />
-              ))}
-              <button className={`flex items-center gap-3 px-3 py-2 text-slate-400 hover:text-slate-600 transition-colors w-full ${collapsed ? 'justify-center' : ''}`}>
-                <Plus size={18} />
-                {!collapsed && <span className="text-sm">Add New Project</span>}
-              </button>
-            </div> */}
+          <div className="flex-1 overflow-y-auto space-y-2 no-scrollbar px-2">
+            {filteredMenuItems.map((item) => (
+              <NavItem key={item.path} item={item} />
+            ))}
           </div>
 
           {/* Bottom Section */}
-          <div className="mt-auto pt-6 space-y-4">
-            <div className="space-y-1">
+          <div className="mt-auto pt-6 space-y-4 px-2">
+            <div className="space-y-2 border-t border-slate-100 pt-6">
               <NavItem item={{ label: 'Settings', icon: Settings, path: '/settings' }} />
               <button
                 onClick={handleLogout}
-                className={`group relative flex items-center gap-3 px-3 py-2 rounded-xl transition-all duration-200 text-red-500 hover:bg-red-50 w-full ${isActuallyCollapsed ? 'justify-center' : ''}`}
+                className={`group relative flex items-center gap-3 px-4 py-3 rounded-2xl transition-all duration-300 text-slate-500 hover:bg-red-50 hover:text-red-600 w-full ${isActuallyCollapsed ? 'justify-center' : ''}`}
               >
-                <LogOut size={18} className="flex-shrink-0" />
-                {!isActuallyCollapsed && <span className="text-sm font-medium">Sign Out</span>}
+                <div className={`flex items-center justify-center w-8 h-8 rounded-lg bg-white shadow-soft-sm transition-all group-hover:shadow-soft-md group-hover:bg-red-100`}>
+                  <LogOut size={16} className="flex-shrink-0" />
+                </div>
+                {!isActuallyCollapsed && <span className="text-sm font-bold">Sign Out</span>}
                 {isActuallyCollapsed && (
-                  <div className="absolute left-full ml-2 px-2 py-1 bg-red-600 text-white text-xs rounded opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity whitespace-nowrap z-50">
+                  <div className="absolute left-full ml-4 px-3 py-2 bg-red-600 text-white text-xs font-bold rounded-xl opacity-0 group-hover:opacity-100 pointer-events-none transition-all whitespace-nowrap z-50 shadow-soft-2xl translate-x-[-10px] group-hover:translate-x-0">
                     Sign Out
                   </div>
                 )}
@@ -206,10 +159,10 @@ export default function Sidebar({ open, onClose, collapsed, setCollapsed }) {
             </div>
 
             {/* User Profile */}
-            <div className={`p-2 rounded-2xl bg-slate-50 border border-slate-100 flex items-center gap-3 ${isActuallyCollapsed ? 'justify-center p-1' : ''}`}>
-              <div className="w-10 h-10 rounded-xl overflow-hidden shadow-sm flex-shrink-0 border-2 border-white">
+            <div className={`p-3 rounded-2xl bg-white shadow-soft-lg border border-slate-100 flex items-center gap-3 ${isActuallyCollapsed ? 'justify-center p-2' : ''}`}>
+              <div className="w-10 h-10 rounded-xl overflow-hidden shadow-soft-sm flex-shrink-0 border-2 border-white">
                 <img 
-                  src={user?.profilePicture || `https://ui-avatars.com/api/?name=${user?.name || user?.username || 'User'}&background=random&color=fff`} 
+                  src={user?.profilePicture || `https://ui-avatars.com/api/?name=${user?.name || user?.username || 'User'}&background=7c3aed&color=fff`} 
                   alt="Avatar" 
                   className="w-full h-full object-cover"
                 />
@@ -217,8 +170,8 @@ export default function Sidebar({ open, onClose, collapsed, setCollapsed }) {
               {!isActuallyCollapsed && (
                 <div className="flex flex-1 items-center justify-between overflow-hidden">
                   <div className="flex flex-col overflow-hidden">
-                    <span className="text-sm font-bold text-slate-900 truncate">{user?.name || user?.username || 'User Name'}</span>
-                    <span className="text-xs text-slate-400 truncate">{user?.email || 'user@email.com'}</span>
+                    <span className="text-xs font-bold text-slate-700 truncate">{user?.name || user?.username || 'User Name'}</span>
+                    <span className="text-[10px] font-bold text-slate-400 truncate uppercase">{user?.role || 'Member'}</span>
                   </div>
                   <ChevronsUpDown size={14} className="text-slate-300 ml-2 flex-shrink-0" />
                 </div>
@@ -230,9 +183,9 @@ export default function Sidebar({ open, onClose, collapsed, setCollapsed }) {
         {/* Collapse Toggle Button (Desktop Only) */}
         <button
           onClick={() => setCollapsed(!collapsed)}
-          className="hidden lg:flex absolute -right-3 top-10 w-6 h-6 bg-white border border-slate-100 rounded-full items-center justify-center text-slate-400 hover:text-indigo-600 shadow-sm transition-all"
+          className="hidden lg:flex absolute -right-3 top-10 w-8 h-8 bg-white border border-slate-100 rounded-xl items-center justify-center text-slate-400 hover:text-purple-600 shadow-soft-md transition-all z-50 hover:scale-110 active:scale-95"
         >
-          {collapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
+          {collapsed ? <ChevronRight size={14} strokeWidth={3} /> : <ChevronLeft size={14} strokeWidth={3} />}
         </button>
       </aside>
     </>

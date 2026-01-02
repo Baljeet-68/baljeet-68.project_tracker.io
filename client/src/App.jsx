@@ -6,6 +6,7 @@ import ProjectPage from './pages/ProjectPage'
 import Projects from './pages/Projects'
 import Users from './pages/Users'
 import Settings from './pages/Settings'
+import Attendance from './pages/Attendance'
 import { getToken, getUser } from './auth'
 import Layout from './Layout'
 
@@ -83,6 +84,18 @@ export default function App() {
                 <Users />
               </Layout>
             </AdminRoute>
+          }
+        />
+
+        {/* Attendance Management */}
+        <Route
+          path="attendance"
+          element={
+            <ProtectedRoute>
+              <Layout>
+                <Attendance />
+              </Layout>
+            </ProtectedRoute>
           }
         />
 

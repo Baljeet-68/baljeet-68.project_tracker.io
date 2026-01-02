@@ -2,8 +2,8 @@ import React, { useEffect, useState } from 'react'
 import { authFetch, getUser } from '../auth'
 import { API_BASE_URL } from '../apiConfig'
 import { Card, CardHeader, CardBody, Badge, Button } from '../components/TailAdminComponents'
-import { Modal, InputGroup, Select, Table } from '../components/FormComponents'
-import { Users as UsersIcon, UserPlus, RefreshCw, Edit, Trash2, Eye, EyeOff, Wand2 } from 'lucide-react'
+import { Modal, InputGroup, Select, Table, Alert } from '../components/FormComponents'
+import { Users as UsersIcon, UserPlus, RefreshCw, Edit, Trash2, Eye, EyeOff, Wand2, Mail, User, Lock } from 'lucide-react'
 
 export default function Users() {
   const [users, setUsers] = useState([])
@@ -193,11 +193,12 @@ export default function Users() {
     <div className="flex flex-wrap -mx-3">
       <div className="w-full max-w-full px-3 mb-6">
         <div className="flex justify-between items-center mb-4">
-          <h4 className="font-bold text-slate-700">User Management</h4>
+          <div>
+            <h4 className="font-bold text-slate-700 mb-0">User Management</h4>
+            <p className="text-xs text-slate-500 font-medium">Manage team members and their roles</p>
+          </div>
           <div className="flex gap-2">
-            <Button variant="outline" size="sm" onClick={load}>
-              <RefreshCw size={14} className="mr-1 inline" /> Refresh
-            </Button>
+            
             <Button variant="info" size="sm" onClick={() => setUserDialog(true)}>
               <UserPlus size={14} className="mr-1 inline" /> Add User
             </Button>
@@ -205,9 +206,9 @@ export default function Users() {
         </div>
 
         {error && (
-          <div className="p-3 mb-4 text-white bg-gradient-to-tl from-red-600 to-rose-400 rounded-lg text-sm">
+          <Alert variant="danger" className="mb-4">
             {error}
-          </div>
+          </Alert>
         )}
       </div>
 
@@ -239,6 +240,7 @@ export default function Users() {
       >
         <InputGroup 
           label="Full Name" 
+          icon={<User size={16} className="text-slate-400" />}
           value={userForm.name} 
           onChange={(e) => setUserForm({...userForm, name: e.target.value})} 
           placeholder="John Doe"
@@ -246,6 +248,7 @@ export default function Users() {
         <InputGroup 
           label="Email Address" 
           type="email"
+          icon={<Mail size={16} className="text-slate-400" />}
           value={userForm.email} 
           onChange={(e) => setUserForm({...userForm, email: e.target.value})} 
           placeholder="john@example.com"
@@ -253,6 +256,7 @@ export default function Users() {
         <InputGroup 
           label="Password" 
           type={showPassword ? 'text' : 'password'}
+          icon={<Lock size={16} className="text-slate-400" />}
           value={userForm.password} 
           onChange={(e) => setUserForm({...userForm, password: e.target.value})} 
           rightElement={
@@ -311,18 +315,21 @@ export default function Users() {
       >
         <InputGroup 
           label="Full Name" 
+          icon={<User size={16} className="text-slate-400" />}
           value={editUserForm.name} 
           onChange={(e) => setEditUserForm({...editUserForm, name: e.target.value})} 
         />
         <InputGroup 
           label="Email Address" 
           type="email"
+          icon={<Mail size={16} className="text-slate-400" />}
           value={editUserForm.email} 
           onChange={(e) => setEditUserForm({...editUserForm, email: e.target.value})} 
         />
         <InputGroup 
           label="New Password (leave blank to keep current)" 
           type={editShowPassword ? 'text' : 'password'}
+          icon={<Lock size={16} className="text-slate-400" />}
           value={editUserForm.password} 
           onChange={(e) => setEditUserForm({...editUserForm, password: e.target.value})} 
           rightElement={

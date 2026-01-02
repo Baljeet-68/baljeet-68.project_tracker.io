@@ -2,7 +2,9 @@ import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { saveToken, getToken, saveUser } from '../auth'
 import { API_BASE_URL } from '../apiConfig';
-import { Eye, EyeOff, Lock, LayoutDashboard, Mail } from 'lucide-react'
+import { Eye, EyeOff, Lock, LayoutDashboard, Mail, AlertCircle } from 'lucide-react'
+import { InputGroup, Alert } from '../components/FormComponents'
+import { Button } from '../components/TailAdminComponents'
 
 export default function Login() {
   const [email, setEmail] = useState('')
@@ -15,7 +17,7 @@ export default function Login() {
   useEffect(() => {
     const token = getToken()
     if (token) nav('/', { replace: true })
-  }, [])
+  }, [nav])
 
   const submit = async (e) => {
     e.preventDefault()
@@ -29,7 +31,10 @@ export default function Login() {
         body: JSON.stringify({ email, password })
       });
 
-      if (!res.ok) throw new Error('Invalid email or password')
+      if (!res.ok) {
+        const data = await res.json()
+        throw new Error(data.error || 'Invalid email or password')
+      }
       const data = await res.json()
       saveToken(data.token)
       saveUser(data.user)
@@ -62,64 +67,46 @@ export default function Login() {
             </div>
 
             <form onSubmit={submit} className="space-y-6" name="loginForm">
-              <div>
-                <label className="block text-sm font-bold text-slate-700 mb-2 ml-1 uppercase tracking-wider">Email Address</label>
-                <div className="relative group">
-                  <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-400 group-focus-within:text-purple-500 transition-colors">
-                    <Mail size={20} />
-                  </div>
-                  <input
-                    type="email"
-                    name="email"
-                    autoComplete="email"
-                    className="block w-full pl-12 pr-4 py-4 border border-gray-200 rounded-2xl text-base placeholder-gray-400 focus:outline-none focus:border-purple-400 focus:ring-4 focus:ring-purple-500/10 transition-all bg-gray-50/50"
-                    placeholder="Enter your email address"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    required
-                  />
-                </div>
-              </div>
+              <InputGroup
+                label="Email Address"
+                type="email"
+                icon={<Mail size={18} className="text-slate-400" />}
+                placeholder="Enter your email address"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+              />
 
-              <div>
-                <label className="block text-sm font-bold text-slate-700 mb-2 ml-1 uppercase tracking-wider">Password</label>
-                <div className="relative group">
-                  <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-400 group-focus-within:text-purple-500 transition-colors">
-                    <Lock size={20} />
-                  </div>
-                  <input
-                    type={showPwd ? "text" : "password"}
-                    name="password"
-                    autoComplete="current-password"
-                    className="block w-full pl-12 pr-12 py-4 border border-gray-200 rounded-2xl text-base placeholder-gray-400 focus:outline-none focus:border-purple-400 focus:ring-4 focus:ring-purple-500/10 transition-all bg-gray-50/50"
-                    placeholder="Enter your password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    required
-                  />
+              <InputGroup
+                label="Password"
+                type={showPwd ? "text" : "password"}
+                icon={<Lock size={18} className="text-slate-400" />}
+                placeholder="Enter your password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                rightElement={
                   <button
                     type="button"
                     onClick={() => setShowPwd(!showPwd)}
-                    className="absolute inset-y-0 right-0 pr-4 flex items-center text-slate-400 hover:text-purple-500 transition-colors"
+                    className="text-slate-400 hover:text-purple-500 transition-colors"
                   >
-                    {showPwd ? <EyeOff size={20} /> : <Eye size={20} />}
+                    {showPwd ? <EyeOff size={18} /> : <Eye size={18} />}
                   </button>
-                </div>
-              </div>
+                }
+              />
 
               {error && (
-                <div className="p-4 bg-red-50 border border-red-100 rounded-2xl flex items-center gap-3 text-red-600 text-sm font-medium animate-shake">
-                  <div className="w-6 h-6 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0">
-                    <span className="font-bold">!</span>
-                  </div>
+                <Alert variant="danger" className="flex items-center gap-3">
+                  <AlertCircle size={18} />
                   {error}
-                </div>
+                </Alert>
               )}
 
-              <button
+              <Button
                 type="submit"
                 disabled={loading}
-                className="w-full py-4 px-6 bg-gradient-to-tl from-purple-700 to-pink-500 text-white text-lg font-bold rounded-2xl shadow-soft-lg hover:shadow-soft-xl hover:scale-[1.01] active:scale-[0.99] transition-all disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-3"
+                className="w-full py-4 text-lg font-bold rounded-2xl flex items-center justify-center gap-3"
               >
                 {loading ? (
                   <>
@@ -129,12 +116,12 @@ export default function Login() {
                 ) : (
                   <span>Sign In</span>
                 )}
-              </button>
+              </Button>
             </form>
 
             <div className="mt-12 text-center">
               <p className="text-slate-400 text-sm font-medium">
-                &copy;2026 MMF Infotech Tool. All rights reserved.
+                &copy;{new Date().getFullYear()} MMF Infotech Tool. All rights reserved.
               </p>
               <p className="text-slate-400 text-sm font-medium">
                 version 1.0.0

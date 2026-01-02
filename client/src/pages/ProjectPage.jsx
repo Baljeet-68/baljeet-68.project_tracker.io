@@ -519,35 +519,32 @@ export default function ProjectPage() {
   return (
     <div className="container-fluid py-4">
       {/* Breadcrumbs */}
-      <nav className="mb-4">
+      <nav className="mb-6 px-4">
         <ol className="flex flex-wrap pt-1 mr-12 bg-transparent rounded-lg sm:mr-16">
           <li className="leading-normal text-sm">
-            <Link className="opacity-50 text-slate-700" to="/">Pages</Link>
+            <Link className="opacity-50 text-slate-700 font-medium" to="/">Pages</Link>
           </li>
-          <li className="text-sm pl-2 capitalize leading-normal text-slate-700 before:float-left before:pr-2 before:text-gray-300 before:content-['/']">
+          <li className="text-sm pl-2 capitalize leading-normal text-slate-700 font-bold before:float-left before:pr-2 before:text-gray-300 before:content-['/']">
             Project Details
           </li>
         </ol>
-        <h6 className="mb-0 font-bold capitalize">Project Details</h6>
       </nav>
 
       <div className="flex flex-wrap -mx-3">
         {/* Header Section */}
         <div className="w-full max-w-full px-3 mb-6">
           <Card>
-            <CardBody className="p-4">
+            <CardBody className="p-6">
               <div className="flex flex-wrap items-center -mx-3">
                 <div className="flex-none w-auto max-w-full px-3">
-                  <div className="relative inline-flex items-center justify-center text-white transition-all duration-200 ease-soft-in-out text-base h-18.5 w-18.5 rounded-xl">
-                    <div className="flex items-center justify-center w-12 h-12 rounded-lg bg-gradient-to-tl from-purple-700 to-pink-500 shadow-soft-2xl">
-                      <Calendar className="text-white" />
-                    </div>
+                  <div className="flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-tl from-purple-700 to-pink-500 shadow-soft-2xl">
+                    <Calendar className="text-white" size={24} />
                   </div>
                 </div>
                 <div className="flex-none w-auto max-w-full px-3 my-auto">
                   <div className="h-full">
-                    <h5 className="mb-1 font-bold">{project?.name}</h5>
-                    <p className="mb-0 font-semibold leading-normal text-sm">Client: {project?.client}</p>
+                    <h4 className="mb-1 font-bold text-slate-700">{project?.name}</h4>
+                    <p className="mb-0 font-semibold leading-normal text-sm text-slate-500">Client: {project?.client}</p>
                   </div>
                 </div>
                 <div className="w-full max-w-full px-3 mx-auto mt-4 sm:my-auto sm:mr-0 md:w-1/2 md:flex-none lg:w-4/12">
@@ -564,49 +561,33 @@ export default function ProjectPage() {
 
         {/* Stats Row */}
         <div className="w-full max-w-full px-3 mb-6 lg:w-3/12">
-          <Card className="h-full">
-            <CardBody className="p-4">
-              <div className="flex items-center mb-4">
-                <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-gradient-to-tl from-blue-600 to-cyan-400 shadow-soft-2xl mr-3">
-                  <Users className="text-white" size={18} />
-                </div>
-                <div>
-                  <p className="mb-0 text-xs font-semibold leading-tight opacity-60 uppercase">Team</p>
-                  <h6 className="mb-0 font-bold">{project?.developerNames?.length || 0} Developers</h6>
-                </div>
-              </div>
-              <p className="text-xs text-slate-500 mb-0">Tester: <span className="font-bold">{project?.testerName}</span></p>
-            </CardBody>
-          </Card>
+          <StatCard 
+            title="Team" 
+            value={`${project?.developerNames?.length || 0} Developers`}
+            icon={Users}
+            gradient="from-blue-600 to-cyan-400"
+          />
+        </div>
+
+        <div className="w-full max-w-full px-3 mb-6 lg:w-3/12">
+          <StatCard 
+            title="Bugs" 
+            value={`${project.openBugsCount || 0} Open Bugs`}
+            icon={AlertCircle}
+            gradient="from-red-600 to-rose-400"
+          />
         </div>
 
         <div className="w-full max-w-full px-3 mb-6 lg:w-3/12">
           <Card className="h-full">
-            <CardBody className="p-4">
+            <CardBody className="p-4 flex flex-col justify-between">
               <div className="flex items-center mb-4">
-                <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-gradient-to-tl from-red-600 to-rose-400 shadow-soft-2xl mr-3">
-                  <AlertCircle className="text-white" size={18} />
+                <div className="flex items-center justify-center w-12 h-12 rounded-lg bg-gradient-to-tl from-green-600 to-lime-400 shadow-soft-2xl mr-4">
+                  <CheckCircle className="text-white" size={20} />
                 </div>
                 <div>
-                  <p className="mb-0 text-xs font-semibold leading-tight opacity-60 uppercase">Bugs</p>
-                  <h6 className="mb-0 font-bold">{project.openBugsCount || 0} Open Bugs</h6>
-                </div>
-              </div>
-              <p className="text-xs text-slate-500 mb-0">Total resolved: <span className="font-bold">{bugsList.filter(b => b.status === 'Resolved').length}</span></p>
-            </CardBody>
-          </Card>
-        </div>
-
-        <div className="w-full max-w-full px-3 mb-6 lg:w-3/12">
-          <Card className="h-full">
-            <CardBody className="p-4">
-              <div className="flex items-center mb-4">
-                <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-gradient-to-tl from-green-600 to-lime-400 shadow-soft-2xl mr-3">
-                  <CheckCircle className="text-white" size={18} />
-                </div>
-                <div>
-                  <p className="mb-0 text-xs font-semibold leading-tight opacity-60 uppercase">Progress</p>
-                  <h6 className="mb-0 font-bold">{project.completedScreensCount || 0} / {screensList.length} Done</h6>
+                  <p className="mb-0 text-xs font-bold uppercase text-slate-400">Progress</p>
+                  <h6 className="mb-0 font-bold text-slate-700">{project.completedScreensCount || 0} / {screensList.length} Done</h6>
                 </div>
               </div>
               <ProgressBar 
@@ -620,26 +601,18 @@ export default function ProjectPage() {
         </div>
 
         <div className="w-full max-w-full px-3 mb-6 lg:w-3/12">
-          <Card className="h-full">
-            <CardBody className="p-4">
-              <div className="flex items-center mb-4">
-                <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-gradient-to-tl from-orange-500 to-yellow-400 shadow-soft-2xl mr-3">
-                  <Clock className="text-white" size={18} />
-                </div>
-                <div>
-                  <p className="mb-0 text-xs font-semibold leading-tight opacity-60 uppercase">Deadlines</p>
-                  <h6 className="mb-0 font-bold">{project.upcomingDeadlines || 0} Upcoming</h6>
-                </div>
-              </div>
-              <p className="text-xs text-slate-500 mb-0">Ending: <span className="font-bold">{project.endDate ? new Date(project.endDate).toLocaleDateString() : 'N/A'}</span></p>
-            </CardBody>
-          </Card>
+          <StatCard 
+            title="Deadlines" 
+            value={`${project.upcomingDeadlines || 0} Upcoming`}
+            icon={Clock}
+            gradient="from-orange-500 to-yellow-400"
+          />
         </div>
 
         {/* Tabs Section */}
         <div className="w-full max-w-full px-3">
-          <div className="relative flex flex-col min-w-0 break-words bg-white border-0 shadow-soft-xl rounded-2xl bg-clip-border mb-6">
-            <div className="p-4 pb-0">
+          <Card className="mb-6">
+            <CardHeader className="p-4 pb-0">
               <div className="flex flex-wrap -mx-3">
                 <div className="flex items-center w-full max-w-full px-3 shrink-0 md:w-8/12 md:flex-none">
                   <ul className="flex flex-wrap p-1 list-none bg-gray-50 rounded-xl" role="tablist">
@@ -647,7 +620,7 @@ export default function ProjectPage() {
                       <li key={tab} className="flex-auto text-center">
                         <button
                           onClick={() => setTabIndex(idx)}
-                          className={`z-30 block w-full px-4 py-1 mb-0 transition-all border-0 rounded-lg cursor-pointer text-slate-700 bg-inherit ${tabIndex === idx ? 'bg-white shadow-soft-md font-bold' : 'opacity-60'}`}
+                          className={`z-30 block w-full px-4 py-2 mb-0 transition-all border-0 rounded-lg cursor-pointer text-slate-700 bg-inherit text-sm font-bold ${tabIndex === idx ? 'bg-white shadow-soft-md' : 'opacity-60 hover:opacity-100'}`}
                         >
                           {tab}
                         </button>
@@ -656,34 +629,34 @@ export default function ProjectPage() {
                   </ul>
                 </div>
               </div>
-            </div>
+            </CardHeader>
 
-            <div className="flex-auto p-4">
+            <CardBody className="p-6">
               {/* Tab Content */}
               {tabIndex === 0 && (
                 <div className="flex flex-wrap -mx-3">
                   <div className="w-full max-w-full px-3 lg:w-7/12">
-                    <h6 className="mb-4 font-bold">Project Description</h6>
-                    <p className="text-sm leading-normal text-slate-600">
+                    <h6 className="mb-4 font-bold text-slate-700">Project Description</h6>
+                    <p className="text-sm leading-normal text-slate-600 bg-gray-50 p-4 rounded-xl">
                       {project.description || 'No description provided.'}
                     </p>
                     
                     <div className="mt-8">
-                      <h6 className="mb-4 font-bold">Timeline & Settings</h6>
+                      <h6 className="mb-4 font-bold text-slate-700">Timeline & Settings</h6>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="p-4 bg-gray-50 rounded-xl">
+                        <div className="p-4 bg-gray-50 rounded-xl border border-gray-100">
                           <p className="text-xs font-bold uppercase text-slate-400 mb-2">Start Date</p>
-                          <p className="font-bold">{project.startDate ? new Date(project.startDate).toLocaleDateString() : 'N/A'}</p>
+                          <p className="font-bold text-slate-700">{project.startDate ? new Date(project.startDate).toLocaleDateString() : 'N/A'}</p>
                         </div>
-                        <div className="p-4 bg-gray-50 rounded-xl">
+                        <div className="p-4 bg-gray-50 rounded-xl border border-gray-100">
                           <p className="text-xs font-bold uppercase text-slate-400 mb-2">Target End Date</p>
-                          <p className="font-bold">{project.endDate ? new Date(project.endDate).toLocaleDateString() : 'N/A'}</p>
+                          <p className="font-bold text-slate-700">{project.endDate ? new Date(project.endDate).toLocaleDateString() : 'N/A'}</p>
                         </div>
                       </div>
                       
                       {user?.role === 'admin' && (
-                        <div className="mt-6 p-4 border border-dashed border-gray-300 rounded-xl">
-                          <p className="text-sm font-bold mb-4">Update Project Timeline</p>
+                        <div className="mt-6 p-4 border border-dashed border-gray-300 rounded-xl bg-gray-50/50">
+                          <p className="text-sm font-bold text-slate-700 mb-4">Update Project Timeline</p>
                           <div className="flex flex-wrap gap-4 items-end">
                             <InputGroup 
                               label="Start" 
@@ -699,7 +672,7 @@ export default function ProjectPage() {
                               onChange={(e) => setProjectEnd(e.target.value)} 
                               className="mb-0"
                             />
-                            <Button size="sm" onClick={handleUpdateProjectDates}>Save</Button>
+                            <Button size="sm" onClick={handleUpdateProjectDates}>Save Changes</Button>
                           </div>
                         </div>
                       )}
@@ -707,29 +680,29 @@ export default function ProjectPage() {
                   </div>
                   
                   <div className="w-full max-w-full px-3 mt-6 lg:w-5/12 lg:mt-0">
-                    <h6 className="mb-4 font-bold">Team Members</h6>
+                    <h6 className="mb-4 font-bold text-slate-700">Team Members</h6>
                     <div className="flex flex-col gap-4">
                       {project?.developerNames?.map(dev => (
-                        <div key={dev.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-xl">
+                        <div key={dev.id} className="flex items-center justify-between p-4 bg-white border border-gray-100 rounded-2xl shadow-soft-sm">
                           <div className="flex items-center">
-                            <div className="w-10 h-10 rounded-lg bg-gradient-to-tl from-slate-600 to-slate-300 flex items-center justify-center text-white font-bold mr-3">
+                            <div className="w-12 h-12 rounded-xl bg-gradient-to-tl from-slate-600 to-slate-300 flex items-center justify-center text-white font-bold mr-4 shadow-soft-md">
                               {dev.name?.split(' ').map(n=>n[0]).slice(0,2).join('')}
                             </div>
                             <div>
-                              <p className="text-sm font-bold mb-0">{dev.name}</p>
+                              <p className="text-sm font-bold mb-0 text-slate-700">{dev.name}</p>
                               <p className="text-xs text-slate-500 mb-0">Developer</p>
                             </div>
                           </div>
                           <Badge gradient="from-green-600 to-lime-400" size="sm">Active</Badge>
                         </div>
                       ))}
-                      <div className="flex items-center justify-between p-3 bg-gray-50 rounded-xl border-l-4 border-fuchsia-500">
+                      <div className="flex items-center justify-between p-4 bg-white border-l-4 border-fuchsia-500 rounded-2xl shadow-soft-md">
                         <div className="flex items-center">
-                          <div className="w-10 h-10 rounded-lg bg-gradient-to-tl from-purple-700 to-pink-500 flex items-center justify-center text-white font-bold mr-3">
+                          <div className="w-12 h-12 rounded-xl bg-gradient-to-tl from-purple-700 to-pink-500 flex items-center justify-center text-white font-bold mr-4 shadow-soft-lg">
                             {project.testerName?.split(' ').map(n=>n[0]).slice(0,2).join('')}
                           </div>
                           <div>
-                            <p className="text-sm font-bold mb-0">{project.testerName}</p>
+                            <p className="text-sm font-bold mb-0 text-slate-700">{project.testerName}</p>
                             <p className="text-xs text-slate-500 mb-0">QA Tester</p>
                           </div>
                         </div>
@@ -839,8 +812,8 @@ export default function ProjectPage() {
                   </div>
                 </div>
               )}
-            </div>
-          </div>
+            </CardBody>
+          </Card>
         </div>
       </div>
 

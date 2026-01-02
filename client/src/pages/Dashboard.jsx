@@ -216,192 +216,90 @@ export default function Dashboard() {
   return (
     <div className="flex flex-col gap-6">
       {/* Dashboard Header & Year Selector */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-6 rounded-2xl shadow-soft-xl border-0">
-        <div>
-          <h4 className="font-bold text-slate-700 mb-1">Dashboard Overview</h4>
-          <p className="text-sm text-slate-500 font-medium">Tracking projects and performance for {selectedYear}</p>
-        </div>
-        <div className="relative">
-          <select
-            value={selectedYear}
-            onChange={(e) => setSelectedYear(parseInt(e.target.value))}
-            className="appearance-none bg-white border-2 border-fuchsia-400/30 text-slate-700 text-sm font-bold rounded-xl focus:outline-none focus:border-fuchsia-500 focus:ring-4 focus:ring-fuchsia-500/10 px-6 py-3 pr-12 shadow-soft-xl cursor-pointer transition-all hover:border-fuchsia-500 hover:shadow-fuchsia-500/5 min-w-[200px]"
-          >
-            {availableYears.map(year => (
-              <option key={year} value={year} className="py-2">
-                {year === currentYear ? `${year} (Current Year)` : year}
-              </option>
-            ))}
-          </select>
-          <div className="absolute inset-y-0 right-0 flex items-center pr-4 pointer-events-none text-fuchsia-500">
-            <ChevronDown size={20} strokeWidth={3} />
+      <Card className="p-6 mb-6">
+        <div className="flex flex-col md:flex-row justify-between items-center gap-4">
+          <div>
+            <h4 className="font-bold text-slate-700 mb-1">Dashboard Overview</h4>
+            <p className="text-sm text-slate-500 font-medium">Tracking projects and performance for {selectedYear}</p>
+          </div>
+          <div className="relative w-full md:w-auto">
+            <select
+              value={selectedYear}
+              onChange={(e) => setSelectedYear(parseInt(e.target.value))}
+              className="appearance-none bg-white border-2 border-fuchsia-400/30 text-slate-700 text-sm font-bold rounded-xl focus:outline-none focus:border-fuchsia-500 focus:ring-4 focus:ring-fuchsia-500/10 px-6 py-3 pr-12 shadow-soft-xl cursor-pointer transition-all hover:border-fuchsia-500 hover:shadow-fuchsia-500/5 w-full md:min-w-[200px]"
+            >
+              {availableYears.map(year => (
+                <option key={year} value={year} className="py-2">
+                  {year === currentYear ? `${year} (Current Year)` : year}
+                </option>
+              ))}
+            </select>
+            <div className="absolute inset-y-0 right-0 flex items-center pr-4 pointer-events-none text-fuchsia-500">
+              <ChevronDown size={20} strokeWidth={3} />
+            </div>
           </div>
         </div>
-      </div>
+      </Card>
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-        {/* Total Projects */}
-        <div className="relative flex flex-col min-w-0 break-words bg-white shadow-soft-xl rounded-2xl bg-clip-border">
-          <div className="flex-auto p-4">
-            <div className="flex flex-row items-center justify-between">
-              <div className="flex-none w-2/3">
-                <div>
-                  <p className="mb-0 font-sans font-semibold leading-normal text-sm">Total Projects</p>
-                  <h5 className="mb-0 font-bold">
-                    {summary.total}
-                  </h5>
-                </div>
-              </div>
-              <div className="flex-none">
-                <div className="inline-block w-12 h-12 text-center rounded-lg bg-gradient-to-tl from-purple-700 to-pink-500 shadow-soft-2xl">
-                  <Activity className="text-white h-full w-full p-3" />
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Total Running Projects */}
-        <div className="relative flex flex-col min-w-0 break-words bg-white shadow-soft-xl rounded-2xl bg-clip-border">
-          <div className="flex-auto p-4">
-            <div className="flex flex-row items-center justify-between">
-              <div className="flex-none w-2/3">
-                <div>
-                  <p className="mb-0 font-sans font-semibold leading-normal text-sm">Total Running Projects</p>
-                  <h5 className="mb-0 font-bold">
-                    {summary.running}
-                  </h5>
-                </div>
-              </div>
-              <div className="flex-none">
-                <div className="inline-block w-12 h-12 text-center rounded-lg bg-gradient-to-tl from-blue-600 to-cyan-400 shadow-soft-2xl">
-                  <TrendingUp className="text-white h-full w-full p-3" />
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Total Completed Projects */}
-        <div className="relative flex flex-col min-w-0 break-words bg-white shadow-soft-xl rounded-2xl bg-clip-border">
-          <div className="flex-auto p-4">
-            <div className="flex flex-row items-center justify-between">
-              <div className="flex-none w-2/3">
-                <div>
-                  <p className="mb-0 font-sans font-semibold leading-normal text-sm">Total Completed Projects</p>
-                  <h5 className="mb-0 font-bold">
-                    {summary.completed}
-                  </h5>
-                </div>
-              </div>
-              <div className="flex-none">
-                <div className="inline-block w-12 h-12 text-center rounded-lg bg-gradient-to-tl from-green-600 to-lime-400 shadow-soft-2xl">
-                  <CheckCircle className="text-white h-full w-full p-3" />
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Total Hold Projects */}
-        <div className="relative flex flex-col min-w-0 break-words bg-white shadow-soft-xl rounded-2xl bg-clip-border">
-          <div className="flex-auto p-4">
-            <div className="flex flex-row items-center justify-between">
-              <div className="flex-none w-2/3">
-                <div>
-                  <p className="mb-0 font-sans font-semibold leading-normal text-sm">Total Hold Projects</p>
-                  <h5 className="mb-0 font-bold">
-                    {summary.onHold}
-                  </h5>
-                </div>
-              </div>
-              <div className="flex-none">
-                <div className="inline-block w-12 h-12 text-center rounded-lg bg-gradient-to-tl from-orange-500 to-yellow-400 shadow-soft-2xl">
-                  <Activity className="text-white h-full w-full p-3" />
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Total Maintenance Projects */}
-        <div className="relative flex flex-col min-w-0 break-words bg-white shadow-soft-xl rounded-2xl bg-clip-border">
-          <div className="flex-auto p-4">
-            <div className="flex flex-row items-center justify-between">
-              <div className="flex-none w-2/3">
-                <div>
-                  <p className="mb-0 font-sans font-semibold leading-normal text-sm">Total Maintenance Projects</p>
-                  <h5 className="mb-0 font-bold">
-                    {summary.maintenance}
-                  </h5>
-                </div>
-              </div>
-              <div className="flex-none">
-                <div className="inline-block w-12 h-12 text-center rounded-lg bg-gradient-to-tl from-slate-600 to-slate-300 shadow-soft-2xl">
-                  <Activity className="text-white h-full w-full p-3" />
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Open Bugs */}
-        <div className="relative flex flex-col min-w-0 break-words bg-white shadow-soft-xl rounded-2xl bg-clip-border">
-          <div className="flex-auto p-4">
-            <div className="flex flex-row items-center justify-between">
-              <div className="flex-none w-2/3">
-                <div>
-                  <p className="mb-0 font-sans font-semibold leading-normal text-sm">Open Bugs</p>
-                  <h5 className="mb-0 font-bold">
-                    {summary.openBugs}
-                  </h5>
-                </div>
-              </div>
-              <div className="flex-none">
-                <div className="inline-block w-12 h-12 text-center rounded-lg bg-gradient-to-tl from-red-600 to-rose-400 shadow-soft-2xl">
-                  <AlertCircle className="text-white h-full w-full p-3" />
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Upcoming Deadlines */}
-        <div className="relative flex flex-col min-w-0 break-words bg-white shadow-soft-xl rounded-2xl bg-clip-border">
-          <div className="flex-auto p-4">
-            <div className="flex flex-row items-center justify-between">
-              <div className="flex-none w-2/3">
-                <div>
-                  <p className="mb-0 font-sans font-semibold leading-normal text-sm">Upcoming Deadlines</p>
-                  <h5 className="mb-0 font-bold">
-                    {summary.upcomingDeadlines}
-                  </h5>
-                </div>
-              </div>
-              <div className="flex-none">
-                <div className="inline-block w-12 h-12 text-center rounded-lg bg-gradient-to-tl from-blue-600 to-cyan-400 shadow-soft-2xl">
-                  <TrendingUp className="text-white h-full w-full p-3" />
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
+        <StatCard 
+          title="Total Projects" 
+          value={summary.total} 
+          icon={Activity} 
+          gradient="from-purple-700 to-pink-500"
+        />
+        <StatCard 
+          title="Running Projects" 
+          value={summary.running} 
+          icon={TrendingUp} 
+          gradient="from-blue-600 to-cyan-400"
+        />
+        <StatCard 
+          title="Completed Projects" 
+          value={summary.completed} 
+          icon={CheckCircle} 
+          gradient="from-green-600 to-lime-400"
+        />
+        <StatCard 
+          title="On Hold Projects" 
+          value={summary.onHold} 
+          icon={Activity} 
+          gradient="from-orange-500 to-yellow-400"
+        />
+        <StatCard 
+          title="Maintenance Projects" 
+          value={summary.maintenance} 
+          icon={Activity} 
+          gradient="from-slate-600 to-slate-300"
+        />
+        <StatCard 
+          title="Open Bugs" 
+          value={summary.openBugs} 
+          icon={AlertCircle} 
+          gradient="from-red-600 to-rose-400"
+        />
+        <StatCard 
+          title="Upcoming Deadlines" 
+          value={summary.upcomingDeadlines} 
+          icon={TrendingUp} 
+          gradient="from-blue-600 to-cyan-400"
+        />
       </div>
 
       {/* Charts Section */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         <div className="lg:col-span-7">
-          <div className="border-black/12.5 shadow-soft-xl relative z-20 flex min-w-0 flex-col break-words rounded-2xl border-0 border-solid bg-white bg-clip-border h-full">
-            <div className="border-black/12.5 mb-0 rounded-t-2xl border-b-0 border-solid bg-white p-6 pb-0 flex justify-between items-center">
+          <Card className="h-full">
+            <CardHeader className="flex justify-between items-center">
               <div>
                 <h6 className="font-bold">Bugs Trend</h6>
                 <p className="leading-normal text-sm">
                   <span className="font-semibold">{currentTotalBugs} bugs</span> in {displayYear}
                 </p>
               </div>
-            </div>
-            <div className="flex-auto p-4 relative min-h-[300px]">
+            </CardHeader>
+            <CardBody className="relative min-h-[300px]">
               {trendLoading ? (
                 <div className="absolute inset-0 flex items-center justify-center bg-white/50 z-10">
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-700"></div>
@@ -422,16 +320,16 @@ export default function Dashboard() {
                   colors={['#cb0c9f']}
                 />
               </div>
-            </div>
-          </div>
+            </CardBody>
+          </Card>
         </div>
 
         <div className="lg:col-span-5">
-          <div className="border-black/12.5 shadow-soft-xl relative z-20 flex min-w-0 flex-col break-words rounded-2xl border-0 border-solid bg-white bg-clip-border h-full">
-            <div className="border-black/12.5 mb-0 rounded-t-2xl border-b-0 border-solid bg-white p-6 pb-0">
+          <Card className="h-full">
+            <CardHeader>
               <h6 className="font-bold">Projects by Status</h6>
-            </div>
-            <div className="flex-auto p-4 relative min-h-[350px]">
+            </CardHeader>
+            <CardBody className="relative min-h-[350px]">
               {!hasStatusData ? (
                 <div className="absolute inset-0 flex items-center justify-center z-10">
                   <p className="text-gray-500 font-medium">No data available for this year</p>
@@ -446,15 +344,15 @@ export default function Dashboard() {
                   colors={['#FF5733', '#FFC300', '#FF33FF', '#8B5CF6', '#0EA5E9', '#10B981']}
                 />
               </div>
-            </div>
-          </div>
+            </CardBody>
+          </Card>
         </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         <div className="lg:col-span-12">
-          <div className="border-black/12.5 shadow-soft-xl relative z-20 flex min-w-0 flex-col break-words rounded-2xl border-0 border-solid bg-white bg-clip-border h-full overflow-hidden">
-            <div className="flex-auto relative min-h-[350px]">
+          <Card className="h-full overflow-hidden">
+            <CardBody className="relative min-h-[350px]">
               {!hasIssuesData ? (
                 <div className="absolute inset-0 flex flex-col items-center justify-center z-10 bg-white p-6">
                   <h6 className="font-bold text-slate-700 mb-2">Module-wise Issue Analysis (Pareto)</h6>
@@ -467,18 +365,18 @@ export default function Dashboard() {
                   height={350}
                 />
               )}
-            </div>
-          </div>
+            </CardBody>
+          </Card>
         </div>
       </div>
 
       <div className="grid grid-cols-1 gap-6">
         <div className="w-full">
-          <div className="border-black/12.5 shadow-soft-xl relative z-20 flex min-w-0 flex-col break-words rounded-2xl border-0 border-solid bg-white bg-clip-border h-full">
-            <div className="border-black/12.5 mb-0 rounded-t-2xl border-b-0 border-solid bg-white p-6 pb-0">
+          <Card className="h-full">
+            <CardHeader>
               <h6 className="font-bold">Project Status Progress</h6>
-            </div>
-            <div className="flex-auto p-4 relative min-h-[300px]">
+            </CardHeader>
+            <CardBody className="relative min-h-[300px]">
               {!hasProgressData ? (
                 <div className="absolute inset-0 flex items-center justify-center z-10">
                   <p className="text-gray-500 font-medium">No data available for this year</p>
@@ -493,8 +391,8 @@ export default function Dashboard() {
                   colors={['#cb0c9f', '#17c1e8', '#3a416f', '#f53939']}
                 />
               </div>
-            </div>
-          </div>
+            </CardBody>
+          </Card>
         </div>
       </div>
     </div>
