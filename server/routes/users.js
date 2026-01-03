@@ -213,12 +213,17 @@ router.patch(`/users/:id`, authenticate, requireRole('admin'), async (req, res) 
       return res.status(200).json(user); // No changes, return existing user
     }
 
+    console.error('Updating user:', updatedUser);
+    
+
     const updatedUser = { ...user, ...changes };
 
+    console.error('Updating user1:', updatedUser);
+    
     if (USE_LIVE_DB) {
       await updateUserInDbSource(updatedUser.id, changes);
     } else {
-      const userIndex = users.findIndex(u => u.id === updatedUser.id);
+      const userIndex = users.findIndex(u => u.id == updatedUser.id);
       if (userIndex > -1) {
         users[userIndex] = updatedUser;
       }
