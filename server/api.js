@@ -301,7 +301,16 @@ async function getBugsFromMySQL() {
     return rows.map(r => ({
       ...r,
       description: decrypt(r.description),
-      module: decrypt(r.module)
+      module: decrypt(r.module),
+      attachments: (() => {
+        try {
+          if (r.attachments == null) return [];
+          if (Array.isArray(r.attachments)) return r.attachments;
+          return JSON.parse(r.attachments);
+        } catch (e) {
+          return [];
+        }
+      })()
     }));
   } catch (error) {
     console.error('Database query failed in getBugsFromMySQL:', error);
@@ -391,6 +400,70 @@ async function deleteAnnouncementFromDb(id) {
   }
 }
 
+async function getMilestonesFromMySQL() {
+  try {
+    const [rows] = await pool.query('SELECT * FROM milestones');
+    return rows;
+  } catch (error) {
+    console.error('Database query failed in getMilestonesFromMySQL:', error);
+    throw error;
+  }
+}
+
+async function createMilestoneInDb(milestone) {
+  try {
+    const sql = `INSERT INTO milestones 
+      (id, projectId, milestoneNumber, module, timeline, status, createdAt, updatedAt)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)`;
+    const params = [
+      milestone.id,
+      milestone.projectId,
+      milestone.milestoneNumber,
+      milestone.module,
+      milestone.timeline,
+      milestone.status || 'Pending',
+      milestone.createdAt || new Date().toISOString(),
+      milestone.updatedAt || new Date().toISOString()
+    ];
+    await pool.execute(sql, params);
+  } catch (error) {
+    console.error('Database insert failed in createMilestoneInDb:', error);
+    throw error;
+  }
+}
+
+async function updateMilestoneInDb(milestoneId, changes) {
+  try {
+    const fields = [];
+    const values = [];
+
+    if (changes.milestoneNumber !== undefined) { fields.push('milestoneNumber = ?'); values.push(changes.milestoneNumber); }
+    if (changes.module !== undefined) { fields.push('module = ?'); values.push(changes.module); }
+    if (changes.timeline !== undefined) { fields.push('timeline = ?'); values.push(changes.timeline); }
+    if (changes.status !== undefined) { fields.push('status = ?'); values.push(changes.status); }
+    if (changes.updatedAt !== undefined) { fields.push('updatedAt = ?'); values.push(changes.updatedAt); }
+
+    if (fields.length === 0) return;
+
+    values.push(milestoneId);
+    const sql = `UPDATE milestones SET ${fields.join(', ')} WHERE id = ?`;
+    await pool.execute(sql, values);
+  } catch (error) {
+    console.error('Database update failed in updateMilestoneInDb:', error);
+    throw error;
+  }
+}
+
+async function deleteMilestoneFromDb(milestoneId) {
+  try {
+    const sql = 'DELETE FROM milestones WHERE id = ?';
+    await pool.execute(sql, [milestoneId]);
+  } catch (error) {
+    console.error('Database delete failed in deleteMilestoneFromDb:', error);
+    throw error;
+  }
+}
+
 module.exports = {
   pool,
   getProjectsFromMySQL,
@@ -413,5 +486,9 @@ module.exports = {
   getAnnouncementsFromMySQL,
   createAnnouncementInDb,
   updateAnnouncementInDb,
-  deleteAnnouncementFromDb
+  deleteAnnouncementFromDb,
+  getMilestonesFromMySQL,
+  createMilestoneInDb,
+  updateMilestoneInDb,
+  deleteMilestoneFromDb
 };

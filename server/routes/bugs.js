@@ -3,18 +3,19 @@ const router = express.Router();
 const { authenticate, requireRole } = require('../middleware/auth');
 const { hasProjectAccess, enrichBug, logActivity } = require('../middleware/helpers');
 const { USE_LIVE_DB } = require('../config');
+const dbApi = USE_LIVE_DB ? require('../api') : null;
+const localData = !USE_LIVE_DB ? require('../data') : null;
 const { pool } = require('../db');
 
-let bugsSource;
-let bugCountersSource;
-let usersSource;
-let projectsSource;
-let bugByIdSource;
-let updateBugInDbSource;
-let deleteBugFromDbSource;
+var bugsSource;
+var bugCountersSource;
+var usersSource;
+var projectsSource;
+var bugByIdSource;
+var updateBugInDbSource;
+var deleteBugFromDbSource;
 
 if (USE_LIVE_DB) {
-  const dbApi = require('../api');
   bugsSource = async () => await dbApi.getBugsFromMySQL();
   bugCountersSource = async () => {
     // For live DB, we might need a better way to handle bug counters per project.
@@ -34,7 +35,6 @@ if (USE_LIVE_DB) {
   updateBugInDbSource = dbApi.updateBugInDb;
   deleteBugFromDbSource = dbApi.deleteBugFromDb;
 } else {
-  const localData = require('../data');
   bugsSource = async () => localData.bugs;
   bugCountersSource = async () => localData.bugCounters;
   usersSource = async () => localData.users;
@@ -204,9 +204,16 @@ router.post(`/projects/:id/bugs`, authenticate, requireRole('tester', 'admin'), 
     if (!description) return res.status(400).json({ error: 'Missing description' });
     if (!severity) return res.status(400).json({ error: 'Missing severity' });
 
-    // Validate assigned developer is in the project
-    if (assignedDeveloperId && !p.developerIds.includes(assignedDeveloperId)) {
-      return res.status(400).json({ error: 'Developer not assigned to this project' });
+    // Validate assigned developer is in the project (admin can assign anyone who is a developer)
+    if (assignedDeveloperId) {
+      const users = await usersSource();
+      const dev = users.find(u => u.id === assignedDeveloperId);
+      if (!dev || dev.role !== 'developer') {
+        return res.status(400).json({ error: 'Assignee must be a developer' });
+      }
+      if (req.user.role !== 'admin' && !p.developerIds.includes(assignedDeveloperId)) {
+        return res.status(400).json({ error: 'Developer not assigned to this project' });
+      }
     }
 
     // Auto-increment bug number per project
@@ -297,15 +304,32 @@ router.patch(`/bugs/:id`, authenticate, async (req, res) => {
       return res.status(403).json({ error: 'Forbidden - can only edit bugs you created' });
     }
 
-    const { description, severity, screenId, module, assignedDeveloperId, deadline } = req.body;
+    const { description, severity, screenId, module, assignedDeveloperId, deadline, attachments, status, resolvedAt } = req.body;
     const changes = {};
 
     if (description !== undefined) changes.description = description;
     if (severity !== undefined) changes.severity = severity;
     if (screenId !== undefined) changes.screenId = screenId || null;
     if (module !== undefined) changes.module = module;
-    if (assignedDeveloperId !== undefined) changes.assignedDeveloperId = assignedDeveloperId || null;
+    if (assignedDeveloperId !== undefined) {
+      if (assignedDeveloperId) {
+        const users = await usersSource();
+        const dev = users.find(u => u.id === assignedDeveloperId);
+        if (!dev || dev.role !== 'developer') {
+          return res.status(400).json({ error: 'Assignee must be a developer' });
+        }
+        const projects = await projectsSource();
+        const p = projects.find(x => x.id === bug.projectId);
+        if (req.user.role !== 'admin' && p && !p.developerIds.includes(assignedDeveloperId)) {
+          return res.status(400).json({ error: 'Developer not assigned to this project' });
+        }
+      }
+      changes.assignedDeveloperId = assignedDeveloperId || null;
+    }
     if (deadline !== undefined) changes.deadline = deadline ? new Date(deadline).toISOString() : null;
+    if (attachments !== undefined) changes.attachments = attachments;
+    if (status !== undefined) changes.status = status;
+    if (resolvedAt !== undefined) changes.resolvedAt = resolvedAt ? new Date(resolvedAt).toISOString() : null;
 
     changes.updatedAt = new Date().toISOString();
     await updateBugInDbSource(bug.id, changes);

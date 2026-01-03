@@ -179,4 +179,6 @@ const bugCounters = {
   proj2: 0
 }
 
-module.exports = { users, projects, screens, bugs, activityLog, bugCounters }
+const milestones = []
+
+module.exports = { users, projects, screens, bugs, activityLog, bugCounters, milestones }

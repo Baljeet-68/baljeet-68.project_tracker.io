@@ -3,18 +3,19 @@ const router = express.Router();
 const { authenticate, requireRole } = require('../middleware/auth');
 const { hasProjectAccess, enrichProject, normalizeProjectObj, logActivity, enrichBug, getUserName } = require('../middleware/helpers');
 const { USE_LIVE_DB } = require('../config');
+const dbApi = USE_LIVE_DB ? require('../api') : null;
+const localData = !USE_LIVE_DB ? require('../data') : null;
 const { pool } = require('../db');
 
-let getProjectsSource;
-let getProjectByIdSource;
-let updateProjectInDbSource;
-let usersSource;
-let projectsSource;
-let screensSource;
-let bugsSource;
+var getProjectsSource;
+var getProjectByIdSource;
+var updateProjectInDbSource;
+var usersSource;
+var projectsSource;
+var screensSource;
+var bugsSource;
 
 if (USE_LIVE_DB) {
-  const dbApi = require('../api');
   getProjectsSource = dbApi.getProjectsFromMySQL;
   getProjectByIdSource = dbApi.getProjectById;
   updateProjectInDbSource = dbApi.updateProjectInDb;
@@ -23,7 +24,6 @@ if (USE_LIVE_DB) {
   screensSource = []; // Placeholder
   bugsSource = []; // Placeholder
 } else {
-  const localData = require('../data');
   projectsSource = localData.projects;
   usersSource = localData.users;
   screensSource = localData.screens;
@@ -75,7 +75,6 @@ router.get(`/projects/:id`, authenticate, async (req, res) => {
     }
     // Add screens and bugs details
     if (USE_LIVE_DB) {
-      const dbApi = require('../api');
       const allScreens = await dbApi.getScreensFromMySQL();
       const allBugs = await dbApi.getBugsFromMySQL();
       p.screensList = allScreens.filter(s => s.projectId === p.id);

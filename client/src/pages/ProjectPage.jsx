@@ -32,6 +32,7 @@ export default function ProjectPage() {
   const [screensList, setScreensList] = useState([])
   const [bugsList, setBugsList] = useState([])
   const [activityList, setActivityList] = useState([])
+  const [milestonesList, setMilestonesList] = useState([])
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(true)
   const [tabIndex, setTabIndex] = useState(0)
@@ -46,7 +47,9 @@ export default function ProjectPage() {
   // Dialog states
   const [bugDialog, setBugDialog] = useState(false)
   const [screenDialog, setScreenDialog] = useState(false)
+  const [milestoneDialog, setMilestoneDialog] = useState(false)
   const [editingScreen, setEditingScreen] = useState(null)
+  const [editingMilestone, setEditingMilestone] = useState(null)
   const [bugEditDialog, setBugEditDialog] = useState(false)
   const [bugEditId, setBugEditId] = useState(null)
   const [bugEditDeadline, setBugEditDeadline] = useState('')
@@ -57,6 +60,7 @@ export default function ProjectPage() {
   // Form states
   const [bugForm, setBugForm] = useState({ description: '', severity: 'medium', screenId: '', module: '', assignedDeveloperId: '', attachments: [], deadline: '' })
   const [screenForm, setScreenForm] = useState({ title: '', module: '', assigneeId: '', plannedDeadline: '', notes: '' })
+  const [milestoneForm, setMilestoneForm] = useState({ milestoneNumber: '', module: '', timeline: '', status: 'Pending' })
 
 
   // Filter states
@@ -67,6 +71,7 @@ export default function ProjectPage() {
   // Attachment preview
   const [previewDialog, setPreviewDialog] = useState(false)
   const [previewAttachment, setPreviewAttachment] = useState(null)
+  const [previewBug, setPreviewBug] = useState(null)
 
   useEffect(() => {
     loadData()
@@ -85,11 +90,12 @@ export default function ProjectPage() {
   const loadData = async () => {
     setLoading(true)
     try {
-      const [projRes, screensRes, bugsRes, activityRes] = await Promise.all([
+      const [projRes, screensRes, bugsRes, activityRes, milestonesRes] = await Promise.all([
         authFetch(`${API_BASE_URL}/projects/${id}`),
         authFetch(`${API_BASE_URL}/projects/${id}/screens`),
         authFetch(`${API_BASE_URL}/projects/${id}/bugs`),
-        authFetch(`${API_BASE_URL}/projects/${id}/activity`)
+        authFetch(`${API_BASE_URL}/projects/${id}/activity`),
+        authFetch(`${API_BASE_URL}/projects/${id}/milestones`)
       ])
 
       if (!projRes.ok) throw new Error('Failed to fetch project')
@@ -103,6 +109,7 @@ export default function ProjectPage() {
       if (screensRes.ok) setScreensList(await screensRes.json())
       if (bugsRes.ok) setBugsList(await bugsRes.json())
       if (activityRes.ok) setActivityList(await activityRes.json())
+      if (milestonesRes.ok) setMilestonesList(await milestonesRes.json())
     } catch (e) {
       handleAuthError(e)
     } finally {
@@ -201,10 +208,78 @@ export default function ProjectPage() {
 
   const isVideoFile = (type) => type.startsWith('video/')
 
-  const showAttachmentPreview = (attachment) => {
+  const showAttachmentPreview = (attachment, bug = null) => {
     setPreviewAttachment(attachment)
+    setPreviewBug(bug)
     setPreviewDialog(true)
   }
+
+  const generateProjectSummary = () => {
+    if (!project || !bugsList || !screensList) return 'Gathering comprehensive project metrics and status data...';
+
+    const { status, developerNames } = project;
+    
+    // Bug Metrics
+    const totalBugs = bugsList.length;
+    const resolvedBugs = bugsList.filter(b => b.status === 'Resolved' || b.status === 'Closed').length;
+    const openBugs = bugsList.filter(b => b.status === 'Open' || b.status === 'In Progress').length;
+    
+    // Task (Screen) Metrics
+    const totalTasks = screensList.length;
+    const completedTasks = screensList.filter(s => s.status === 'Done').length;
+    const pendingTasks = totalTasks - completedTasks;
+
+    // Milestone Metrics
+    const totalMilestones = milestonesList.length;
+    const completedMilestones = milestonesList.filter(m => m.status === 'donr' || m.status === 'apporved').length;
+    const pendingMilestones = totalMilestones - completedMilestones;
+
+    const progressPercentage = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
+    const resolutionRate = totalBugs > 0 ? Math.round((resolvedBugs / totalBugs) * 100) : 0;
+    const milestoneProgress = totalMilestones > 0 ? Math.round((completedMilestones / totalMilestones) * 100) : 0;
+
+    // Developer Breakdown
+    const devStats = (developerNames || []).map(dev => {
+      const devBugs = bugsList.filter(b => b.assignedDeveloperId === dev.id && (b.status === 'Open' || b.status === 'In Progress')).length;
+      const devTasks = screensList.filter(s => s.assigneeId === dev.id && s.status !== 'Done').length;
+      return { name: dev.name, bugs: devBugs, tasks: devTasks };
+    }).filter(d => d.bugs > 0 || d.tasks > 0);
+
+    const devBreakdownText = devStats.length > 0 
+      ? ` Currently, the workload distribution is as follows: ${devStats.map(d => `${d.name} is managing ${d.tasks} pending task${d.tasks !== 1 ? 's' : ''} and ${d.bugs} open bug${d.bugs !== 1 ? 's' : ''}`).join('; ')}.`
+      : '';
+
+    const bugSummary = `A total of ${totalBugs} bugs have been reported throughout the project lifecycle, with ${resolvedBugs} successfully resolved (${resolutionRate}% resolution rate), leaving ${openBugs} issues currently active.`;
+    const taskSummary = `Regarding the project scope, we have ${totalTasks} total tasks (screens) defined, of which ${completedTasks} are finalized, resulting in a ${progressPercentage}% completion rate. There are ${pendingTasks} tasks still requiring development effort.`;
+    const milestoneSummary = totalMilestones > 0 ? `We have ${totalMilestones} milestones planned, with ${completedMilestones} completed (${milestoneProgress}% progress).` : '';
+
+    const baseMessage = `Project "${project.name}" for client "${project.client}" is currently in the ${status} phase. `;
+
+    switch (status) {
+      case 'Planning':
+        return `${baseMessage} We are currently in the structural definition phase. ${taskSummary} ${milestoneSummary} ${bugSummary}${devBreakdownText} The focus is on establishing a solid foundation before ramping up development.`;
+      
+      case 'Active':
+      case 'Running':
+        return `${baseMessage} The project is moving forward with active development and testing. ${taskSummary} ${milestoneSummary} ${bugSummary} This indicates a steady flow of implementation and quality assurance. ${devBreakdownText} The team is prioritizing high-impact tasks and resolving critical bugs to maintain momentum.`;
+      
+      case 'On Hold':
+        return `${baseMessage} Development is currently paused, but we have a clear picture of the current state. ${taskSummary} ${milestoneSummary} ${bugSummary} Work will resume from this point once the current blockers are cleared. ${devBreakdownText}`;
+      
+      case 'Completed':
+      case 'Done':
+        return `${baseMessage} The project has been successfully delivered. ${totalTasks} out of ${totalTasks} tasks were completed, ${completedMilestones} of ${totalMilestones} milestones reached, and ${resolvedBugs} out of ${totalBugs} bugs were resolved during the process. The system is stable and meets the project requirements.`;
+      
+      case 'Critical':
+        return `${baseMessage} Immediate attention is required due to the project's critical status. ${bugSummary} The volume of ${openBugs} open issues is impacting delivery. ${taskSummary} ${milestoneSummary} ${devBreakdownText} We are shifting resources to address these bottlenecks urgently.`;
+      
+      case 'Maintenance':
+        return `${baseMessage} We are now in the post-launch support phase. ${bugSummary} Monitoring is ongoing to ensure system stability. ${taskSummary} ${milestoneSummary} Any new requirements will be handled as iterative updates. ${devBreakdownText}`;
+      
+      default:
+        return `${baseMessage} The project is progressing through its current phase. ${taskSummary} ${milestoneSummary} ${bugSummary} ${devBreakdownText} We are monitoring performance metrics to ensure timely delivery.`;
+    }
+  };
 
   const handleUpdateBugStatus = async (bugId, newStatus) => {
     try {
@@ -352,14 +427,74 @@ export default function ProjectPage() {
     }
   }
 
+  const handleAddMilestone = async () => {
+    if (!milestoneForm.milestoneNumber) return
+    try {
+      if (editingMilestone) {
+        const res = await authFetch(`${API_BASE_URL}/milestones/${editingMilestone.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(milestoneForm)
+        })
+        if (!res.ok) throw new Error('Failed to update milestone')
+      } else {
+        const res = await authFetch(`${API_BASE_URL}/projects/${id}/milestones`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(milestoneForm)
+        })
+        if (!res.ok) throw new Error('Failed to create milestone')
+      }
+      setMilestoneForm({ milestoneNumber: '', module: '', timeline: '', status: 'Pending' })
+      setMilestoneDialog(false)
+      setEditingMilestone(null)
+      loadData()
+      showToast(editingMilestone ? 'Milestone updated successfully!' : 'Milestone added successfully!', 'success')
+    } catch (e) {
+      handleAuthError(e)
+    }
+  }
+
+  const openEditMilestone = (m) => {
+    setEditingMilestone(m)
+    setMilestoneForm({
+      milestoneNumber: m.milestoneNumber || '',
+      module: m.module || '',
+      timeline: m.timeline ? new Date(m.timeline).toISOString().slice(0, 10) : '',
+      status: m.status || 'Pending'
+    })
+    setMilestoneDialog(true)
+  }
+
+  const handleDeleteMilestone = async (mid) => {
+    if (!window.confirm('Delete this milestone?')) return
+    try {
+      const res = await authFetch(`${API_BASE_URL}/milestones/${mid}`, { method: 'DELETE' })
+      if (!res.ok) throw new Error('Failed to delete milestone')
+      loadData()
+      showToast('Milestone deleted successfully!', 'success')
+    } catch (e) {
+      handleAuthError(e)
+    }
+  }
+
   const getStatusGradient = (status) => {
     switch (status) {
       // Bug Statuses
       case 'Open': return 'from-red-600 to-rose-400'
-      case 'In Progress': return 'from-orange-500 to-yellow-400'
-      case 'Resolved': return 'from-green-600 to-lime-400'
+      case 'In Progress':
+      case 'in progress': 
+        return 'from-orange-500 to-yellow-400'
+      case 'Resolved':
+      case 'donr':
+        return 'from-green-600 to-lime-400'
       case 'Closed': return 'from-slate-600 to-slate-300'
       case 'Blocked': return 'from-red-600 to-rose-400'
+
+      // Milestone specific
+      case 'apporved': return 'from-purple-700 to-pink-500'
+      case 'aproval pending': return 'from-blue-600 to-cyan-400'
+      case 'Pending': return 'from-slate-400 to-slate-300'
 
       // Project Statuses
       case 'Planning':
@@ -520,6 +655,41 @@ export default function ProjectPage() {
       render: (sev) => <Badge gradient={getSeverityGradient(sev)} size="sm">{sev}</Badge>
     },
     {
+      key: 'attachments',
+      label: 'Attachments',
+      render: (attachments, b) => {
+        // Defensive check: ensure attachments is an array
+        let attList = [];
+        try {
+          if (Array.isArray(attachments)) {
+            attList = attachments;
+          } else if (typeof attachments === 'string' && attachments.trim() !== '') {
+            attList = JSON.parse(attachments);
+          }
+        } catch (e) {
+          console.error('Error parsing attachments for bug:', b.id, e);
+          attList = [];
+        }
+
+        if (!Array.isArray(attList) || attList.length === 0) return <span className="text-slate-400 text-xs">No files</span>
+        
+        return (
+          <div className="flex -space-x-2">
+            {attList.map((att, idx) => (
+              <button
+                key={att.id || idx}
+                onClick={() => showAttachmentPreview(att, b)}
+                className="w-8 h-8 rounded-full border-2 border-white bg-slate-100 flex items-center justify-center text-slate-500 hover:text-fuchsia-600 hover:border-fuchsia-200 transition-all shadow-sm"
+                title={att.name || 'Attachment'}
+              >
+                {isImageFile(att.type) ? <ImageIcon size={14} /> : <Paperclip size={14} />}
+              </button>
+            ))}
+          </div>
+        )
+      }
+    },
+    {
       key: 'deadline',
       label: 'Deadline',
       render: (val, b) => (
@@ -642,7 +812,7 @@ export default function ProjectPage() {
               <div className="flex flex-wrap -mx-3">
                 <div className="flex items-center w-full max-w-full px-3 shrink-0 md:w-8/12 md:flex-none">
                   <ul className="flex flex-wrap p-1 list-none bg-gray-50 rounded-xl" role="tablist">
-                    {['Overview', 'Screens', 'Bugs', 'Activity'].map((tab, idx) => (
+                    {['Overview', 'Screens', 'Milestones', 'Bugs', 'Activity'].map((tab, idx) => (
                       <li key={tab} className="flex-auto text-center">
                         <button
                           onClick={() => setTabIndex(idx)}
@@ -662,6 +832,20 @@ export default function ProjectPage() {
               {tabIndex === 0 && (
                 <div className="flex flex-wrap -mx-3">
                   <div className="w-full max-w-full px-3 lg:w-7/12">
+                    <div className="mb-8">
+                      <h6 className="mb-4 font-bold text-slate-700 flex items-center">
+                        <div className="w-8 h-8 rounded-lg bg-fuchsia-100 text-fuchsia-600 flex items-center justify-center mr-3">
+                          <CheckCircle size={18} />
+                        </div>
+                        Project Summary
+                      </h6>
+                      <div className="p-5 bg-gradient-to-tr from-slate-800 to-slate-900 rounded-2xl shadow-soft-xl">
+                        <p className="text-sm leading-relaxed text-white font-medium italic">
+                          "{generateProjectSummary()}"
+                        </p>
+                      </div>
+                    </div>
+
                     <h6 className="mb-4 font-bold text-slate-700">Project Description</h6>
                     <p className="text-sm leading-normal text-slate-600 bg-gray-50 p-4 rounded-xl">
                       {project.description || 'No description provided.'}
@@ -772,6 +956,54 @@ export default function ProjectPage() {
               {tabIndex === 2 && (
                 <div>
                   <div className="flex justify-between items-center mb-4">
+                    <h6 className="font-bold mb-0">Project Milestones</h6>
+                    {user?.role === 'admin' && (
+                      <Button size="sm" onClick={() => { setEditingMilestone(null); setMilestoneForm({ milestoneNumber: '', module: '', timeline: '', status: 'Pending' }); setMilestoneDialog(true); }}>
+                        <Plus size={14} className="mr-2" /> New Milestone
+                      </Button>
+                    )}
+                  </div>
+                  <Table 
+                    columns={[
+                      { key: 'milestoneNumber', label: 'Milestone #' },
+                      { key: 'module', label: 'Module' },
+                      { key: 'timeline', label: 'Timeline', render: (val) => formatDateDisplay(val) },
+                      {
+                        key: 'status',
+                        label: 'Status',
+                        render: (status) => (
+                          <Badge gradient={getStatusGradient(status)} size="sm">
+                            {status}
+                          </Badge>
+                        )
+                      },
+                      {
+                        key: 'actions',
+                        label: 'Actions',
+                        render: (_, m) => (
+                          <div className="flex gap-2">
+                            <button onClick={() => openEditMilestone(m)} className="text-blue-500 hover:text-blue-700 transition-colors">
+                              <Edit size={16} />
+                            </button>
+                            {user?.role === 'admin' && (
+                              <button onClick={() => handleDeleteMilestone(m.id)} className="text-red-500 hover:text-red-700 transition-colors">
+                                <Trash2 size={16} />
+                              </button>
+                            )}
+                          </div>
+                        )
+                      }
+                    ]} 
+                    data={milestonesList} 
+                    pagination={true} 
+                    pageSize={10} 
+                  />
+                </div>
+              )}
+
+              {tabIndex === 3 && (
+                <div>
+                  <div className="flex justify-between items-center mb-4">
                     <h6 className="font-bold mb-0">Bug Tracker</h6>
                     {(user?.role === 'admin' || user?.role === 'tester' || user?.role === 'developer') && (
                       <Button size="sm" onClick={() => setBugDialog(true)}>
@@ -830,7 +1062,7 @@ export default function ProjectPage() {
                 </div>
               )}
 
-              {tabIndex === 3 && (
+              {tabIndex === 4 && (
                 <div>
                   <h6 className="font-bold mb-4">Project Activity Feed</h6>
                   <div className="relative flex flex-col gap-6 before:absolute before:top-0 before:left-4 before:h-full before:w-0.5 before:bg-gray-200">
@@ -860,6 +1092,36 @@ export default function ProjectPage() {
       </div>
 
       {/* Modals */}
+      <Modal
+        isOpen={milestoneDialog}
+        title={editingMilestone ? 'Edit Milestone' : 'New Milestone'}
+        onClose={() => setMilestoneDialog(false)}
+        footer={
+          <>
+            <Button variant="secondary" size="sm" onClick={() => setMilestoneDialog(false)}>Cancel</Button>
+            <Button size="sm" onClick={handleAddMilestone}>{editingMilestone ? 'Update' : 'Create'}</Button>
+          </>
+        }
+      >
+        <div className="flex flex-col gap-4">
+          <InputGroup label="Milestone Number" value={milestoneForm.milestoneNumber} onChange={(e) => setMilestoneForm({ ...milestoneForm, milestoneNumber: e.target.value })} />
+          <InputGroup label="Module" value={milestoneForm.module} onChange={(e) => setMilestoneForm({ ...milestoneForm, module: e.target.value })} />
+          <InputGroup label="Timeline" type="date" value={milestoneForm.timeline} onChange={(e) => setMilestoneForm({ ...milestoneForm, timeline: e.target.value })} />
+          <Select
+            label="Status"
+            options={[
+              { value: 'Pending', label: 'Pending' },
+              { value: 'in progress', label: 'In Progress' },
+              { value: 'donr', label: 'Done' },
+              { value: 'apporved', label: 'Approved' },
+              { value: 'aproval pending', label: 'Approval Pending' }
+            ]}
+            value={milestoneForm.status}
+            onChange={(e) => setMilestoneForm({ ...milestoneForm, status: e.target.value })}
+          />
+        </div>
+      </Modal>
+
       <Modal
         isOpen={screenDialog}
         title={editingScreen ? 'Edit Screen' : 'New Screen'}
@@ -1034,9 +1296,19 @@ export default function ProjectPage() {
                 </a>
               </div>
             )}
-            <div className="mt-4 text-xs text-slate-500">
-              {formatFileSize(previewAttachment.size)} • {previewAttachment.type}
-            </div>
+            {previewBug && (
+              <div className="mt-4 p-4 bg-slate-50 rounded-xl border border-slate-100 w-full shadow-inner">
+                <p className="text-sm font-bold text-slate-800 mb-3 leading-relaxed">{previewBug.description}</p>
+                <div className="flex flex-wrap items-center gap-3">
+                  <div className="flex items-center gap-1.5 px-2.5 py-1 bg-indigo-50 text-indigo-700 rounded-lg border border-indigo-100 text-[11px] font-bold uppercase tracking-wider">
+                    <span className="opacity-60">Screen:</span> {previewBug.screenTitle || 'General'}
+                  </div>
+                  <div className="flex items-center gap-1.5 px-2.5 py-1 bg-fuchsia-50 text-fuchsia-700 rounded-lg border border-fuchsia-100 text-[11px] font-bold uppercase tracking-wider">
+                    <span className="opacity-60">Module:</span> {previewBug.module || 'N/A'}
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         )}
       </Modal>

@@ -5,20 +5,20 @@ const path = require('path');
 const { authenticate, requireRole } = require('../middleware/auth');
 const { getUserName, getProfileUrl } = require('../middleware/helpers');
 const { USE_LIVE_DB } = require('../config');
+const dbApi = USE_LIVE_DB ? require('../api') : null;
+const localData = !USE_LIVE_DB ? require('../data') : null;
 
-let usersSource;
-let createUserInDbSource;
-let updateUserInDbSource;
-let deleteUserFromDbSource;
+var usersSource;
+var createUserInDbSource;
+var updateUserInDbSource;
+var deleteUserFromDbSource;
 
 if (USE_LIVE_DB) {
-  const dbApi = require('../api');
   usersSource = async () => await dbApi.getUsersFromMySQL();
   createUserInDbSource = dbApi.createUserInDb;
   updateUserInDbSource = dbApi.updateUserInDb;
   deleteUserFromDbSource = dbApi.deleteUserFromDb;
 } else {
-  const localData = require('../data');
   usersSource = async () => localData.users;
   createUserInDbSource = async (user) => {
     const users = await usersSource();

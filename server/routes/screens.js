@@ -3,28 +3,34 @@ const router = express.Router();
 const { authenticate, requireRole } = require('../middleware/auth');
 const { hasProjectAccess, enrichScreen, normalizeProjectObj, logActivity } = require('../middleware/helpers');
 const { USE_LIVE_DB } = require('../config');
+const dbApi = USE_LIVE_DB ? require('../api') : null;
+const localData = !USE_LIVE_DB ? require('../data') : null;
 
-let screensSource;
-let usersSource;
-let projectsSource;
-let screenByIdSource;
-let updateScreenInDbSource;
-let deleteScreenFromDbSource;
+var screensSource;
+var usersSource;
+var projectsSource;
+var screenByIdSource;
+var createScreenInDbSource;
+var updateScreenInDbSource;
+var deleteScreenFromDbSource;
 
 if (USE_LIVE_DB) {
-  const dbApi = require('../api');
   screensSource = async () => await dbApi.getScreensFromMySQL();
   usersSource = async () => await dbApi.getUsersFromMySQL();
   projectsSource = async () => await dbApi.getProjectsFromMySQL();
   screenByIdSource = dbApi.getScreenById;
+  createScreenInDbSource = dbApi.createScreenInDb;
   updateScreenInDbSource = dbApi.updateScreenInDb;
   deleteScreenFromDbSource = dbApi.deleteScreenFromDb;
 } else {
-  const localData = require('../data');
   screensSource = async () => localData.screens;
   usersSource = async () => localData.users;
   projectsSource = async () => localData.projects;
   screenByIdSource = async (id) => localData.screens.find(s => s.id === id);
+  createScreenInDbSource = async (screen) => {
+    const screens = await screensSource();
+    screens.push(screen);
+  };
   updateScreenInDbSource = async (screenId, changes) => {
     const screens = await screensSource();
     const screenIndex = screens.findIndex(s => s.id === screenId);
@@ -88,11 +94,15 @@ router.post(`/projects/:id/screens`, authenticate, requireRole('admin'), async (
     const { title, module, assigneeId, plannedDeadline, notes } = req.body;
     if (!title) return res.status(400).json({ error: 'Missing title' });
 
-    // Validate assignee is valid developer
+    // Validate assignee is valid developer (admin can assign anyone who is a developer)
     if (assigneeId) {
       const users = await usersSource();
       const assignee = users.find(u => u.id === assigneeId);
-      if (!assignee || assignee.role !== 'developer' || !project.developerIds.includes(assigneeId)) {
+      if (!assignee || assignee.role !== 'developer') {
+        return res.status(400).json({ error: 'Assignee must be a developer' });
+      }
+      // If not admin, check if developer is in project (though this route is admin-only anyway)
+      if (req.user.role !== 'admin' && !project.developerIds.includes(assigneeId)) {
         return res.status(400).json({ error: 'Assignee must be a developer on this project' });
       }
     }
@@ -111,12 +121,8 @@ router.post(`/projects/:id/screens`, authenticate, requireRole('admin'), async (
       updatedAt: new Date().toISOString()
     };
 
-    if (USE_LIVE_DB) {
-      await createScreenInDbSource(screen);
-    } else {
-      const screens = await screensSource();
-      screens.push(screen);
-    }
+    // Use the abstracted source function
+    await createScreenInDbSource(screen);
 
     logActivity(project.id, 'screen', screen.id, 'created', req.user.userId, { title });
     res.status(201).json(await enrichScreen(req, screen));
@@ -163,11 +169,15 @@ router.patch(`/screens/:id`, authenticate, async (req, res) => {
         changes.plannedDeadline = plannedDeadline ? new Date(plannedDeadline).toISOString() : null;
       }
       if (assigneeId !== undefined) {
-        // Validate assignee is valid developer
+        // Validate assignee is valid developer (admin can assign anyone who is a developer)
         if (assigneeId) {
           const users = await usersSource();
           const assignee = users.find(u => u.id === assigneeId);
-          if (!assignee || assignee.role !== 'developer' || !project.developerIds.includes(assigneeId)) {
+          if (!assignee || assignee.role !== 'developer') {
+            return res.status(400).json({ error: 'Assignee must be a developer' });
+          }
+          // If not admin, check if developer is in project
+          if (req.user.role !== 'admin' && !project.developerIds.includes(assigneeId)) {
             return res.status(400).json({ error: 'Assignee must be a developer on this project' });
           }
         }
@@ -183,15 +193,7 @@ router.patch(`/screens/:id`, authenticate, async (req, res) => {
     // Apply changes to the screen object
     const updatedScreen = { ...scr, ...changes, updatedAt: new Date().toISOString() };
 
-    if (USE_LIVE_DB) {
-      await updateScreenInDbSource(updatedScreen.id, changes);
-    } else {
-      const screens = await screensSource();
-      const screenIndex = screens.findIndex(s => s.id === updatedScreen.id);
-      if (screenIndex > -1) {
-        screens[screenIndex] = updatedScreen;
-      }
-    }
+    await updateScreenInDbSource(updatedScreen.id, changes);
 
     logActivity(scr.projectId, 'screen', scr.id, 'updated', req.user.userId, changes);
     res.json(await enrichScreen(req, updatedScreen));
@@ -203,7 +205,7 @@ router.patch(`/screens/:id`, authenticate, async (req, res) => {
 // PATCH /api/screens/:id/status - developer/admin only update status and actualEndDate
 router.patch(`/screens/:id/status`, authenticate, requireRole('admin', 'developer'), async (req, res) => {
   try {
-    const scr = screens.find((s) => s.id === req.params.id);
+    const scr = await screenByIdSource(req.params.id);
     if (!scr) return res.status(404).json({ error: 'Screen not found' });
 
     if (!await hasProjectAccess(req.user.userId, scr.projectId)) {
@@ -220,18 +222,21 @@ router.patch(`/screens/:id/status`, authenticate, requireRole('admin', 'develope
     const changes = {};
 
     if (status) {
-      scr.status = status;
+      changes.status = status;
       changes.oldStatus = oldStatus;
       changes.newStatus = status;
     }
     if (status === 'Done' && actualEndDate) {
-      scr.actualEndDate = new Date(actualEndDate);
-      changes.actualEndDate = actualEndDate;
+      changes.actualEndDate = new Date(actualEndDate).toISOString();
     }
 
-    scr.updatedAt = new Date().toISOString();
+    changes.updatedAt = new Date().toISOString();
+
+    await updateScreenInDbSource(scr.id, changes);
+
+    const updatedScreen = await screenByIdSource(scr.id);
     logActivity(scr.projectId, 'screen', scr.id, 'status_change', req.user.userId, changes);
-    res.json(await enrichScreen(req, scr));
+    res.json(await enrichScreen(req, updatedScreen));
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -245,15 +250,7 @@ router.delete(`/screens/:id`, authenticate, requireRole('admin'), async (req, re
       return res.status(404).json({ error: 'Screen not found' });
     }
 
-    if (USE_LIVE_DB) {
-      await deleteScreenFromDbSource(req.params.id);
-    } else {
-      const screens = await screensSource();
-      const index = screens.findIndex(s => s.id === req.params.id);
-      if (index !== -1) {
-        screens.splice(index, 1);
-      }
-    }
+    await deleteScreenFromDbSource(req.params.id);
 
     logActivity(scr.projectId, 'screen', scr.id, 'deleted', req.user.userId, { title: scr.title });
     res.status(204).send(); // No content
