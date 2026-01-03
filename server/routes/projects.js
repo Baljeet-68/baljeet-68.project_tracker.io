@@ -142,7 +142,7 @@ router.post(`/projects`, authenticate, requireRole('admin'), async (req, res) =>
     client: client || '',
     description: description || '',
     status: 'Planning',
-    testerId: testerId || '',
+    testerId: testerId || null,
     developerIds: developerIds || [],
     createdBy: req.user.userId,
     createdAt: new Date().toISOString(),
@@ -204,7 +204,7 @@ router.patch(`/projects/:id`, authenticate, requireRole('admin'), async (req, re
           return res.status(400).json({ error: 'Invalid tester ID' });
         }
       }
-      changes.testerId = testerId;
+      changes.testerId = testerId || null;
     }
     if (developerIds !== undefined) {
       if (developerIds && developerIds.length > 0) {

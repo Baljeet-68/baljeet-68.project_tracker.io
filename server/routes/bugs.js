@@ -220,9 +220,9 @@ router.post(`/projects/:id/bugs`, authenticate, requireRole('tester', 'admin'), 
       projectId: req.params.id,
       bugNumber,
       description,
-      screenId: screenId || '',
+      screenId: screenId || null,
       module: module || '',
-      assignedDeveloperId: assignedDeveloperId || '',
+      assignedDeveloperId: assignedDeveloperId || null,
       createdBy: req.user.userId,
       status: 'Open',
       severity: severity || 'medium',
@@ -302,9 +302,9 @@ router.patch(`/bugs/:id`, authenticate, async (req, res) => {
 
     if (description !== undefined) changes.description = description;
     if (severity !== undefined) changes.severity = severity;
-    if (screenId !== undefined) changes.screenId = screenId;
+    if (screenId !== undefined) changes.screenId = screenId || null;
     if (module !== undefined) changes.module = module;
-    if (assignedDeveloperId !== undefined) changes.assignedDeveloperId = assignedDeveloperId;
+    if (assignedDeveloperId !== undefined) changes.assignedDeveloperId = assignedDeveloperId || null;
     if (deadline !== undefined) changes.deadline = deadline ? new Date(deadline).toISOString() : null;
 
     changes.updatedAt = new Date().toISOString();
