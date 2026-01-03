@@ -51,9 +51,9 @@ router.get(`/projects`, authenticate, async (req, res) => {
       result = allProjects;
     } else {
       result = allProjects.filter((p) => {
-        if (req.user.role === 'tester' && p.testerId === req.user.userId) return true;
-        if (req.user.role === 'developer' && p.developerIds && p.developerIds.includes(req.user.userId)) return true;
-        return false;
+        const isTester = (req.user.role === 'tester' || req.user.role === 'admin') && p.testerId === req.user.userId;
+        const isDeveloper = (req.user.role === 'developer' || req.user.role === 'admin' || req.user.role === 'ecommerce') && p.developerIds && p.developerIds.includes(req.user.userId);
+        return isTester || isDeveloper;
       });
     }
     res.json(await Promise.all(result.map(p => enrichProject(req, p))));
@@ -123,14 +123,14 @@ router.post(`/projects`, authenticate, requireRole('admin'), async (req, res) =>
 
   const users = await usersSource();
 
-  // Validate that testerId is a valid tester user
-  if (testerId && !users.find(u => u.id === testerId && u.role === 'tester')) {
+  // Validate that testerId is a valid tester user (tester or admin)
+  if (testerId && !users.find(u => u.id === testerId && (u.role === 'tester' || u.role === 'admin'))) {
     return res.status(400).json({ error: 'Invalid tester ID' });
   }
 
-  // Validate that developerIds are valid developer users
+  // Validate that developerIds are valid project-related users (developer, admin, or ecommerce)
   if (developerIds && developerIds.length > 0) {
-    const invalid = developerIds.filter(id => !users.find(u => u.id === id && u.role === 'developer'));
+    const invalid = developerIds.filter(id => !users.find(u => u.id === id && (u.role === 'developer' || u.role === 'admin' || u.role === 'ecommerce')));
     if (invalid.length > 0) return res.status(400).json({ error: 'Invalid developer IDs' });
   }
 
@@ -212,7 +212,7 @@ router.patch(`/projects/:id`, authenticate, requireRole('admin'), async (req, re
         const currentIds = p.developerIds || [];
         const newIds = developerIds.filter(id => !currentIds.includes(id));
         if (newIds.length > 0) {
-          const invalid = newIds.filter(id => !users.find(u => u.id === id && (u.role === 'developer' || u.role === 'admin')));
+          const invalid = newIds.filter(id => !users.find(u => u.id === id && (u.role === 'developer' || u.role === 'admin' || u.role === 'ecommerce')));
           if (invalid.length > 0) return res.status(400).json({ error: 'Invalid developer IDs' });
         }
       }

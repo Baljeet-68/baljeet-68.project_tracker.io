@@ -5,6 +5,7 @@ import { LineChart, BarChart, PieChart, AreaChart, ParetoChart } from '../compon
 import { StatCard, Card, CardHeader, CardBody, Badge } from '../components/TailAdminComponents'
 import { TrendingUp, AlertCircle, CheckCircle, Users, Activity, ChevronDown } from 'lucide-react'
 import { API_BASE_URL } from '../apiConfig'
+import { Loader } from '../components/Loader'
 
 export default function Dashboard() {
   const [projects, setProjects] = useState([])
@@ -206,14 +207,7 @@ export default function Dashboard() {
   const hasIssuesData = projectIssuesData.length > 0 && projectIssuesData.some(d => d.value > 0)
 
   if (loading) {
-    return (
-      <div className="p-6">
-        <div className="animate-pulse space-y-4">
-          <div className="h-32 bg-gray-200 rounded-lg" />
-          <div className="h-96 bg-gray-200 rounded-lg" />
-        </div>
-      </div>
-    )
+    return <Loader message="Loading dashboard data..." />
   }
 
   return (

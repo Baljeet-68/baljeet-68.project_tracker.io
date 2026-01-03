@@ -1,11 +1,11 @@
 import React, { useState } from 'react'
-import { Link, useNavigate, useLocation } from 'react-router-dom'
+import { Link, useNavigate, useLocation, Outlet } from 'react-router-dom'
 import { getUser, clearToken, clearUser, authFetch } from './auth'
 import Sidebar from './components/Sidebar'
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 
-export default function Layout({ children }) {
+export default function Layout() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(window.innerWidth < 1200)
   const user = getUser()
@@ -74,7 +74,7 @@ export default function Layout({ children }) {
       } rounded-xl`}>
         {/* Page Content */}
         <div className="w-full px-4 sm:px-6 lg:px-8 py-6 mx-auto">
-          {children}
+          <Outlet />
         </div>
       </main>
       <ToastContainer position="bottom-right" />

@@ -5,6 +5,7 @@ import { Card, CardHeader, CardBody, Badge, Button } from '../components/TailAdm
 import { Alert } from '../components/FormComponents'
 import { authFetch } from '../auth'
 import { API_BASE_URL } from '../apiConfig'
+import { Loader } from '../components/Loader'
 
 export default function Notifications() {
   const navigate = useNavigate()
@@ -172,9 +173,7 @@ export default function Notifications() {
             <CardBody>
               <div className="space-y-4">
                 {loading && notifications.length === 0 ? (
-                  <div className="flex justify-center py-20">
-                    <RefreshCw size={40} className="animate-spin text-slate-300" />
-                  </div>
+                  <Loader message="Fetching notifications..." />
                 ) : (
                   notifications.map((notification) => {
                     const Icon = getIcon(notification.type, notification.title)

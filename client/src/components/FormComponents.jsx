@@ -1,6 +1,7 @@
 import React from 'react'
 import { Card, CardHeader, CardBody, Button } from './TailAdminComponents'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
+import { Loader } from './Loader'
 
 export const Table = ({ columns, data, loading = false, pagination = false, pageSize = 10 }) => {
   const [currentPage, setCurrentPage] = React.useState(1)
@@ -38,10 +39,7 @@ export const Table = ({ columns, data, loading = false, pagination = false, page
 
   if (loading) {
     return (
-      <div className="py-8 text-center text-slate-500">
-        <div className="inline-block w-8 h-8 border-4 border-fuchsia-500 border-t-transparent rounded-full animate-spin mb-2"></div>
-        <p>Loading data...</p>
-      </div>
+      <Loader message="Loading data..." />
     )
   }
 

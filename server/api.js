@@ -325,6 +325,72 @@ async function getBugStatsByYear(year) {
   }
 }
 
+async function getAnnouncementsFromMySQL() {
+  try {
+    const [rows] = await pool.query('SELECT * FROM announcements ORDER BY createdAt DESC');
+    return rows;
+  } catch (error) {
+    console.error('Database query failed in getAnnouncementsFromMySQL:', error);
+    throw error;
+  }
+}
+
+async function createAnnouncementInDb(announcement) {
+  try {
+    const sql = 'INSERT INTO announcements (`id`, `title`, `content`, `targetType`, `targetValue`, `startDate`, `endDate`, `active`, `createdBy`, `createdAt`) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)';
+    const params = [
+      announcement.id,
+      announcement.title,
+      announcement.content,
+      announcement.targetType,
+      announcement.targetValue || null,
+      announcement.startDate,
+      announcement.endDate,
+      announcement.active !== undefined ? Number(announcement.active) : 1,
+      announcement.createdBy,
+      announcement.createdAt || new Date().toISOString()
+    ];
+    await pool.query(sql, params);
+  } catch (error) {
+    console.error('Database insert failed in createAnnouncementInDb:', error);
+    throw error;
+  }
+}
+
+async function updateAnnouncementInDb(id, changes) {
+  try {
+    const fields = [];
+    const values = [];
+
+    if (changes.title !== undefined) { fields.push('`title` = ?'); values.push(changes.title); }
+    if (changes.content !== undefined) { fields.push('`content` = ?'); values.push(changes.content); }
+    if (changes.targetType !== undefined) { fields.push('`targetType` = ?'); values.push(changes.targetType); }
+    if (changes.targetValue !== undefined) { fields.push('`targetValue` = ?'); values.push(changes.targetValue); }
+    if (changes.startDate !== undefined) { fields.push('`startDate` = ?'); values.push(changes.startDate); }
+    if (changes.endDate !== undefined) { fields.push('`endDate` = ?'); values.push(changes.endDate); }
+    if (changes.active !== undefined) { fields.push('`active` = ?'); values.push(Number(changes.active)); }
+
+    if (fields.length === 0) return;
+
+    values.push(id);
+    const sql = `UPDATE announcements SET ${fields.join(', ')} WHERE \`id\` = ?`;
+    await pool.query(sql, values);
+  } catch (error) {
+    console.error('Database update failed in updateAnnouncementInDb:', error);
+    throw error;
+  }
+}
+
+async function deleteAnnouncementFromDb(id) {
+  try {
+    const sql = 'DELETE FROM announcements WHERE id = ?';
+    await pool.execute(sql, [id]);
+  } catch (error) {
+    console.error('Database delete failed in deleteAnnouncementFromDb:', error);
+    throw error;
+  }
+}
+
 module.exports = {
   pool,
   getProjectsFromMySQL,
@@ -343,5 +409,9 @@ module.exports = {
   updateUserInDb,
   deleteUserFromDb,
   getBugsFromMySQL,
-  getBugStatsByYear
+  getBugStatsByYear,
+  getAnnouncementsFromMySQL,
+  createAnnouncementInDb,
+  updateAnnouncementInDb,
+  deleteAnnouncementFromDb
 };

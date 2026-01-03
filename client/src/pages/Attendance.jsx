@@ -7,6 +7,7 @@ import {
   AlertCircle, Search, Filter, Plus, ClipboardList, History,
   Check, X, Trash2, Eye
 } from 'lucide-react'
+import { Loader } from '../components/Loader'
 import { API_BASE_URL } from '../apiConfig'
 import { getUser } from '../auth'
 
@@ -398,6 +399,10 @@ export default function Attendance() {
   }
 
   const activeTableData = getFilteredData()
+
+  if (loading && leaves.length === 0) {
+    return <Loader message="Loading attendance data..." />
+  }
 
   return (
     <div className="flex flex-col gap-6">

@@ -46,9 +46,9 @@ async function hasProjectAccess(userId, projectId) {
   const user = users.find(u => u.id === userId);
   if (!user) return false;
   if (user.role === 'admin') return true;
-  if (user.role === 'tester' && normalizedProject.testerId === userId) return true;
-  if (user.role === 'developer' && normalizedProject.developerIds.includes(userId)) return true;
-  return false;
+  const isTester = (user.role === 'tester' || user.role === 'admin') && normalizedProject.testerId === userId;
+  const isDeveloper = (user.role === 'developer' || user.role === 'admin' || user.role === 'ecommerce') && normalizedProject.developerIds.includes(userId);
+  return isTester || isDeveloper;
 }
 
 async function getUsers() {

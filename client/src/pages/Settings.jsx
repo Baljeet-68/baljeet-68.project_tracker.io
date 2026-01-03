@@ -3,7 +3,8 @@ import { authFetch, getUser, saveUser } from '../auth'
 import { API_BASE_URL } from '../apiConfig'
 import { Card, CardHeader, CardBody, Button } from '../components/TailAdminComponents'
 import { InputGroup, Alert } from '../components/FormComponents'
-import { User, Lock, Camera, CheckCircle2, AlertCircle, Loader2, Trash2, Mail } from 'lucide-react'
+import { User, Lock, Camera, CheckCircle2, AlertCircle, Trash2, Mail } from 'lucide-react'
+import { Loader } from '../components/Loader'
 
 export default function Settings() {
   const [user, setUser] = useState(null)
@@ -124,11 +125,7 @@ export default function Settings() {
   }
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <Loader2 className="animate-spin text-indigo-600" size={32} />
-      </div>
-    )
+    return <Loader message="Loading settings..." />
   }
 
   return (

@@ -5,6 +5,7 @@ import { API_BASE_URL } from '../apiConfig';
 import { Eye, EyeOff, Lock, LayoutDashboard, Mail, AlertCircle } from 'lucide-react'
 import { InputGroup, Alert } from '../components/FormComponents'
 import { Button } from '../components/TailAdminComponents'
+import { Loader } from '../components/Loader'
 
 export default function Login() {
   const [email, setEmail] = useState('')
@@ -69,6 +70,7 @@ export default function Login() {
             </div>
 
             <form onSubmit={submit} className="space-y-6" name="loginForm">
+              {loading && <Loader message="Authenticating..." />}
               <InputGroup
                 label="Email Address"
                 type="email"

@@ -5,6 +5,7 @@ import { API_BASE_URL } from '../apiConfig';
 import { Card, CardHeader, CardBody, Badge, Button } from '../components/TailAdminComponents'
 import { Table, Select, Modal, InputGroup, Alert } from '../components/FormComponents'
 import { Eye, Plus, Edit, FolderPlus, Briefcase, User, FileText } from 'lucide-react'
+import { Loader } from '../components/Loader'
 
 export default function Projects() {
   const [projects, setProjects] = useState([])

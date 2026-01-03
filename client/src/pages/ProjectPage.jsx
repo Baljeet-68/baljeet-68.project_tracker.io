@@ -6,6 +6,7 @@ import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { Card, CardHeader, CardBody, Badge, Button, StatCard } from '../components/TailAdminComponents'
 import { Table, Modal, InputGroup, Select, ProgressBar } from '../components/FormComponents'
+import { Loader } from '../components/Loader'
 import { 
   Edit, 
   Trash2, 
@@ -377,12 +378,7 @@ export default function ProjectPage() {
     return true
   })
 
-  if (loading) return (
-    <div className="flex flex-col items-center justify-center min-h-screen">
-      <div className="w-12 h-12 border-4 border-fuchsia-200 border-t-fuchsia-600 rounded-full animate-spin mb-4"></div>
-      <p className="text-slate-500 font-medium">Loading project details...</p>
-    </div>
-  )
+  if (loading) return <Loader message="Loading project details..." />
   
   if (!project) return (
     <div className="p-8 text-center">

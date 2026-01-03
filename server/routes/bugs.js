@@ -60,9 +60,9 @@ router.get(`/bugs`, authenticate, async (req, res) => {
       // Filter bugs where user has project access
       const projects = await projectsSource();
       const userProjects = projects.filter(p => {
-        if (req.user.role === 'tester' && p.testerId === req.user.userId) return true;
-        if (req.user.role === 'developer' && p.developerIds && p.developerIds.includes(req.user.userId)) return true;
-        return false;
+        const isTester = (req.user.role === 'tester' || req.user.role === 'admin') && p.testerId === req.user.userId;
+        const isDeveloper = (req.user.role === 'developer' || req.user.role === 'admin' || req.user.role === 'ecommerce') && p.developerIds && p.developerIds.includes(req.user.userId);
+        return isTester || isDeveloper;
       }).map(p => p.id);
       result = allBugs.filter(b => userProjects.includes(b.projectId));
     }
@@ -91,9 +91,9 @@ router.get(`/bugs/stats/:year`, authenticate, async (req, res) => {
         // For non-admin, only count bugs from projects they have access to
         const projects = await dbApi.getProjectsFromMySQL();
         const userProjectIds = projects.filter(p => {
-          if (req.user.role === 'tester' && p.testerId === req.user.userId) return true;
-          if (req.user.role === 'developer' && p.developerIds && p.developerIds.includes(req.user.userId)) return true;
-          return false;
+          const isTester = (req.user.role === 'tester' || req.user.role === 'admin') && p.testerId === req.user.userId;
+          const isDeveloper = (req.user.role === 'developer' || req.user.role === 'admin' || req.user.role === 'ecommerce') && p.developerIds && p.developerIds.includes(req.user.userId);
+          return isTester || isDeveloper;
         }).map(p => p.id);
 
         if (userProjectIds.length === 0) {
