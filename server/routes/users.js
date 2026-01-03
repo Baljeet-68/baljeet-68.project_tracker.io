@@ -213,12 +213,12 @@ router.patch(`/users/:id`, authenticate, requireRole('admin'), async (req, res) 
       return res.status(200).json(user); // No changes, return existing user
     }
 
-    console.error('Updating user:', updatedUser);
-    
+
 
     const updatedUser = { ...user, ...changes };
-
-    console.error('Updating user1:', updatedUser);
+    console.error('Updating user:', updatedUser);
+        console.error('USE_LIVE_DB:', USE_LIVE_DB);
+        console.error('changes:', changes);
     
     if (USE_LIVE_DB) {
       await updateUserInDbSource(updatedUser.id, changes);
