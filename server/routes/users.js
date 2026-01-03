@@ -207,23 +207,19 @@ router.patch(`/users/:id`, authenticate, requireRole('admin'), async (req, res) 
     if (email) changes.email = email;
     if (password) changes.password = password;
     if (role) changes.role = role;
-    if (active) changes.active = active;
+    if (active == '0' || active == 0) changes.active = 0;
+    if (active == '1' || active == 1) changes.active = 1;
 
     if (Object.keys(changes).length === 0) {
       return res.status(200).json(user); // No changes, return existing user
     }
 
-
-
     const updatedUser = { ...user, ...changes };
-    console.error('Updating user:', updatedUser);
-        console.error('USE_LIVE_DB:', USE_LIVE_DB);
-        console.error('changes:', changes);
-    
+
     if (USE_LIVE_DB) {
       await updateUserInDbSource(updatedUser.id, changes);
     } else {
-      const userIndex = users.findIndex(u => u.id == updatedUser.id);
+      const userIndex = users.findIndex(u => u.id === updatedUser.id);
       if (userIndex > -1) {
         users[userIndex] = updatedUser;
       }
