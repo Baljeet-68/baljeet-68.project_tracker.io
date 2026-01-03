@@ -207,7 +207,7 @@ router.patch(`/users/:id`, authenticate, requireRole('admin'), async (req, res) 
     if (email) changes.email = email;
     if (password) changes.password = password;
     if (role) changes.role = role;
-    if (typeof active === 1) changes.active = active;
+    if (active) changes.active = active;
 
     if (Object.keys(changes).length === 0) {
       return res.status(200).json(user); // No changes, return existing user
