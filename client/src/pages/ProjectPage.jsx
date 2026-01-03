@@ -7,14 +7,14 @@ import 'react-toastify/dist/ReactToastify.css';
 import { Card, CardHeader, CardBody, Badge, Button, StatCard } from '../components/TailAdminComponents'
 import { Table, Modal, InputGroup, Select, ProgressBar } from '../components/FormComponents'
 import { Loader } from '../components/Loader'
-import { 
-  Edit, 
-  Trash2, 
-  Plus, 
-  Paperclip, 
-  Download, 
-  X, 
-  Image as ImageIcon, 
+import {
+  Edit,
+  Trash2,
+  Plus,
+  Paperclip,
+  Download,
+  X,
+  Image as ImageIcon,
   ArrowLeft,
   Calendar,
   Users,
@@ -38,9 +38,10 @@ export default function ProjectPage() {
   const user = getUser()
   const nav = useNavigate()
 
-  // Project date edit states (admin)
+  // Project settings edit states (admin)
   const [projectStart, setProjectStart] = useState('')
   const [projectEnd, setProjectEnd] = useState('')
+  const [projectStatus, setProjectStatus] = useState('')
 
   // Dialog states
   const [bugDialog, setBugDialog] = useState(false)
@@ -95,8 +96,9 @@ export default function ProjectPage() {
       const projData = await projRes.json()
       setProject(projData)
       // preload project start/end for admin editing as yyyy-mm-dd
-      setProjectStart(projData.startDate ? new Date(projData.startDate).toISOString().slice(0,10) : '')
-      setProjectEnd(projData.endDate ? new Date(projData.endDate).toISOString().slice(0,10) : '')
+      setProjectStart(projData.startDate ? new Date(projData.startDate).toISOString().slice(0, 10) : '')
+      setProjectEnd(projData.endDate ? new Date(projData.endDate).toISOString().slice(0, 10) : '')
+      setProjectStatus(projData.status || '')
 
       if (screensRes.ok) setScreensList(await screensRes.json())
       if (bugsRes.ok) setBugsList(await bugsRes.json())
@@ -114,12 +116,15 @@ export default function ProjectPage() {
       const res = await authFetch(`${API_BASE_URL}/projects/${id}/bugs`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...bugForm })
+        body: JSON.stringify({ 
+          ...bugForm,
+          deadline: bugForm.deadline || null
+        })
       })
       if (!res.ok) throw new Error('Failed to create bug')
       const newBug = await res.json()
       setBugsList([...bugsList, newBug])
-      setBugForm({ description: '', severity: 'medium', screenId: '', module: '', assignedDeveloperId: '', attachments: [] })
+      setBugForm({ description: '', severity: 'medium', screenId: '', module: '', assignedDeveloperId: '', attachments: [], deadline: '' })
       setBugDialog(false)
       loadData() // Reload to get updated activity
     } catch (e) {
@@ -130,7 +135,7 @@ export default function ProjectPage() {
   // Open edit dialog for bug deadline (admin or assigned developer)
   const openBugEdit = (bug) => {
     setBugEditId(bug.id)
-    setBugEditDeadline(bug.deadline ? new Date(bug.deadline).toISOString().slice(0,10) : '')
+    setBugEditDeadline(bug.deadline ? new Date(bug.deadline).toISOString().slice(0, 10) : '')
     setBugEditDialog(true)
   }
 
@@ -266,13 +271,13 @@ export default function ProjectPage() {
 
   const openEditScreen = (s) => {
     setEditingScreen(s)
-    setScreenForm({ title: s.title || '', module: s.module || '', assigneeId: s.assigneeId || '', plannedDeadline: s.plannedDeadline ? new Date(s.plannedDeadline).toISOString().slice(0,10) : '', notes: s.notes || '' })
+    setScreenForm({ title: s.title || '', module: s.module || '', assigneeId: s.assigneeId || '', plannedDeadline: s.plannedDeadline ? new Date(s.plannedDeadline).toISOString().slice(0, 10) : '', notes: s.notes || '' })
     setScreenDialog(true)
   }
 
   const openScreenDeadlineEdit = (s) => {
     setScreenEditDeadlineId(s.id)
-    setScreenEditDeadlineValue(s.plannedDeadline ? new Date(s.plannedDeadline).toISOString().slice(0,10) : '')
+    setScreenEditDeadlineValue(s.plannedDeadline ? new Date(s.plannedDeadline).toISOString().slice(0, 10) : '')
     setScreenEditDeadlineDialog(true)
   }
 
@@ -298,20 +303,24 @@ export default function ProjectPage() {
     }
   }
 
-  // Update project start/end (admin)
-  const handleUpdateProjectDates = async () => {
+  // Update project settings (admin)
+  const handleUpdateProjectSettings = async () => {
     try {
       const res = await authFetch(`${API_BASE_URL}/projects/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ startDate: projectStart || null, endDate: projectEnd || null })
+        body: JSON.stringify({
+          startDate: projectStart || null,
+          endDate: projectEnd || null,
+          status: projectStatus
+        })
       })
       if (!res.ok) {
         const errData = await res.json()
-        throw new Error(errData.error || 'Failed to update project dates')
+        throw new Error(errData.error || 'Failed to update project settings')
       }
       loadData()
-      showToast('Project dates updated successfully!', 'success')
+      showToast('Project settings updated successfully!', 'success')
     } catch (e) {
       handleAuthError(e)
     }
@@ -344,20 +353,35 @@ export default function ProjectPage() {
   }
 
   const getStatusGradient = (status) => {
-    switch(status) {
+    switch (status) {
+      // Bug Statuses
       case 'Open': return 'from-red-600 to-rose-400'
       case 'In Progress': return 'from-orange-500 to-yellow-400'
       case 'Resolved': return 'from-green-600 to-lime-400'
       case 'Closed': return 'from-slate-600 to-slate-300'
-      case 'Planned': return 'from-blue-600 to-cyan-400'
       case 'Blocked': return 'from-red-600 to-rose-400'
-      case 'Done': return 'from-green-600 to-lime-400'
+
+      // Project Statuses
+      case 'Planning':
+      case 'Under Planning':
+      case 'Planned':
+        return 'from-blue-600 to-cyan-400'
+      case 'Active':
+      case 'Running':
+        return 'from-purple-700 to-pink-500'
+      case 'On Hold': return 'from-orange-500 to-yellow-400'
+      case 'Maintenance': return 'from-slate-600 to-slate-300'
+      case 'Completed':
+      case 'Done':
+        return 'from-green-600 to-lime-400'
+      case 'Critical': return 'from-red-600 to-rose-400'
+
       default: return 'from-slate-600 to-slate-300'
     }
   }
 
   const getSeverityGradient = (severity) => {
-    switch(severity) {
+    switch (severity) {
       case 'low': return 'from-blue-600 to-cyan-400'
       case 'medium': return 'from-orange-500 to-yellow-400'
       case 'high': return 'from-red-600 to-rose-400'
@@ -379,7 +403,7 @@ export default function ProjectPage() {
   })
 
   if (loading) return <Loader message="Loading project details..." />
-  
+
   if (!project) return (
     <div className="p-8 text-center">
       <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-red-100 text-red-600 mb-4">
@@ -398,7 +422,7 @@ export default function ProjectPage() {
     const cleanDateStr = typeof dateStr === 'string' && dateStr.includes('T') ? dateStr.split('T')[0] : (typeof dateStr === 'string' ? dateStr : new Date(dateStr).toISOString().split('T')[0])
     const parts = cleanDateStr.split('-')
     if (parts.length !== 3) return cleanDateStr
-    
+
     const [year, month, day] = parts
     const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
     const monthIndex = parseInt(month, 10) - 1
@@ -409,8 +433,8 @@ export default function ProjectPage() {
     { key: 'title', label: 'Title' },
     { key: 'module', label: 'Module' },
     { key: 'assigneeName', label: 'Assignee' },
-    { 
-      key: 'plannedDeadline', 
+    {
+      key: 'plannedDeadline',
       label: 'Deadline',
       render: (val, s) => (
         <div className="flex items-center gap-2">
@@ -569,8 +593,8 @@ export default function ProjectPage() {
 
         {/* Stats Row */}
         <div className="w-full max-w-full px-3 mb-6 lg:w-3/12">
-          <StatCard 
-            title="Team" 
+          <StatCard
+            title="Team"
             value={`${project?.developerNames?.length || 0} Developers`}
             icon={Users}
             gradient="from-blue-600 to-cyan-400"
@@ -578,8 +602,8 @@ export default function ProjectPage() {
         </div>
 
         <div className="w-full max-w-full px-3 mb-6 lg:w-3/12">
-          <StatCard 
-            title="Bugs" 
+          <StatCard
+            title="Bugs"
             value={`${project.openBugsCount || 0} Open Bugs`}
             icon={AlertCircle}
             gradient="from-red-600 to-rose-400"
@@ -587,30 +611,24 @@ export default function ProjectPage() {
         </div>
 
         <div className="w-full max-w-full px-3 mb-6 lg:w-3/12">
-          <Card className="h-full">
-            <CardBody className="p-4 flex flex-col justify-between">
-              <div className="flex items-center mb-4">
-                <div className="flex items-center justify-center w-12 h-12 rounded-lg bg-gradient-to-tl from-green-600 to-lime-400 shadow-soft-2xl mr-4">
-                  <CheckCircle className="text-white" size={20} />
-                </div>
-                <div>
-                  <p className="mb-0 text-xs font-bold uppercase text-slate-400">Progress</p>
-                  <h6 className="mb-0 font-bold text-slate-700">{project.completedScreensCount || 0} / {screensList.length} Done</h6>
-                </div>
-              </div>
-              <ProgressBar 
-                value={project.completedScreensCount || 0} 
-                max={screensList.length || 1} 
-                showLabel={false}
-                gradient="from-green-600 to-lime-400"
-              />
-            </CardBody>
-          </Card>
+          <StatCard
+            title="Progress"
+            value={`${project.completedScreensCount || 0} / ${screensList.length} Done`}
+            icon={CheckCircle}
+            gradient="from-green-600 to-lime-400"
+          >
+            <ProgressBar
+              value={project.completedScreensCount || 0}
+              max={screensList.length || 1}
+              showLabel={false}
+              gradient="from-green-600 to-lime-400"
+            />
+          </StatCard>
         </div>
 
         <div className="w-full max-w-full px-3 mb-6 lg:w-3/12">
-          <StatCard 
-            title="Deadlines" 
+          <StatCard
+            title="Deadlines"
             value={`${project.upcomingDeadlines || 0} Upcoming`}
             icon={Clock}
             gradient="from-orange-500 to-yellow-400"
@@ -648,7 +666,7 @@ export default function ProjectPage() {
                     <p className="text-sm leading-normal text-slate-600 bg-gray-50 p-4 rounded-xl">
                       {project.description || 'No description provided.'}
                     </p>
-                    
+
                     <div className="mt-8">
                       <h6 className="mb-4 font-bold text-slate-700">Timeline & Settings</h6>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -661,32 +679,48 @@ export default function ProjectPage() {
                           <p className="font-bold text-slate-700">{formatDateDisplay(project.endDate)}</p>
                         </div>
                       </div>
-                      
+
                       {user?.role === 'admin' && (
                         <div className="mt-6 p-4 border border-dashed border-gray-300 rounded-xl bg-gray-50/50">
-                          <p className="text-sm font-bold text-slate-700 mb-4">Update Project Timeline</p>
+                          <p className="text-sm font-bold text-slate-700 mb-4">Update Project Settings</p>
                           <div className="flex flex-wrap gap-4 items-end">
-                            <InputGroup 
-                              label="Start" 
-                              type="date" 
-                              value={projectStart} 
-                              onChange={(e) => setProjectStart(e.target.value)} 
+                            <InputGroup
+                              label="Start"
+                              type="date"
+                              value={projectStart}
+                              onChange={(e) => setProjectStart(e.target.value)}
                               className="mb-0"
                             />
-                            <InputGroup 
-                              label="End" 
-                              type="date" 
-                              value={projectEnd} 
-                              onChange={(e) => setProjectEnd(e.target.value)} 
+                            <InputGroup
+                              label="End"
+                              type="date"
+                              value={projectEnd}
+                              onChange={(e) => setProjectEnd(e.target.value)}
                               className="mb-0"
                             />
-                            <Button size="sm" onClick={handleUpdateProjectDates}>Save Changes</Button>
+                            <Select
+                              label="Status"
+                              value={projectStatus}
+                              onChange={(e) => setProjectStatus(e.target.value)}
+                              options={[
+                                { value: 'Planning', label: 'Planning' },
+                                { value: 'Active', label: 'Active' },
+                                { value: 'Running', label: 'Running' },
+                                { value: 'On Hold', label: 'On Hold' },
+                                { value: 'Maintenance', label: 'Maintenance' },
+                                { value: 'Completed', label: 'Completed' },
+                                { value: 'Done', label: 'Done' },
+                                { value: 'Critical', label: 'Critical' }
+                              ]}
+                              className="mb-0"
+                            />
+                            <Button size="sm" onClick={handleUpdateProjectSettings}>Save Changes</Button>
                           </div>
                         </div>
                       )}
                     </div>
                   </div>
-                  
+
                   <div className="w-full max-w-full px-3 mt-6 lg:w-5/12 lg:mt-0">
                     <h6 className="mb-4 font-bold text-slate-700">Team Members</h6>
                     <div className="flex flex-col gap-4">
@@ -694,7 +728,7 @@ export default function ProjectPage() {
                         <div key={dev.id} className="flex items-center justify-between p-4 bg-white border border-gray-100 rounded-2xl shadow-soft-sm">
                           <div className="flex items-center">
                             <div className="w-12 h-12 rounded-xl bg-gradient-to-tl from-slate-600 to-slate-300 flex items-center justify-center text-white font-bold mr-4 shadow-soft-md">
-                              {dev.name?.split(' ').map(n=>n[0]).slice(0,2).join('')}
+                              {dev.name?.split(' ').map(n => n[0]).slice(0, 2).join('')}
                             </div>
                             <div>
                               <p className="text-sm font-bold mb-0 text-slate-700">{dev.name}</p>
@@ -707,14 +741,14 @@ export default function ProjectPage() {
                       <div className="flex items-center justify-between p-4 bg-white border-l-4 border-fuchsia-500 rounded-2xl shadow-soft-md">
                         <div className="flex items-center">
                           <div className="w-12 h-12 rounded-xl bg-gradient-to-tl from-purple-700 to-pink-500 flex items-center justify-center text-white font-bold mr-4 shadow-soft-lg">
-                            {project.testerName?.split(' ').map(n=>n[0]).slice(0,2).join('')}
+                            {project.testerName?.split(' ').map(n => n[0]).slice(0, 2).join('')}
                           </div>
                           <div>
                             <p className="text-sm font-bold mb-0 text-slate-700">{project.testerName}</p>
                             <p className="text-xs text-slate-500 mb-0">QA Tester</p>
                           </div>
                         </div>
-                        <Badge gradient="from-purple-700 to-pink-500" size="sm">Lead</Badge>
+                        <Badge gradient="from-purple-700 to-pink-500" size="sm">Tester</Badge>
                       </div>
                     </div>
                   </div>
@@ -745,53 +779,53 @@ export default function ProjectPage() {
                       </Button>
                     )}
                   </div>
-                  
+
                   {/* Bug Filters */}
                   <div className="flex flex-wrap gap-4 mb-6 p-4 bg-gray-50 rounded-xl">
                     <div className="w-full md:w-auto min-w-[150px]">
-                      <Select 
-                        label="Status" 
+                      <Select
+                        label="Status"
                         options={[
                           { value: '', label: 'All Statuses' },
                           { value: 'Open', label: 'Open' },
                           { value: 'In Progress', label: 'In Progress' },
                           { value: 'Resolved', label: 'Resolved' },
                           { value: 'Closed', label: 'Closed' }
-                        ]} 
-                        value={bugStatusFilter} 
+                        ]}
+                        value={bugStatusFilter}
                         onChange={(e) => setBugStatusFilter(e.target.value)}
                         className="mb-0"
                       />
                     </div>
                     <div className="w-full md:w-auto min-w-[150px]">
-                      <Select 
-                        label="Severity" 
+                      <Select
+                        label="Severity"
                         options={[
                           { value: '', label: 'All Severities' },
                           { value: 'low', label: 'Low' },
                           { value: 'medium', label: 'Medium' },
                           { value: 'high', label: 'High' },
                           { value: 'critical', label: 'Critical' }
-                        ]} 
-                        value={bugSeverityFilter} 
+                        ]}
+                        value={bugSeverityFilter}
                         onChange={(e) => setBugSeverityFilter(e.target.value)}
                         className="mb-0"
                       />
                     </div>
                     <div className="w-full md:w-auto min-w-[150px]">
-                      <Select 
-                        label="Assignee" 
+                      <Select
+                        label="Assignee"
                         options={[
                           { value: '', label: 'All Developers' },
                           ...(project?.developerNames?.map(d => ({ value: d.id, label: d.name })) || [])
-                        ]} 
-                        value={bugAssigneeFilter} 
+                        ]}
+                        value={bugAssigneeFilter}
                         onChange={(e) => setBugAssigneeFilter(e.target.value)}
                         className="mb-0"
                       />
                     </div>
                   </div>
-                  
+
                   <Table columns={bugColumns} data={filteredBugs} pagination={true} pageSize={10} />
                 </div>
               )}
@@ -840,14 +874,14 @@ export default function ProjectPage() {
         <div className="flex flex-col gap-4">
           <InputGroup label="Title" value={screenForm.title} onChange={(e) => setScreenForm({ ...screenForm, title: e.target.value })} />
           <InputGroup label="Module" value={screenForm.module} onChange={(e) => setScreenForm({ ...screenForm, module: e.target.value })} />
-          <Select 
-            label="Assignee" 
+          <Select
+            label="Assignee"
             options={[
               { value: '', label: 'Unassigned' },
               ...(project?.developerNames?.map(d => ({ value: d.id, label: d.name })) || [])
-            ]} 
-            value={screenForm.assigneeId} 
-            onChange={(e) => setScreenForm({ ...screenForm, assigneeId: e.target.value })} 
+            ]}
+            value={screenForm.assigneeId}
+            onChange={(e) => setScreenForm({ ...screenForm, assigneeId: e.target.value })}
           />
           <InputGroup label="Planned Deadline" type="date" value={screenForm.plannedDeadline} onChange={(e) => setScreenForm({ ...screenForm, plannedDeadline: e.target.value })} />
           <div className="mb-4">
@@ -900,37 +934,37 @@ export default function ProjectPage() {
               required
             />
           </div>
-          <Select 
-            label="Severity" 
+          <Select
+            label="Severity"
             options={[
               { value: 'low', label: 'Low' },
               { value: 'medium', label: 'Medium' },
               { value: 'high', label: 'High' },
               { value: 'critical', label: 'Critical' }
-            ]} 
-            value={bugForm.severity} 
-            onChange={(e) => setBugForm({ ...bugForm, severity: e.target.value })} 
+            ]}
+            value={bugForm.severity}
+            onChange={(e) => setBugForm({ ...bugForm, severity: e.target.value })}
           />
-          <Select 
-            label="Related Screen" 
+          <Select
+            label="Related Screen"
             options={[
               { value: '', label: 'General / No Screen' },
               ...(screensList.map(s => ({ value: s.id, label: s.title })) || [])
-            ]} 
-            value={bugForm.screenId} 
-            onChange={(e) => setBugForm({ ...bugForm, screenId: e.target.value })} 
+            ]}
+            value={bugForm.screenId}
+            onChange={(e) => setBugForm({ ...bugForm, screenId: e.target.value })}
           />
-          <Select 
-            label="Assign Developer" 
+          <Select
+            label="Assign Developer"
             options={[
               { value: '', label: 'Unassigned' },
               ...(project?.developerNames?.map(d => ({ value: d.id, label: d.name })) || [])
-            ]} 
-            value={bugForm.assignedDeveloperId} 
-            onChange={(e) => setBugForm({ ...bugForm, assignedDeveloperId: e.target.value })} 
+            ]}
+            value={bugForm.assignedDeveloperId}
+            onChange={(e) => setBugForm({ ...bugForm, assignedDeveloperId: e.target.value })}
           />
           <InputGroup label="Deadline" type="date" value={bugForm.deadline} onChange={(e) => setBugForm({ ...bugForm, deadline: e.target.value })} />
-          
+
           <div className="mb-4">
             <label className="mb-2 ml-1 font-bold text-xs text-slate-700">Attachments</label>
             <div className="flex items-center justify-center w-full">
@@ -991,8 +1025,8 @@ export default function ProjectPage() {
               <div className="p-8 text-center">
                 <Paperclip size={48} className="text-slate-300 mb-4 mx-auto" />
                 <p className="text-slate-500 mb-4">Preview not available for this file type.</p>
-                <a 
-                  href={previewAttachment.data} 
+                <a
+                  href={previewAttachment.data}
                   download={previewAttachment.name}
                   className="inline-flex items-center px-4 py-2 bg-gradient-to-tl from-purple-700 to-pink-500 text-white rounded-lg font-bold text-sm shadow-soft-md"
                 >

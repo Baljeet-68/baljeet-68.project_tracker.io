@@ -23,14 +23,14 @@ export const CardBody = ({ children, className = '' }) => (
 )
 
 // Stat Card
-export const StatCard = ({ icon: Icon, title, value, change, changeType = 'positive', gradient = 'from-purple-700 to-pink-500' }) => {
+export const StatCard = ({ icon: Icon, title, value, change, changeType = 'positive', gradient = 'from-purple-700 to-pink-500', children, className = '' }) => {
   return (
-    <Card className="p-4">
-      <div className="flex flex-row -mx-3">
+    <Card className={`p-4 h-full ${className}`}>
+      <div className="flex flex-row -mx-3 items-center">
         <div className="flex-none w-2/3 max-w-full px-3">
           <div>
-            <p className="mb-0 font-sans font-semibold leading-normal text-sm">{title}</p>
-            <h5 className="mb-0 font-bold">
+            <p className="mb-0 font-sans font-semibold leading-normal text-sm text-slate-400 uppercase">{title}</p>
+            <h5 className="mb-0 font-bold text-slate-700">
               {value}
               {change && (
                 <span className={`leading-normal text-sm font-weight-bolder ${changeType === 'positive' ? 'text-lime-500' : 'text-red-600'}`}>
@@ -41,11 +41,16 @@ export const StatCard = ({ icon: Icon, title, value, change, changeType = 'posit
           </div>
         </div>
         <div className="px-3 text-right basis-1/3">
-          <div className={`inline-block w-12 h-12 text-center rounded-lg bg-gradient-to-tl ${gradient} shadow-soft-2xl`}>
+          <div className={`inline-block w-12 h-12 text-center rounded-xl bg-gradient-to-tl ${gradient} shadow-soft-2xl`}>
             {Icon && <Icon className="text-white h-full w-full p-3" />}
           </div>
         </div>
       </div>
+      {children && (
+        <div className="mt-4">
+          {children}
+        </div>
+      )}
     </Card>
   )
 }

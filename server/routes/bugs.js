@@ -227,7 +227,7 @@ router.post(`/projects/:id/bugs`, authenticate, requireRole('tester', 'admin'), 
       status: 'Open',
       severity: severity || 'medium',
       attachments: attachments && Array.isArray(attachments) ? attachments : [],
-      deadline: deadline ? new Date(deadline) : null,
+      deadline: (deadline && deadline.trim() !== '') ? new Date(deadline) : null,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       resolvedAt: null
