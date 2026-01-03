@@ -455,6 +455,12 @@ export default function ProjectPage() {
     }
   }
 
+  const openAddMilestone = () => {
+    setEditingMilestone(null)
+    setMilestoneForm({ milestoneNumber: '', module: '', timeline: '', status: 'Pending' })
+    setMilestoneDialog(true)
+  }
+
   const openEditMilestone = (m) => {
     setEditingMilestone(m)
     setMilestoneForm({
@@ -464,6 +470,17 @@ export default function ProjectPage() {
       status: m.status || 'Pending'
     })
     setMilestoneDialog(true)
+  }
+
+  const handleToggleModule = (moduleTitle) => {
+    const currentModules = milestoneForm.module ? milestoneForm.module.split(',').map(m => m.trim()).filter(m => m !== '') : []
+    let newModules
+    if (currentModules.includes(moduleTitle)) {
+      newModules = currentModules.filter(m => m !== moduleTitle)
+    } else {
+      newModules = [...currentModules, moduleTitle]
+    }
+    setMilestoneForm({ ...milestoneForm, module: newModules.join(', ') })
   }
 
   const handleDeleteMilestone = async (mid) => {
@@ -958,7 +975,7 @@ export default function ProjectPage() {
                   <div className="flex justify-between items-center mb-4">
                     <h6 className="font-bold mb-0">Project Milestones</h6>
                     {user?.role === 'admin' && (
-                      <Button size="sm" onClick={() => { setEditingMilestone(null); setMilestoneForm({ milestoneNumber: '', module: '', timeline: '', status: 'Pending' }); setMilestoneDialog(true); }}>
+                      <Button size="sm" onClick={openAddMilestone}>
                         <Plus size={14} className="mr-2" /> New Milestone
                       </Button>
                     )}
@@ -966,7 +983,17 @@ export default function ProjectPage() {
                   <Table 
                     columns={[
                       { key: 'milestoneNumber', label: 'Milestone #' },
-                      { key: 'module', label: 'Module' },
+                      { 
+                        key: 'module', 
+                        label: 'Modules', 
+                        render: (val) => (
+                          <div className="flex flex-wrap gap-2 max-w-[200px]">
+                            {val ? val.split(',').map((m, idx) => (
+                              <Badge key={idx} gradient="from-blue-600 to-cyan-400" size="sm">{m.trim()}</Badge>
+                            )) : <span className="text-slate-400 italic text-xs">No modules</span>}
+                          </div>
+                        )
+                      },
                       { key: 'timeline', label: 'Timeline', render: (val) => formatDateDisplay(val) },
                       {
                         key: 'status',
@@ -1105,7 +1132,54 @@ export default function ProjectPage() {
       >
         <div className="flex flex-col gap-4">
           <InputGroup label="Milestone Number" value={milestoneForm.milestoneNumber} onChange={(e) => setMilestoneForm({ ...milestoneForm, milestoneNumber: e.target.value })} />
-          <InputGroup label="Module" value={milestoneForm.module} onChange={(e) => setMilestoneForm({ ...milestoneForm, module: e.target.value })} />
+          
+          <div className="mb-4">
+            <label className="mb-3 ml-1 font-bold text-xs text-slate-700 uppercase tracking-wider">Select Modules (from Screens)</label>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-48 overflow-y-auto p-4 border border-gray-200 rounded-2xl bg-slate-50/50 shadow-inner">
+              {screensList.length === 0 ? (
+                <p className="text-xs text-slate-500 italic col-span-full text-center py-4">No screens available to select as modules.</p>
+              ) : (
+                screensList.map(screen => {
+                  const isChecked = milestoneForm.module ? milestoneForm.module.split(',').map(m => m.trim()).includes(screen.title) : false;
+                  return (
+                    <label 
+                      key={screen.id} 
+                      className={`flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-all duration-200 border ${
+                        isChecked 
+                          ? 'bg-white border-fuchsia-200 shadow-soft-sm' 
+                          : 'bg-transparent border-transparent hover:bg-white/60'
+                      }`}
+                    >
+                      <div className="relative flex items-center">
+                        <input 
+                          type="checkbox" 
+                          className="peer appearance-none w-5 h-5 border-2 border-slate-300 rounded-md checked:bg-fuchsia-600 checked:border-fuchsia-600 transition-all cursor-pointer"
+                          checked={isChecked}
+                          onChange={() => handleToggleModule(screen.title)}
+                        />
+                        <CheckCircle 
+                          className={`absolute w-3.5 h-3.5 text-white left-0.75 pointer-events-none transition-opacity ${isChecked ? 'opacity-100' : 'opacity-0'}`} 
+                          size={14} 
+                        />
+                      </div>
+                      <span className={`text-xs font-bold transition-colors ${isChecked ? 'text-slate-800' : 'text-slate-500'}`}>
+                        {screen.title}
+                      </span>
+                    </label>
+                  );
+                })
+              )}
+            </div>
+            {milestoneForm.module && (
+              <div className="mt-4 flex flex-wrap gap-2">
+                <p className="w-full text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1 ml-1">Selected:</p>
+                {milestoneForm.module.split(',').map(m => m.trim()).filter(m => m !== '').map((m, idx) => (
+                  <Badge key={idx} gradient="from-blue-600 to-cyan-400" size="sm">{m}</Badge>
+                ))}
+              </div>
+            )}
+          </div>
+
           <InputGroup label="Timeline" type="date" value={milestoneForm.timeline} onChange={(e) => setMilestoneForm({ ...milestoneForm, timeline: e.target.value })} />
           <Select
             label="Status"
