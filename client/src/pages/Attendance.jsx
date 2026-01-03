@@ -1,29 +1,38 @@
 import React, { useState, useEffect } from 'react'
+import { useLocation } from 'react-router-dom'
 import { Card, CardHeader, CardBody, Badge, Button } from '../components/TailAdminComponents'
-import { Table, Modal, InputGroup, Select, Alert } from '../components/FormComponents'
+import { Table, Modal, InputGroup, Select, Alert, ConfirmDialog } from '../components/FormComponents'
 import { 
   Calendar as CalendarIcon, Clock, Users, CheckCircle, XCircle, 
   AlertCircle, Search, Filter, Plus, ClipboardList, History,
-  Check, X, Trash2
+  Check, X, Trash2, Eye
 } from 'lucide-react'
 import { API_BASE_URL } from '../apiConfig'
 import { getUser } from '../auth'
 
 export default function Attendance() {
+  const location = useLocation()
   const [searchTerm, setSearchTerm] = useState('')
   const [user, setUser] = useState(getUser())
   
   // Leave state
   const [leaves, setLeaves] = useState([])
-  const [activeTab, setActiveTab] = useState('onLeaveToday')
+  const isHRorAdmin = user.role === 'admin' || user.role === 'hr'
+  const [activeTab, setActiveTab] = useState(isHRorAdmin ? 'onLeaveToday' : 'leaveHistory')
   const [summary, setSummary] = useState({
     onLeaveToday: 0,
     onHalfDayToday: 0,
     pendingRequests: 0,
     adminPendingRequests: 0,
-    myPendingRequests: 0
+    myPendingRequests: 0,
+    thisMonthLeaves: 0,
+    thisMonthHalfDays: 0,
+    paidLeaveTaken: 0
   })
   const [showLeaveModal, setShowLeaveModal] = useState(false)
+  const [showDetailsModal, setShowDetailsModal] = useState(false)
+  const [selectedLeave, setSelectedLeave] = useState(null)
+  const [confirmConfig, setConfirmConfig] = useState({ isOpen: false, title: '', message: '', onConfirm: () => {}, type: 'primary' })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
@@ -59,8 +68,11 @@ export default function Attendance() {
   })
 
   useEffect(() => {
+    if (location.state && location.state.tab) {
+      setActiveTab(location.state.tab)
+    }
     loadData()
-  }, [])
+  }, [location.state])
 
   const loadData = async () => {
     await Promise.all([
@@ -204,18 +216,27 @@ export default function Attendance() {
   }
 
   const handleCancelLeave = async (id) => {
-    if (!window.confirm('Are you sure you want to cancel this leave request?')) return
-    try {
-      const res = await fetch(`${API_BASE_URL}/leaves/${id}/cancel`, {
-        method: 'PATCH',
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
-      })
-      if (res.ok) {
-        loadData()
+    setConfirmConfig({
+      isOpen: true,
+      title: 'Cancel Request',
+      message: 'Are you sure you want to cancel this leave request?',
+      type: 'danger',
+      confirmText: 'Yes, Cancel it',
+      onConfirm: async () => {
+        try {
+          const res = await fetch(`${API_BASE_URL}/leaves/${id}/cancel`, {
+            method: 'PATCH',
+            headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+          })
+          if (res.ok) {
+            loadData()
+            setConfirmConfig(prev => ({ ...prev, isOpen: false }))
+          }
+        } catch (err) {
+          console.error('Failed to cancel leave:', err)
+        }
       }
-    } catch (err) {
-      console.error('Failed to cancel leave:', err)
-    }
+    })
   }
 
   const leaveColumns = [
@@ -260,25 +281,16 @@ export default function Attendance() {
     }},
     { label: 'Actions', key: 'actions', render: (_, row) => (
       <div className="flex gap-2">
-        {/* Approve/Reject for HR/Admin */}
-        {(user.role === 'admin' || user.role === 'hr') && (row.status === 'Submitted' || row.status === 'Pending Approval') && row.user_id !== user.id && (
-          <>
-            <button 
-              onClick={() => handleStatusUpdate(row.id, 'Approved')}
-              className="p-1.5 rounded-lg bg-green-50 text-green-600 hover:bg-green-100 transition-colors"
-              title="Approve"
-            >
-              <Check size={16} />
-            </button>
-            <button 
-              onClick={() => handleStatusUpdate(row.id, 'Rejected')}
-              className="p-1.5 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 transition-colors"
-              title="Reject"
-            >
-              <X size={16} />
-            </button>
-          </>
-        )}
+        <button 
+          onClick={() => {
+            setSelectedLeave(row)
+            setShowDetailsModal(true)
+          }}
+          className="p-1.5 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors"
+          title="View Details"
+        >
+          <Eye size={16} />
+        </button>
         {/* Cancel for Owner */}
         {row.user_id === user.id && (row.status === 'Submitted' || row.status === 'Pending Approval') && (
           <button 
@@ -397,104 +409,152 @@ export default function Attendance() {
             <p className="text-sm text-slate-500 font-medium">Manage and track leave requests</p>
           </div>
           <div className="flex gap-3">
-            <Button variant="primary" size="sm" className="flex items-center gap-2" onClick={() => setShowLeaveModal(true)}>
-              <Plus size={14} /> Request Leave
-            </Button>
+            {user.role !== 'admin' && (
+              <Button variant="primary" size="sm" className="flex items-center gap-2" onClick={() => setShowLeaveModal(true)}>
+                <Plus size={14} /> Request Leave
+              </Button>
+            )}
           </div>
         </div>
       </Card>
 
       {/* Summary Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <Card className="p-4">
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-xl bg-gradient-to-tl from-blue-600 to-cyan-400 flex items-center justify-center text-white shadow-soft-lg">
-              <Users size={24} />
-            </div>
-            <div>
-              <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">On Leave Today</p>
-              <h5 className="text-xl font-bold text-slate-700">{summary.onLeaveToday}</h5>
-            </div>
-          </div>
-        </Card>
-        <Card className="p-4">
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-xl bg-gradient-to-tl from-green-600 to-lime-400 flex items-center justify-center text-white shadow-soft-lg">
-              <CheckCircle size={24} />
-            </div>
-            <div>
-              <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">On Halfday</p>
-              <h5 className="text-xl font-bold text-slate-700">{summary.onHalfDayToday}</h5>
-            </div>
-          </div>
-        </Card>
-        <Card className="p-4">
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-xl bg-gradient-to-tl from-orange-500 to-yellow-400 flex items-center justify-center text-white shadow-soft-lg">
-              <Clock size={24} />
-            </div>
-            <div>
-              <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Pending Request</p>
-              <h5 className="text-xl font-bold text-slate-700">{summary.pendingRequests}</h5>
-            </div>
-          </div>
-        </Card>
-        {user.role === 'admin' && (
+      {user.role !== 'admin' && (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
           <Card className="p-4">
             <div className="flex items-center gap-4">
-              <div className="w-12 h-12 rounded-xl bg-gradient-to-tl from-red-600 to-rose-400 flex items-center justify-center text-white shadow-soft-lg">
-                <AlertCircle size={24} />
+              <div className="w-12 h-12 rounded-xl bg-gradient-to-tl from-blue-600 to-cyan-400 flex items-center justify-center text-white shadow-soft-lg">
+                <CalendarIcon size={24} />
               </div>
               <div>
-                <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Admin Pending</p>
-                <h5 className="text-xl font-bold text-slate-700">{summary.adminPendingRequests}</h5>
+                <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">This month leaves (Taken only)</p>
+                <h5 className="text-xl font-bold text-slate-700">{summary.thisMonthLeaves}</h5>
               </div>
             </div>
           </Card>
-        )}
-        {user.role !== 'admin' && (
           <Card className="p-4">
             <div className="flex items-center gap-4">
-              <div className="w-12 h-12 rounded-xl bg-gradient-to-tl from-purple-700 to-pink-500 flex items-center justify-center text-white shadow-soft-lg">
-                <ClipboardList size={24} />
+              <div className="w-12 h-12 rounded-xl bg-gradient-to-tl from-green-600 to-lime-400 flex items-center justify-center text-white shadow-soft-lg">
+                <CheckCircle size={24} />
               </div>
               <div>
-                <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">My Pending</p>
-                <h5 className="text-xl font-bold text-slate-700">{summary.myPendingRequests}</h5>
+                <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">This month halfday (Taken only)</p>
+                <h5 className="text-xl font-bold text-slate-700">{summary.thisMonthHalfDays}</h5>
               </div>
             </div>
           </Card>
-        )}
-      </div>
+          <Card className="p-4">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-xl bg-gradient-to-tl from-orange-500 to-yellow-400 flex items-center justify-center text-white shadow-soft-lg">
+                <Clock size={24} />
+              </div>
+              <div>
+                <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Paid leave pending</p>
+                <h5 className="text-xl font-bold text-slate-700">{summary.paidLeaveTaken}</h5>
+              </div>
+            </div>
+          </Card>
+        </div>
+      )}
+
+      {isHRorAdmin && (
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
+          <Card className="p-4">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-xl bg-gradient-to-tl from-slate-600 to-slate-400 flex items-center justify-center text-white shadow-soft-lg">
+                <Users size={24} />
+              </div>
+              <div>
+                <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">On Leave Today</p>
+                <h5 className="text-xl font-bold text-slate-700">{summary.onLeaveToday}</h5>
+              </div>
+            </div>
+          </Card>
+          <Card className="p-4">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-xl bg-gradient-to-tl from-slate-500 to-slate-300 flex items-center justify-center text-white shadow-soft-lg">
+                <CheckCircle size={24} />
+              </div>
+              <div>
+                <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">On Halfday</p>
+                <h5 className="text-xl font-bold text-slate-700">{summary.onHalfDayToday}</h5>
+              </div>
+            </div>
+          </Card>
+          <Card className="p-4">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-xl bg-gradient-to-tl from-orange-400 to-amber-200 flex items-center justify-center text-white shadow-soft-lg">
+                <Clock size={24} />
+              </div>
+              <div>
+                <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Pending Request</p>
+                <h5 className="text-xl font-bold text-slate-700">{summary.pendingRequests}</h5>
+              </div>
+            </div>
+          </Card>
+          {user.role === 'admin' && (
+            <Card className="p-4">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-xl bg-gradient-to-tl from-red-600 to-rose-400 flex items-center justify-center text-white shadow-soft-lg">
+                  <AlertCircle size={24} />
+                </div>
+                <div>
+                  <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Admin Pending</p>
+                  <h5 className="text-xl font-bold text-slate-700">{summary.adminPendingRequests}</h5>
+                </div>
+              </div>
+            </Card>
+          )}
+          {user.role === 'hr' && (
+            <Card className="p-4">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-xl bg-gradient-to-tl from-purple-700 to-pink-500 flex items-center justify-center text-white shadow-soft-lg">
+                  <ClipboardList size={24} />
+                </div>
+                <div>
+                  <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">My Pending</p>
+                  <h5 className="text-xl font-bold text-slate-700">{summary.myPendingRequests}</h5>
+                </div>
+              </div>
+            </Card>
+          )}
+        </div>
+      )}
 
       <div className="flex flex-col gap-6">
         <Card>
           <CardHeader className="flex flex-col md:flex-row justify-between items-center gap-4">
             <div className="flex items-center gap-2 overflow-x-auto pb-2 md:pb-0 w-full md:w-auto">
-              <button 
-                onClick={() => setActiveTab('onLeaveToday')}
-                className={`px-4 py-2 text-sm font-bold rounded-lg transition-all whitespace-nowrap ${activeTab === 'onLeaveToday' ? 'bg-purple-600 text-white shadow-md' : 'text-slate-500 hover:bg-slate-100'}`}
-              >
-                On Leave Today
-              </button>
-              <button 
-                onClick={() => setActiveTab('onHalfDayToday')}
-                className={`px-4 py-2 text-sm font-bold rounded-lg transition-all whitespace-nowrap ${activeTab === 'onHalfDayToday' ? 'bg-purple-600 text-white shadow-md' : 'text-slate-500 hover:bg-slate-100'}`}
-              >
-                On Half Day Today
-              </button>
-              <button 
-                onClick={() => setActiveTab('pendingApproval')}
-                className={`px-4 py-2 text-sm font-bold rounded-lg transition-all whitespace-nowrap ${activeTab === 'pendingApproval' ? 'bg-purple-600 text-white shadow-md' : 'text-slate-500 hover:bg-slate-100'}`}
-              >
-                Pending for Approval
-              </button>
-              <button 
-                onClick={() => setActiveTab('leaveHistory')}
-                className={`px-4 py-2 text-sm font-bold rounded-lg transition-all whitespace-nowrap ${activeTab === 'leaveHistory' ? 'bg-purple-600 text-white shadow-md' : 'text-slate-500 hover:bg-slate-100'}`}
-              >
-                My Leaves History
-              </button>
+              {isHRorAdmin && (
+                <>
+                  <button 
+                    onClick={() => setActiveTab('onLeaveToday')}
+                    className={`px-4 py-2 text-sm font-bold rounded-lg transition-all whitespace-nowrap ${activeTab === 'onLeaveToday' ? 'bg-purple-600 text-white shadow-md' : 'text-slate-500 hover:bg-slate-100'}`}
+                  >
+                    On Leave Today
+                  </button>
+                  <button 
+                    onClick={() => setActiveTab('onHalfDayToday')}
+                    className={`px-4 py-2 text-sm font-bold rounded-lg transition-all whitespace-nowrap ${activeTab === 'onHalfDayToday' ? 'bg-purple-600 text-white shadow-md' : 'text-slate-500 hover:bg-slate-100'}`}
+                  >
+                    On Half Day Today
+                  </button>
+                  <button 
+                    onClick={() => setActiveTab('pendingApproval')}
+                    className={`px-4 py-2 text-sm font-bold rounded-lg transition-all whitespace-nowrap ${activeTab === 'pendingApproval' ? 'bg-purple-600 text-white shadow-md' : 'text-slate-500 hover:bg-slate-100'}`}
+                  >
+                    Pending for Approval
+                  </button>
+                </>
+              )}
+              {user.role !== 'admin' && (
+                <button 
+                  onClick={() => setActiveTab('leaveHistory')}
+                  className={`px-4 py-2 text-sm font-bold rounded-lg transition-all whitespace-nowrap ${activeTab === 'leaveHistory' ? 'bg-purple-600 text-white shadow-md' : 'text-slate-500 hover:bg-slate-100'}`}
+                >
+                  My Leaves History
+                </button>
+              )}
             </div>
             <div className="flex items-center gap-3 w-full md:w-auto">
               {activeTab === 'leaveHistory' && canConvertHalfDays() && (
@@ -641,6 +701,157 @@ export default function Attendance() {
           </div>
         </form>
       </Modal>
+
+      {/* Leave Details Modal */}
+      <Modal
+        isOpen={showDetailsModal}
+        onClose={() => {
+          setShowDetailsModal(false)
+          setSelectedLeave(null)
+        }}
+        title="Leave Request Details"
+        size="md"
+      >
+        {selectedLeave && (
+          <div className="space-y-6">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <p className="text-xs font-bold text-slate-400 uppercase">Employee</p>
+                <p className="font-bold text-slate-700">{selectedLeave.userName}</p>
+                <p className="text-xs text-slate-500 font-medium">{selectedLeave.userRole}</p>
+              </div>
+              <div>
+                <p className="text-xs font-bold text-slate-400 uppercase">Status</p>
+                <div className="mt-1">
+                  {(() => {
+                    let gradient = 'from-slate-500 to-slate-300'
+                    if (selectedLeave.status === 'Approved') gradient = 'from-green-600 to-lime-400'
+                    if (selectedLeave.status === 'Rejected') gradient = 'from-red-600 to-rose-400'
+                    if (selectedLeave.status === 'Submitted' || selectedLeave.status === 'Pending Approval') gradient = 'from-blue-600 to-cyan-400'
+                    if (selectedLeave.status === 'Cancelled') gradient = 'from-slate-600 to-slate-400'
+                    return <Badge gradient={gradient}>{selectedLeave.status}</Badge>
+                  })()}
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <p className="text-xs font-bold text-slate-400 uppercase">Leave Type</p>
+                <p className="font-medium text-slate-600">{selectedLeave.type}</p>
+                {selectedLeave.is_emergency && (
+                  <span className="text-[10px] font-bold text-red-500 uppercase tracking-tight flex items-center gap-0.5">
+                    <AlertCircle size={10} /> Emergency
+                  </span>
+                )}
+              </div>
+              <div>
+                <p className="text-xs font-bold text-slate-400 uppercase">Period</p>
+                <div className="text-sm font-medium text-slate-600">
+                  {selectedLeave.type === 'Half Day' ? (
+                    <span>{formatDateDisplay(selectedLeave.start_date)} ({selectedLeave.half_day_period})</span>
+                  ) : formatDateISO(selectedLeave.start_date) === formatDateISO(selectedLeave.end_date) ? (
+                    <span>{formatDateDisplay(selectedLeave.start_date)}</span>
+                  ) : (
+                    <div className="flex flex-col">
+                      <span>From: {formatDateDisplay(selectedLeave.start_date)}</span>
+                      <span>To: {formatDateDisplay(selectedLeave.end_date)}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {(selectedLeave.type === 'Early Leave' || selectedLeave.type === 'Short Leave') && selectedLeave.short_leave_time && (
+              <div>
+                <p className="text-xs font-bold text-slate-400 uppercase">Time</p>
+                <p className="text-sm font-medium text-slate-600">{selectedLeave.short_leave_time}</p>
+              </div>
+            )}
+
+            {selectedLeave.type === 'Compensation' && (
+              <div className="p-3 rounded-xl bg-slate-50 border border-slate-100">
+                <p className="text-xs font-bold text-slate-400 uppercase mb-2">Compensation Details</p>
+                <div className="grid grid-cols-2 gap-4 text-sm font-medium text-slate-600">
+                  <div>
+                    <span className="text-slate-400 text-xs block">Worked Date</span>
+                    {formatDateDisplay(selectedLeave.compensation_worked_date)}
+                  </div>
+                  <div>
+                    <span className="text-slate-400 text-xs block">Worked Duration</span>
+                    {selectedLeave.compensation_worked_time}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <div>
+              <p className="text-xs font-bold text-slate-400 uppercase mb-1">Reason</p>
+              <div className="p-3 rounded-xl bg-slate-50 border border-slate-100 text-sm text-slate-600 font-medium whitespace-pre-wrap">
+                {selectedLeave.reason || 'No reason provided.'}
+              </div>
+            </div>
+
+            {/* Approval/Rejection Actions */}
+            {(user.role === 'admin' || user.role === 'hr') && (selectedLeave.status === 'Submitted' || selectedLeave.status === 'Pending Approval') && selectedLeave.user_id !== user.id && (
+              <div className="flex gap-3 pt-4 border-t">
+                <Button 
+                  variant="success" 
+                  fullWidth
+                  className="flex items-center justify-center gap-2"
+                  onClick={() => {
+                    setConfirmConfig({
+                      isOpen: true,
+                      title: 'Approve Request',
+                      message: `Are you sure you want to APPROVE this leave request for ${selectedLeave.userName}?`,
+                      type: 'success',
+                      confirmText: 'Approve',
+                      onConfirm: () => {
+                        handleStatusUpdate(selectedLeave.id, 'Approved')
+                        setShowDetailsModal(false)
+                        setConfirmConfig(prev => ({ ...prev, isOpen: false }))
+                      }
+                    })
+                  }}
+                >
+                  <Check size={18} /> Approve
+                </Button>
+                <Button 
+                  variant="danger" 
+                  fullWidth
+                  className="flex items-center justify-center gap-2"
+                  onClick={() => {
+                    setConfirmConfig({
+                      isOpen: true,
+                      title: 'Reject Request',
+                      message: `Are you sure you want to REJECT this leave request for ${selectedLeave.userName}?`,
+                      type: 'danger',
+                      confirmText: 'Reject',
+                      onConfirm: () => {
+                        handleStatusUpdate(selectedLeave.id, 'Rejected')
+                        setShowDetailsModal(false)
+                        setConfirmConfig(prev => ({ ...prev, isOpen: false }))
+                      }
+                    })
+                  }}
+                >
+                  <X size={18} /> Reject
+                </Button>
+              </div>
+            )}
+          </div>
+        )}
+      </Modal>
+
+      <ConfirmDialog
+        isOpen={confirmConfig.isOpen}
+        title={confirmConfig.title}
+        message={confirmConfig.message}
+        type={confirmConfig.type}
+        confirmText={confirmConfig.confirmText}
+        onConfirm={confirmConfig.onConfirm}
+        onCancel={() => setConfirmConfig(prev => ({ ...prev, isOpen: false }))}
+      />
     </div>
   )
 }

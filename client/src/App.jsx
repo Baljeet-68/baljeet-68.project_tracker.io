@@ -1,5 +1,5 @@
 import React from 'react'
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import Login from './pages/Login'
 import Dashboard from './pages/Dashboard'
 import ProjectPage from './pages/ProjectPage'
@@ -14,9 +14,15 @@ import Layout from './Layout'
 
 function ProtectedRoute({ children }) {
   const token = getToken()
+  const location = useLocation()
+
   if (!token) {
-    // relative path -> resolves to /Project_Tracker_Tool/client/login
     return <Navigate to="/login" replace />
+  }
+
+  const user = getUser()
+  if (user?.role?.toLowerCase() === 'hr' && location.pathname === '/') {
+    return <Navigate to="/notifications" replace />
   }
   return children
 }

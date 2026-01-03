@@ -95,7 +95,10 @@ async function getBugById(bugId) {
 async function getUsersFromMySQL() {
   try {
     const [rows] = await pool.query('SELECT * FROM users');
-    return rows;
+    return rows.map(u => ({
+      ...u,
+      active: u.active !== undefined ? (Buffer.isBuffer(u.active) ? u.active[0] : Number(u.active)) : 1
+    }));
   } catch (error) {
     console.error('Database query failed in getUsersFromMySQL:', error);
     throw error;
@@ -245,12 +248,12 @@ async function deleteScreenFromDb(screenId) {
   }
 }
 
-async function createUserInDb(user) {
-  try {
-    const sql = 'INSERT INTO users (id, name, email, password, role) VALUES (?, ?, ?, ?, ?)';
-    const params = [user.id, user.name, user.email, user.password, user.role];
-    await pool.execute(sql, params);
-  } catch (error) {
+  async function createUserInDb(user) {
+    try {
+      const sql = 'INSERT INTO users (`id`, `name`, `email`, `password`, `role`, `active`) VALUES (?, ?, ?, ?, ?, ?)';
+      const params = [user.id, user.name, user.email, user.password, user.role, user.active !== undefined ? Number(user.active) : 1];
+      await pool.query(sql, params);
+    } catch (error) {
     console.error('Database insert failed in createUserInDb:', error);
     throw error;
   }
@@ -261,20 +264,21 @@ async function updateUserInDb(userId, changes) {
     const fields = [];
     const values = [];
 
-    if (changes.name !== undefined) { fields.push('name = ?'); values.push(changes.name); }
-    if (changes.email !== undefined) { fields.push('email = ?'); values.push(changes.email); }
+    if (changes.name !== undefined) { fields.push('`name` = ?'); values.push(changes.name); }
+    if (changes.email !== undefined) { fields.push('`email` = ?'); values.push(changes.email); }
     if (changes.password !== undefined) {
-      fields.push('password = ?');
+      fields.push('`password` = ?');
       values.push(changes.password);
     }
-    if (changes.role !== undefined) { fields.push('role = ?'); values.push(changes.role); }
-    if (changes.profilePicture !== undefined) { fields.push('profilePicture = ?'); values.push(changes.profilePicture); }
+    if (changes.role !== undefined) { fields.push('`role` = ?'); values.push(changes.role); }
+    if (changes.profilePicture !== undefined) { fields.push('`profilePicture` = ?'); values.push(changes.profilePicture); }
+    if (changes.active !== undefined) { fields.push('`active` = ?'); values.push(Number(changes.active)); }
 
     if (fields.length === 0) return;
 
     values.push(userId);
-    const sql = `UPDATE users SET ${fields.join(', ')} WHERE id = ?`;
-    await pool.execute(sql, values);
+    const sql = `UPDATE users SET ${fields.join(', ')} WHERE \`id\` = ?`;
+    await pool.query(sql, values);
   } catch (error) {
     console.error('Database update failed in updateUserInDb:', error);
     throw error;

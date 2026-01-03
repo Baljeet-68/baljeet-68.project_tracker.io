@@ -15,7 +15,6 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true)
   const [trendLoading, setTrendLoading] = useState(false)
   const user = getUser()
-
   const nav = useNavigate()
 
   // Generate last 5 years
@@ -23,6 +22,10 @@ export default function Dashboard() {
   const availableYears = Array.from({ length: 5 }, (_, i) => currentYear - i)
 
   useEffect(() => {
+    if (user?.role?.toLowerCase() === 'hr') {
+      nav('/notifications', { replace: true })
+      return
+    }
     loadInitialData()
     loadBugTrend(selectedYear)
   }, [selectedYear])

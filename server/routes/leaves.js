@@ -46,6 +46,12 @@ router.get(`/leaves`, authenticate, async (req, res) => {
 router.post(`/leaves`, authenticate, async (req, res) => {
   try {
     const { userId, role } = req.user;
+    
+    // Admin cannot request leaves
+    if (role === 'admin') {
+      return res.status(403).json({ error: 'Admins are not allowed to submit leave requests.' });
+    }
+
     const { 
       type, 
       start_date, 
@@ -58,15 +64,20 @@ router.post(`/leaves`, authenticate, async (req, res) => {
       is_emergency
     } = req.body;
 
-    // Determine approver and initial status
+    // Determine approver and initial status based on new matrix
     let approver_role = 'hr';
     let status = 'Submitted';
 
-    if (role === 'admin') {
-      status = 'Approved'; // Admin leaves are auto-approved
+    if (role === 'hr') {
       approver_role = 'admin';
-    } else if (['hr', 'management', 'accountant'].includes(role.toLowerCase())) {
-      approver_role = 'admin';
+    } else if (['management', 'accountant'].includes(role.toLowerCase())) {
+      // Management/Accountant can be approved by HR or Admin
+      // For notification purposes, we'll notify both or pick one. 
+      // Based on logic below, we'll set a flag or handle it in the notification block.
+      approver_role = 'hr_or_admin'; 
+    } else {
+      // Developer, Tester, Ecommerce
+      approver_role = 'hr';
     }
 
     // Rules Validation
@@ -89,10 +100,16 @@ router.post(`/leaves`, authenticate, async (req, res) => {
       }
     }
 
-    // Find an approver of that role (simplified: just assign to any admin/hr for now or leave null for "role-based" queue)
-    // For now, we'll store the target approver role or find the first one
-    const [approvers] = await pool.query('SELECT id FROM users WHERE role = ? LIMIT 1', [approver_role]);
-    const approver_id = approvers.length > 0 ? approvers[0].id : null;
+    // Find an approver id for the record (optional, since we use role-based queues)
+    let approver_id = null;
+    if (approver_role !== 'hr_or_admin') {
+      const [approvers] = await pool.query('SELECT id FROM users WHERE role = ? LIMIT 1', [approver_role]);
+      approver_id = approvers.length > 0 ? approvers[0].id : null;
+    } else {
+      // For hr_or_admin, we'll just leave it null or pick the first HR
+      const [approvers] = await pool.query('SELECT id FROM users WHERE role = "hr" LIMIT 1');
+      approver_id = approvers.length > 0 ? approvers[0].id : null;
+    }
 
     // Rules Validation
     const monthStart = new Date(start_date);
@@ -146,12 +163,26 @@ router.post(`/leaves`, authenticate, async (req, res) => {
       const [user] = await pool.query('SELECT name FROM users WHERE id = ?', [userId]);
       const userName = user[0]?.name || 'Someone';
       
-      let notifyRole = 'hr';
-      if (['hr', 'management', 'accountant'].includes(role.toLowerCase())) {
-        notifyRole = 'admin';
+      let notifyRoles = [];
+      if (role === 'hr') {
+        notifyRoles = ['admin'];
+      } else if (['management', 'accountant'].includes(role.toLowerCase())) {
+        notifyRoles = ['hr', 'admin'];
+      } else {
+        notifyRoles = ['hr'];
       }
 
-      const [targetUsers] = await pool.query('SELECT id FROM users WHERE role = ?', [notifyRole]);
+      const [targetUsers] = await pool.query('SELECT id FROM users WHERE role IN (?)', [notifyRoles]);
+      
+      // Format date for notification
+      const dateOptions = { weekday: 'short', year: 'numeric', month: 'short', day: '2-digit', timeZone: 'Asia/Kolkata' };
+      const formattedStartDate = new Date(start_date).toLocaleDateString('en-IN', dateOptions);
+      const formattedEndDate = end_date ? new Date(end_date).toLocaleDateString('en-IN', dateOptions) : null;
+      const dateDisplay = formattedEndDate && formattedEndDate !== formattedStartDate 
+        ? `${formattedStartDate} to ${formattedEndDate}`
+        : formattedStartDate;
+
+      const halfDayInfo = type === 'Half Day' ? ` (${half_day_period})` : '';
       
       for (const targetUser of targetUsers) {
         await pool.query(
@@ -160,7 +191,7 @@ router.post(`/leaves`, authenticate, async (req, res) => {
             targetUser.id, 
             'leave_request', 
             'New Leave Request', 
-            `${userName} has submitted a ${type} request for ${start_date}${end_date ? ' to ' + end_date : ''}.`,
+            `${userName} has submitted a ${type} request for ${dateDisplay}${halfDayInfo}.`,
             'HR'
           ]
         );
@@ -193,13 +224,14 @@ router.patch(`/leaves/:id/status`, authenticate, isAdminOrHR, async (req, res) =
     let canApprove = false;
 
     if (role === 'admin') {
-      // Admin approves HR, Management, Accountant
-      if (['hr', 'management', 'accountant'].includes(targetUserRole)) canApprove = true;
-      // Admin also has full access
+      // Admin approves HR, Management, Accountant, and also Developer, Tester, Ecommerce
+      // Basically Admin can approve everything except their own (but they can't request anyway)
       canApprove = true; 
     } else if (role === 'hr') {
-      // HR approves Tester, Developer, E-commerce
-      if (['tester', 'developer', 'ecommerce'].includes(targetUserRole)) canApprove = true;
+      // HR approves Tester, Developer, E-commerce, Management, Accountant
+      if (['tester', 'developer', 'ecommerce', 'management', 'accountant'].includes(targetUserRole)) {
+        canApprove = true;
+      }
     }
 
     if (!canApprove) {
@@ -209,15 +241,20 @@ router.patch(`/leaves/:id/status`, authenticate, isAdminOrHR, async (req, res) =
     await pool.execute('UPDATE leaves SET status = ?, approver_id = ? WHERE id = ?', [status, userId, id]);
     
     // Notify the user about approval/rejection
-    const [leaveInfo] = await pool.query('SELECT user_id, type, start_date FROM leaves WHERE id = ?', [id]);
+    const [leaveInfo] = await pool.query('SELECT user_id, type, start_date, half_day_period FROM leaves WHERE id = ?', [id]);
     if (leaveInfo.length > 0) {
+      const { type, start_date, half_day_period } = leaveInfo[0];
+      const dateOptions = { weekday: 'short', year: 'numeric', month: 'short', day: '2-digit', timeZone: 'Asia/Kolkata' };
+      const formattedDate = new Date(start_date).toLocaleDateString('en-IN', dateOptions);
+      const halfDayInfo = type === 'Half Day' ? ` (${half_day_period})` : '';
+
       await pool.query(
         'INSERT INTO notifications (user_id, type, title, message, category) VALUES (?, ?, ?, ?, ?)',
         [
           leaveInfo[0].user_id,
           'leave_status',
           `Leave Request ${status}`,
-          `Your ${leaveInfo[0].type} request for ${leaveInfo[0].start_date} has been ${status.toLowerCase()}.`,
+          `Your ${type} request for ${formattedDate}${halfDayInfo} has been ${status.toLowerCase()}.`,
           'HR'
         ]
       );
@@ -258,13 +295,18 @@ router.patch(`/leaves/:id/cancel`, authenticate, async (req, res) => {
     const [targetUsers] = await pool.query('SELECT id FROM users WHERE role = ?', [notifyRole]);
     
     for (const targetUser of targetUsers) {
+      const { type, start_date, half_day_period } = leave[0];
+      const dateOptions = { weekday: 'short', year: 'numeric', month: 'short', day: '2-digit', timeZone: 'Asia/Kolkata' };
+      const formattedDate = new Date(start_date).toLocaleDateString('en-IN', dateOptions);
+      const halfDayInfo = type === 'Half Day' ? ` (${half_day_period})` : '';
+
       await pool.query(
         'INSERT INTO notifications (user_id, type, title, message, category) VALUES (?, ?, ?, ?, ?)',
         [
           targetUser.id, 
           'leave_cancelled', 
           'Leave Request Cancelled', 
-          `${userName} has cancelled their ${leave[0].type} request for ${leave[0].start_date}.`,
+          `${userName} has cancelled their ${type} request for ${formattedDate}${halfDayInfo}.`,
           'HR'
         ]
       );
@@ -332,12 +374,49 @@ router.get(`/leaves/stats/summary`, authenticate, async (req, res) => {
       [userId]
     );
 
+    // 6. This month leaves (Taken only) - Approved non-half-day leaves for current user in current month before today
+    const monthPrefix = new Date().toISOString().substring(0, 7); // YYYY-MM
+    const [thisMonthLeaves] = await pool.query(
+      `SELECT COUNT(*) as count FROM leaves 
+       WHERE user_id = ? 
+       AND status = "Approved" 
+       AND type NOT IN ("Half Day", "Short Leave", "Early Leave") 
+       AND start_date LIKE ?
+       AND start_date < ?`,
+      [userId, `${monthPrefix}%`, today]
+    );
+
+    // 7. This month halfday (Taken only) - Approved half-day leaves for current user in current month before today
+    const [thisMonthHalfDays] = await pool.query(
+      `SELECT COUNT(*) as count FROM leaves 
+       WHERE user_id = ? 
+       AND status = "Approved" 
+       AND type = "Half Day" 
+       AND start_date LIKE ?
+       AND start_date < ?`,
+      [userId, `${monthPrefix}%`, today]
+    );
+
+    // 8. Paid leave taken this month (User asked for Paid leave pending but logic is taken before today)
+    const [paidLeaveTaken] = await pool.query(
+      `SELECT COUNT(*) as count FROM leaves 
+       WHERE user_id = ? 
+       AND status = "Approved" 
+       AND type = "Paid Leave"
+       AND start_date LIKE ?
+       AND start_date < ?`,
+      [userId, `${monthPrefix}%`, today]
+    );
+
     res.json({
       onLeaveToday: onLeaveToday[0].count,
       onHalfDayToday: onHalfDayToday[0].count,
       pendingRequests: pendingCount,
       adminPendingRequests: adminPendingCount,
-      myPendingRequests: myPending[0].count
+      myPendingRequests: myPending[0].count,
+      thisMonthLeaves: thisMonthLeaves[0].count,
+      thisMonthHalfDays: thisMonthHalfDays[0].count,
+      paidLeaveTaken: paidLeaveTaken[0].count
     });
   } catch (error) {
     console.error('Error fetching leave stats:', error);

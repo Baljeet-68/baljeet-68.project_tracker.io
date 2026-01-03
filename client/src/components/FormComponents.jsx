@@ -202,6 +202,64 @@ export const Modal = ({ isOpen, title, children, onClose, footer, size = 'md' })
   )
 }
 
+// Custom Confirmation Dialog Component
+export const ConfirmDialog = ({ 
+  isOpen, 
+  title = 'Confirmation', 
+  message, 
+  onConfirm, 
+  onCancel, 
+  confirmText = 'Yes, Proceed', 
+  cancelText = 'Cancel',
+  type = 'primary' 
+}) => {
+  if (!isOpen) return null
+
+  const typeGradients = {
+    primary: 'from-purple-700 to-pink-500',
+    danger: 'from-red-600 to-rose-400',
+    success: 'from-green-600 to-lime-400',
+    warning: 'from-amber-500 to-orange-400'
+  }
+
+  return (
+    <>
+      <div 
+        className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[110] transition-opacity"
+        onClick={onCancel}
+      />
+      <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 pointer-events-none">
+        <div 
+          className="bg-white rounded-3xl shadow-soft-2xl max-w-sm w-full p-6 pointer-events-auto transform transition-all"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="text-center">
+            <h6 className="mb-2 font-bold text-slate-700 text-lg">{title}</h6>
+            <p className="mb-6 text-slate-500 text-sm font-medium">{message}</p>
+            
+            <div className="flex flex-col gap-3">
+              <Button 
+                variant={type === 'danger' ? 'danger' : 'success'} 
+                fullWidth 
+                onClick={onConfirm}
+              >
+                {confirmText}
+              </Button>
+              <Button 
+                variant="outline" 
+                fullWidth 
+                onClick={onCancel}
+              >
+                {cancelText}
+              </Button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </>
+  )
+}
+
 // Toast/Alert Component
 export const Toast = ({ message, type = 'info', onClose }) => {
   const gradient = {
@@ -217,7 +275,7 @@ export const Toast = ({ message, type = 'info', onClose }) => {
   }, [onClose])
 
   return (
-    <div className={`fixed top-4 right-4 max-w-sm p-4 rounded-lg bg-gradient-to-tl ${gradient[type]} text-white shadow-soft-2xl z-100`}>
+    <div className={`fixed top-4 right-4 max-w-sm p-4 rounded-lg bg-gradient-to-tl ${gradient[type]} text-white shadow-soft-2xl z-[100]`}>
       {message}
     </div>
   )

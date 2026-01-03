@@ -93,7 +93,7 @@ export const Button = ({
 
   return (
     <button 
-      className={`inline-block font-bold text-center uppercase align-middle transition-all border-0 rounded-lg cursor-pointer shadow-soft-md bg-x-25 bg-150 leading-pro ease-soft-in tracking-tight-soft ${sizeClasses[size]} ${variantClasses[variant]} ${widthClass} ${className}`}
+      className={`inline-flex items-center justify-center font-bold text-center uppercase align-middle transition-all border-0 rounded-lg cursor-pointer shadow-soft-md bg-x-25 bg-150 leading-pro ease-soft-in tracking-tight-soft ${sizeClasses[size]} ${variantClasses[variant]} ${widthClass} ${className}`}
       {...props}
     >
       {children}

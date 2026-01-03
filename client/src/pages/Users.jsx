@@ -2,8 +2,8 @@ import React, { useEffect, useState } from 'react'
 import { authFetch, getUser } from '../auth'
 import { API_BASE_URL } from '../apiConfig'
 import { Card, CardHeader, CardBody, Badge, Button } from '../components/TailAdminComponents'
-import { Modal, InputGroup, Select, Table, Alert } from '../components/FormComponents'
-import { Users as UsersIcon, UserPlus, RefreshCw, Edit, Trash2, Eye, EyeOff, Wand2, Mail, User, Lock } from 'lucide-react'
+import { Modal, InputGroup, Select, Table, Alert, ConfirmDialog } from '../components/FormComponents'
+import { Users as UsersIcon, UserPlus, RefreshCw, Edit, Trash2, Eye, EyeOff, Wand2, Mail, User, Lock, Shield, Code, Briefcase, UserCheck, Calculator } from 'lucide-react'
 
 export default function Users() {
   const [users, setUsers] = useState([])
@@ -14,17 +14,29 @@ export default function Users() {
   const [userForm, setUserForm] = useState({ name: '', email: '', password: '', role: 'developer' })
   const [userDialog, setUserDialog] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
+  const [confirmConfig, setConfirmConfig] = useState({ isOpen: false, title: '', message: '', onConfirm: () => {}, type: 'primary' })
 
   // Edit User form
   const [editUserForm, setEditUserForm] = useState({ id: '', name: '', email: '', role: '', status: '', password: '' })
   const [editUserDialog, setEditUserDialog] = useState(false)
   const [editShowPassword, setEditShowPassword] = useState(false)
 
-  // Delete User confirmation
-  const [deleteUserDialog, setDeleteUserDialog] = useState(false)
-  const [userToDelete, setUserToDelete] = useState(null)
-
   const me = getUser()
+
+  const roleStats = users.reduce((acc, user) => {
+    acc[user.role] = (acc[user.role] || 0) + 1
+    acc.total = (acc.total || 0) + 1
+    return acc
+  }, { total: 0 })
+
+  const statCards = [
+    { label: 'Total Users', count: roleStats.total, icon: UsersIcon, color: 'from-blue-600 to-cyan-400' },
+    { label: 'Admins', count: roleStats.admin || 0, icon: Shield, color: 'from-purple-700 to-pink-500' },
+    { label: 'Developers', count: roleStats.developer || 0, icon: Code, color: 'from-green-600 to-lime-400' },
+    { label: 'HR', count: roleStats.hr || 0, icon: UserCheck, color: 'from-orange-500 to-yellow-400' },
+    { label: 'Management', count: roleStats.management || 0, icon: Briefcase, color: 'from-red-600 to-rose-400' },
+    { label: 'Accountants', count: roleStats.accountant || 0, icon: Calculator, color: 'from-indigo-600 to-purple-400' },
+  ]
 
   const generatePassword = (isEdit = false) => {
     const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()_+'
@@ -122,23 +134,30 @@ export default function Users() {
     }
   }
 
-  const handleDeleteUser = async () => {
-    if (!userToDelete) return
-    try {
-      const res = await authFetch(`${API_BASE_URL}/users/${userToDelete.id}`, {
-        method: 'DELETE'
-      })
-      if (!res.ok) {
-        const data = await res.json()
-        throw new Error(data.error || 'Failed to delete user')
+  const handleDeleteUser = async (user) => {
+    setConfirmConfig({
+      isOpen: true,
+      title: 'Delete User',
+      message: `Are you sure you want to delete ${user.name}? This action cannot be undone.`,
+      type: 'danger',
+      confirmText: 'Delete User',
+      onConfirm: async () => {
+        try {
+          const res = await authFetch(`${API_BASE_URL}/users/${user.id}`, {
+            method: 'DELETE'
+          })
+          if (!res.ok) {
+            const data = await res.json()
+            throw new Error(data.error || 'Failed to delete user')
+          }
+          await load()
+          setConfirmConfig(prev => ({ ...prev, isOpen: false }))
+        } catch (e) {
+          setError(e.message)
+          setConfirmConfig(prev => ({ ...prev, isOpen: false }))
+        }
       }
-      await load()
-      setDeleteUserDialog(false)
-      setUserToDelete(null)
-    } catch (e) {
-      setError(e.message)
-      setDeleteUserDialog(false)
-    }
+    })
   }
 
   const userColumns = [
@@ -178,10 +197,7 @@ export default function Users() {
           </button>
           {user.role !== 'admin' && (
             <button 
-              onClick={() => {
-                setUserToDelete(user)
-                setDeleteUserDialog(true)
-              }} 
+              onClick={() => handleDeleteUser(user)} 
               className="text-slate-400 hover:text-red-500 transition-colors"
               title="Delete User"
             >
@@ -194,34 +210,49 @@ export default function Users() {
   ]
 
   return (
-    <div className="flex flex-wrap -mx-3">
-      <div className="w-full max-w-full px-3 mb-6">
-        <div className="flex justify-between items-center mb-4">
-          <div>
-            <h4 className="font-bold text-slate-700 mb-0">User Management</h4>
-            <p className="text-xs text-slate-500 font-medium">Manage team members and their roles</p>
-          </div>
-          <div className="flex gap-2">
-            
-            <Button variant="info" size="sm" onClick={() => setUserDialog(true)}>
-              <UserPlus size={14} className="mr-1 inline" /> Add User
-            </Button>
-          </div>
+    <div className="flex flex-col gap-6">
+      <div className="flex justify-between items-center">
+        <div>
+          <h4 className="font-bold text-slate-700">User Management</h4>
+          <p className="text-sm text-slate-500">Manage team members and their roles</p>
         </div>
-
-        {error && (
-          <Alert variant="danger" className="mb-4">
-            {error}
-          </Alert>
-        )}
+        <Button variant="info" size="sm" onClick={() => setUserDialog(true)}>
+          <UserPlus size={14} className="mr-1 inline" /> Add User
+        </Button>
       </div>
 
-      <div className="w-full max-w-full px-3 mb-6">
-        <Card>
-                    <CardBody>
-            <Table columns={userColumns} data={users} loading={loading} pagination={true} pageSize={10} />
-          </CardBody>
-        </Card>
+      {/* Stat Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-6 gap-6">
+        {statCards.map((stat, idx) => (
+          <Card key={idx} className="p-4">
+            <div className="flex items-center gap-4">
+              <div className={`w-12 h-12 rounded-xl bg-gradient-to-tl ${stat.color} flex items-center justify-center text-white shadow-soft-lg`}>
+                <stat.icon size={24} />
+              </div>
+              <div>
+                <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">{stat.label}</p>
+                <h5 className="text-xl font-bold text-slate-700">{stat.count}</h5>
+              </div>
+            </div>
+          </Card>
+        ))}
+      </div>
+
+      <div className="flex flex-wrap -mx-3">
+        <div className="w-full max-w-full px-3 mb-6">
+          <Card>
+            {error && (
+              <CardHeader className="pb-0">
+                <Alert variant="danger">
+                  {error}
+                </Alert>
+              </CardHeader>
+            )}
+            <CardBody>
+              <Table columns={userColumns} data={users} loading={loading} pagination={true} pageSize={10} />
+            </CardBody>
+          </Card>
+        </div>
       </div>
 
       {/* Add User Modal */}
@@ -381,30 +412,15 @@ export default function Users() {
         />
       </Modal>
 
-      {/* Delete User Confirmation Modal */}
-      <Modal
-        isOpen={deleteUserDialog}
-        title="Confirm Deletion"
-        onClose={() => setDeleteUserDialog(false)}
-        footer={
-          <>
-            <Button variant="secondary" size="sm" onClick={() => setDeleteUserDialog(false)}>Cancel</Button>
-            <Button variant="danger" size="sm" onClick={handleDeleteUser}>Delete User</Button>
-          </>
-        }
-      >
-        <div className="text-center py-4">
-          <div className="w-16 h-16 bg-red-100 text-red-600 rounded-full flex items-center justify-center mx-auto mb-4">
-            <Trash2 size={32} />
-          </div>
-          <p className="text-slate-600">
-            Are you sure you want to delete <span className="font-bold text-slate-800">{userToDelete?.name}</span>?
-          </p>
-          <p className="text-xs text-slate-400 mt-2">
-            This action cannot be undone and will remove all associated data.
-          </p>
-        </div>
-      </Modal>
+      <ConfirmDialog 
+        isOpen={confirmConfig.isOpen}
+        title={confirmConfig.title}
+        message={confirmConfig.message}
+        onConfirm={confirmConfig.onConfirm}
+        onCancel={() => setConfirmConfig(prev => ({ ...prev, isOpen: false }))}
+        confirmText={confirmConfig.confirmText}
+        type={confirmConfig.type}
+      />
     </div>
   )
 }

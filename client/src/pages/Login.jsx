@@ -39,7 +39,9 @@ export default function Login() {
       saveToken(data.token)
       saveUser(data.user)
       
-      nav('/', { replace: true })
+      const role = data.user.role?.toLowerCase()
+      const targetPath = role === 'hr' ? '/notifications' : '/'
+      nav(targetPath, { replace: true })
     } catch (err) {
       setError(err.message || 'Login failed. Please try again.')
     } finally {

@@ -155,14 +155,15 @@ router.patch(`/me`, authenticate, async (req, res) => {
       }
     }
 
+    // Fetch the actual user from DB after update to ensure we return correct state
     const updatedUsers = await usersSource();
-    const updatedUser = updatedUsers.find(u => u.id === req.user.userId);
-    const { password: _, ...userResponse } = updatedUser;
+    const finalUser = updatedUsers.find(u => u.id === req.user.userId);
+    const { password: _, ...userResponse } = finalUser;
     
     res.json({
       ...userResponse,
       name: await getUserName(req.user.userId),
-      profilePicture: getProfileUrl(req, updatedUser.profilePicture)
+      profilePicture: getProfileUrl(req, finalUser.profilePicture)
     });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -206,7 +207,7 @@ router.patch(`/users/:id`, authenticate, requireRole('admin'), async (req, res) 
     if (email) changes.email = email;
     if (password) changes.password = password;
     if (role) changes.role = role;
-    if (typeof active !== 'undefined') changes.active = active;
+    if (typeof active === '0') changes.active = active;
 
     if (Object.keys(changes).length === 0) {
       return res.status(200).json(user); // No changes, return existing user
@@ -223,10 +224,14 @@ router.patch(`/users/:id`, authenticate, requireRole('admin'), async (req, res) 
       }
     }
 
-    const { password: _, ...userResponse } = updatedUser;
+    // Fetch the actual user from DB after update to ensure we return correct state
+    const usersAfterUpdate = await usersSource();
+    const finalUser = usersAfterUpdate.find(u => u.id === updatedUser.id) || updatedUser;
+
+    const { password: _, ...userResponse } = finalUser;
     res.json({
       ...userResponse,
-      profilePicture: getProfileUrl(req, updatedUser.profilePicture)
+      profilePicture: getProfileUrl(req, finalUser.profilePicture)
     });
   } catch (error) {
     res.status(500).json({ error: error.message });

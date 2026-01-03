@@ -1,26 +1,28 @@
 import React from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { getUser, clearToken, clearUser } from '../auth'
-import { 
-  X, 
-  LayoutDashboard, 
-  BarChart3, 
+import {
+  X,
+  LayoutDashboard,
+  BarChart3,
   Users,
-  Settings, 
-  Search, 
-  Inbox, 
-  Bell, 
-  Calendar, 
-  Zap, 
-  Files, 
-  Hash, 
-  Plus, 
+  Settings,
+  Search,
+  Inbox,
+  Bell,
+  Calendar,
+  Zap,
+  Files,
+  Hash,
+  Plus,
   HelpCircle,
   ChevronsUpDown,
   ChevronLeft,
   ChevronRight,
   LogOut
 } from 'lucide-react'
+
+import logo from '../../public/assets/img/logos/mmf_logo.svg'
 
 export default function Sidebar({ open, onClose, collapsed, setCollapsed }) {
   const [isHovered, setIsHovered] = React.useState(false)
@@ -41,7 +43,7 @@ export default function Sidebar({ open, onClose, collapsed, setCollapsed }) {
     { label: 'Dashboard', icon: LayoutDashboard, path: '/', roles: ['admin', 'tester', 'developer', 'ecommerce', 'management'] },
     { label: 'IT Projects', icon: BarChart3, path: '/projects', roles: ['admin', 'tester', 'developer',] },
     { label: 'E-Commerce Projects', icon: BarChart3, path: '/ECommerceProjects', roles: ['admin', 'ecommerce', 'management'] },
-    { label: 'Attendance', icon: Calendar, path: '/attendance', roles: ['admin', 'hr', 'management', 'developer','ecommerce','accountant'] },
+    { label: 'Leave Request', icon: Calendar, path: '/attendance', roles: ['admin', 'hr', 'management', 'developer', 'ecommerce', 'accountant'] },
     { label: 'Notifications', icon: Bell, path: '/notifications', roles: ['admin', 'tester', 'developer', 'ecommerce', 'management', 'hr', 'accountant'] },
     { label: 'User Management', icon: Users, path: '/users', roles: ['admin'] },
   ]
@@ -57,14 +59,17 @@ export default function Sidebar({ open, onClose, collapsed, setCollapsed }) {
     { label: 'Travel', color: 'bg-purple-400', path: '/projects/travel' },
   ]
 
-  const filteredMenuItems = mainMenuItems.filter(item => item.roles.includes(user?.role))
+  const filteredMenuItems = mainMenuItems.filter(item => {
+    if (!user?.role) return false
+    return item.roles.some(r => r.toLowerCase() === user.role.toLowerCase())
+  })
 
   const isActive = (path) => location.pathname === path
 
   const NavItem = ({ item, isProject = false, isActuallyCollapsed, onClose }) => {
     const Icon = item.icon
     const active = isActive(item.path)
-    
+
     return (
       <Link
         to={item.path}
@@ -73,21 +78,19 @@ export default function Sidebar({ open, onClose, collapsed, setCollapsed }) {
             onClose()
           }
         }}
-        className={`group relative flex items-center rounded-2xl transition-all duration-300 ${
-          isActuallyCollapsed ? 'justify-center px-0 py-3' : 'justify-between px-4 py-3'
-        } ${
-          active 
-            ? 'bg-white/20 shadow-soft-xl text-white' 
+        className={`group relative flex items-center rounded-2xl transition-all duration-300 ${isActuallyCollapsed ? 'justify-center px-0 py-3' : 'justify-between px-4 py-3'
+          } ${active
+            ? 'bg-white/20 shadow-soft-xl text-white'
             : 'text-white/70 hover:bg-white/10 hover:text-white'
-        }`}
+          }`}
       >
         <div className={`flex items-center ${isActuallyCollapsed ? 'justify-center' : 'gap-3'}`}>
           {isProject ? (
             <div className={`w-2 h-2 rounded-full ${item.color}`} />
           ) : (
-           <div className={`flex items-center justify-center w-10 h-10 rounded-xl transition-all duration-300 ${active ? 'bg-white text-[#004e92] shadow-soft-2xl' : 'bg-white/10 text-white group-hover:bg-white/20'}`}>
-             <Icon size={20} strokeWidth={active ? 2.5 : 2} />
-           </div>
+            <div className={`flex items-center justify-center w-10 h-10 rounded-xl transition-all duration-300 ${active ? 'bg-white text-[#004e92] shadow-soft-2xl' : 'bg-white/10 text-white group-hover:bg-white/20'}`}>
+              <Icon size={20} strokeWidth={active ? 2.5 : 2} />
+            </div>
           )}
           {!isActuallyCollapsed && <span className={`text-sm ${active ? 'font-bold' : 'font-medium'}`}>{item.label}</span>}
         </div>
@@ -96,7 +99,7 @@ export default function Sidebar({ open, onClose, collapsed, setCollapsed }) {
             {item.shortcut}
           </span>
         )}
-        
+
         {isActuallyCollapsed && (
           <div className="absolute left-full ml-4 px-3 py-2 bg-slate-800 text-white text-xs font-bold rounded-xl opacity-0 group-hover:opacity-100 pointer-events-none transition-all whitespace-nowrap z-50 shadow-soft-2xl translate-x-[-10px] group-hover:translate-x-0">
             {item.label}
@@ -120,9 +123,8 @@ export default function Sidebar({ open, onClose, collapsed, setCollapsed }) {
       <aside
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
-        className={`fixed left-0 top-0 z-40 h-screen transition-all duration-400 ease-soft-in-out backdrop-blur-md border-r border-white/20 shadow-2xl ${
-          isActuallyCollapsed ? 'w-24' : 'w-72'
-        } ${open ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`}
+        className={`fixed left-0 top-0 z-40 h-screen transition-all duration-400 ease-soft-in-out backdrop-blur-md border-r border-white/20 shadow-2xl ${isActuallyCollapsed ? 'w-24' : 'w-72'
+          } ${open ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`}
         style={{
           background: 'linear-gradient(to bottom, #004e92, #000428)'
         }}
@@ -131,13 +133,13 @@ export default function Sidebar({ open, onClose, collapsed, setCollapsed }) {
           {/* Workspace Switcher */}
           <div className={`flex items-center mb-8 ${isActuallyCollapsed ? 'justify-center' : 'justify-between px-2'}`}>
             <div className="flex items-center gap-3">
-              <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center text-white font-bold text-lg shadow-soft-2xl backdrop-blur-sm flex-shrink-0">
-                MM
+              <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center text-white font-bold text-lg shadow-soft-2xl backdrop-blur-sm flex-shrink-0 overflow-hidden">
+                <img src={logo} alt="MMF INFOTECH" className="w-12 h-12 rounded-xl object-cover" />
               </div>
               {!isActuallyCollapsed && (
                 <div className="flex flex-col">
-                  <span className="text-sm font-black text-white leading-tight">Project Tracker</span>
-                  <span className="text-[10px] font-bold text-white/60 uppercase tracking-wider">Soft UI Dashboard</span>
+                  <span className="text-sm font-black text-white leading-tight">MMF INFOTECH</span>
+                  <span className="text-[10px] font-bold text-white/60 uppercase tracking-wider">Work Smartly</span>
                 </div>
               )}
             </div>
@@ -146,9 +148,9 @@ export default function Sidebar({ open, onClose, collapsed, setCollapsed }) {
           {/* Navigation Menu */}
           <div className={`flex-1 overflow-y-auto space-y-2 no-scrollbar ${isActuallyCollapsed ? 'px-0' : 'px-2'}`}>
             {filteredMenuItems.map((item) => (
-              <NavItem 
-                key={item.path} 
-                item={item} 
+              <NavItem
+                key={item.path}
+                item={item}
                 isActuallyCollapsed={isActuallyCollapsed}
                 onClose={onClose}
               />
@@ -158,16 +160,15 @@ export default function Sidebar({ open, onClose, collapsed, setCollapsed }) {
           {/* Bottom Section */}
           <div className={`mt-auto pt-6 space-y-4 ${isActuallyCollapsed ? 'px-0' : 'px-2'}`}>
             <div className={`space-y-2 border-t border-white/10 pt-6 ${isActuallyCollapsed ? 'flex flex-col items-center' : ''}`}>
-              <NavItem 
-                item={{ label: 'Settings', icon: Settings, path: '/settings' }} 
+              <NavItem
+                item={{ label: 'Settings', icon: Settings, path: '/settings' }}
                 isActuallyCollapsed={isActuallyCollapsed}
                 onClose={onClose}
               />
               <button
                 onClick={handleLogout}
-                className={`group relative flex items-center transition-all duration-300 text-white/70 hover:bg-white/10 hover:text-white w-full rounded-2xl ${
-                  isActuallyCollapsed ? 'justify-center py-3 px-0' : 'gap-3 px-4 py-3'
-                }`}
+                className={`group relative flex items-center transition-all duration-300 text-white/70 hover:bg-white/10 hover:text-white w-full rounded-2xl ${isActuallyCollapsed ? 'justify-center py-3 px-0' : 'gap-3 px-4 py-3'
+                  }`}
               >
                 <div className={`flex items-center justify-center w-10 h-10 rounded-xl bg-white/10 transition-all group-hover:bg-white/20 flex-shrink-0`}>
                   <LogOut size={20} className="flex-shrink-0" />
@@ -179,9 +180,9 @@ export default function Sidebar({ open, onClose, collapsed, setCollapsed }) {
             {/* User Profile */}
             <div className={`p-3 rounded-2xl bg-white/10 backdrop-blur-sm border border-white/10 flex items-center gap-3 ${isActuallyCollapsed ? 'justify-center p-2' : ''}`}>
               <div className="w-10 h-10 rounded-xl overflow-hidden shadow-soft-sm flex-shrink-0 border-2 border-white/20">
-                <img 
-                  src={user?.profilePicture || `https://ui-avatars.com/api/?name=${user?.name || user?.username || 'User'}&background=ffffff&color=004e92`} 
-                  alt="Avatar" 
+                <img
+                  src={user?.profilePicture || `https://ui-avatars.com/api/?name=${user?.name || user?.username || 'User'}&background=ffffff&color=004e92`}
+                  alt="Avatar"
                   className="w-full h-full object-cover"
                 />
               </div>
