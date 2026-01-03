@@ -231,7 +231,11 @@ export default function ProjectPage() {
 
     // Milestone Metrics
     const totalMilestones = milestonesList.length;
-    const completedMilestones = milestonesList.filter(m => m.status === 'donr' || m.status === 'apporved').length;
+    const completedMilestones = milestonesList.filter(m => {
+      if (!m.status) return false;
+      const s = m.status.toLowerCase();
+      return s === 'done' || s === 'donr' || s === 'approved' || s === 'apporved';
+    }).length;
     const pendingMilestones = totalMilestones - completedMilestones;
 
     const progressPercentage = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
@@ -496,38 +500,42 @@ export default function ProjectPage() {
   }
 
   const getStatusGradient = (status) => {
-    switch (status) {
+    if (!status) return 'from-slate-600 to-slate-300'
+    const s = status.toLowerCase()
+    
+    switch (s) {
       // Bug Statuses
-      case 'Open': return 'from-red-600 to-rose-400'
-      case 'In Progress':
-      case 'in progress': 
-        return 'from-orange-500 to-yellow-400'
-      case 'Resolved':
+      case 'open': return 'from-red-600 to-rose-400'
+      case 'in progress': return 'from-orange-500 to-yellow-400'
+      case 'resolved':
       case 'donr':
+      case 'done':
+      case 'completed':
         return 'from-green-600 to-lime-400'
-      case 'Closed': return 'from-slate-600 to-slate-300'
-      case 'Blocked': return 'from-red-600 to-rose-400'
+      case 'closed': return 'from-slate-600 to-slate-300'
+      case 'blocked': return 'from-red-600 to-rose-400'
 
       // Milestone specific
-      case 'apporved': return 'from-purple-700 to-pink-500'
-      case 'aproval pending': return 'from-blue-600 to-cyan-400'
-      case 'Pending': return 'from-slate-400 to-slate-300'
-
-      // Project Statuses
-      case 'Planning':
-      case 'Under Planning':
-      case 'Planned':
-        return 'from-blue-600 to-cyan-400'
-      case 'Active':
-      case 'Running':
+      case 'apporved':
+      case 'approved':
         return 'from-purple-700 to-pink-500'
-      case 'On Hold': return 'from-orange-500 to-yellow-400'
-      case 'Maintenance': return 'from-slate-600 to-slate-300'
-      case 'Completed':
-      case 'Done':
-        return 'from-green-600 to-lime-400'
-      case 'Critical': return 'from-red-600 to-rose-400'
-
+      case 'aproval pending':
+      case 'approval pending':
+        return 'from-blue-600 to-cyan-400'
+      case 'pending': return 'from-slate-400 to-slate-300'
+      
+      // Project Statuses
+      case 'planning':
+      case 'under planning':
+      case 'planned':
+        return 'from-blue-600 to-cyan-400'
+      case 'active':
+      case 'running':
+        return 'from-purple-700 to-pink-500'
+      case 'on hold': return 'from-orange-500 to-yellow-400'
+      case 'maintenance': return 'from-slate-600 to-slate-300'
+      case 'critical': return 'from-red-600 to-rose-400'
+      
       default: return 'from-slate-600 to-slate-300'
     }
   }
@@ -1000,7 +1008,7 @@ export default function ProjectPage() {
                         label: 'Status',
                         render: (status) => (
                           <Badge gradient={getStatusGradient(status)} size="sm">
-                            {status}
+                            {status || 'Pending'}
                           </Badge>
                         )
                       },
@@ -1184,11 +1192,11 @@ export default function ProjectPage() {
           <Select
             label="Status"
             options={[
-              { value: 'Pending', label: 'Pending' },
+              { value: 'pending', label: 'Pending' },
               { value: 'in progress', label: 'In Progress' },
-              { value: 'donr', label: 'Done' },
-              { value: 'apporved', label: 'Approved' },
-              { value: 'aproval pending', label: 'Approval Pending' }
+              { value: 'done', label: 'Done' },
+              { value: 'approved', label: 'Approved' },
+              { value: 'approval pending', label: 'Approval Pending' }
             ]}
             value={milestoneForm.status}
             onChange={(e) => setMilestoneForm({ ...milestoneForm, status: e.target.value })}
