@@ -61,7 +61,7 @@ router.get(`/me`, authenticate, async (req, res) => {
     const users = await usersSource();
     const user = users.find(u => u.id === req.user.userId);
     if (!user) return res.status(404).json({ error: 'User not found' });
-    
+
     // Don't send password
     const { password, ...userProfile } = user;
     res.json({
@@ -108,7 +108,7 @@ router.patch(`/me`, authenticate, async (req, res) => {
         if (!['jpg', 'jpeg', 'png'].includes(extension)) {
           return res.status(400).json({ error: 'Only JPG, JPEG, and PNG files are allowed' });
         }
-        
+
         const base64Data = matches[2];
         const fileName = `profile_${req.user.userId}_${Date.now()}.${extension}`;
         const filePath = path.join(uploadDir, fileName);
@@ -120,7 +120,7 @@ router.patch(`/me`, authenticate, async (req, res) => {
 
         // Save file to disk
         fs.writeFileSync(filePath, base64Data, 'base64');
-        
+
         // Delete old profile picture if it exists
         if (currentUser && currentUser.profilePicture && !currentUser.profilePicture.startsWith('http')) {
           try {
@@ -132,7 +132,7 @@ router.patch(`/me`, authenticate, async (req, res) => {
             console.error('Failed to delete old profile picture:', err);
           }
         }
-        
+
         // Store ONLY the filename in DB
         changes.profilePicture = fileName;
       } else {
@@ -159,7 +159,7 @@ router.patch(`/me`, authenticate, async (req, res) => {
     const updatedUsers = await usersSource();
     const finalUser = updatedUsers.find(u => u.id === req.user.userId);
     const { password: _, ...userResponse } = finalUser;
-    
+
     res.json({
       ...userResponse,
       name: await getUserName(req.user.userId),
@@ -207,8 +207,8 @@ router.patch(`/users/:id`, authenticate, requireRole('admin'), async (req, res) 
     if (email) changes.email = email;
     if (password) changes.password = password;
     if (role) changes.role = role;
-    if (active == '0' || active == 0) changes.active = 0;
-    if (active == '1' || active == 1) changes.active = 1;
+    if (active == '0' || active == 0) changes.active = active;
+    if (active == '1' || active == 1) changes.active = active;
 
     if (Object.keys(changes).length === 0) {
       return res.status(200).json(user); // No changes, return existing user
@@ -245,7 +245,7 @@ router.delete(`/users/:id`, authenticate, requireRole('admin'), async (req, res)
     const users = await usersSource();
     const user = users.find((u) => u.id === req.params.id);
     if (!user) return res.status(404).json({ error: 'User not found' });
-    
+
     // Prevent admin from deleting themselves
     if (user.id === req.user.userId) {
       return res.status(400).json({ error: 'Cannot delete yourself' });
