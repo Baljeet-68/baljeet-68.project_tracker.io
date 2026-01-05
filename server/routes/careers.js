@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { authenticate, requireRole } = require('../middleware/auth');
+const { getProfileUrl } = require('../middleware/helpers');
 const { USE_LIVE_DB } = require('../config');
 const dbApi = USE_LIVE_DB ? require('../api') : null;
 const localData = !USE_LIVE_DB ? require('../data') : null;
@@ -171,7 +172,12 @@ router.delete('/jobs/:id', authenticate, requireRole('admin', 'hr'), async (req,
 router.get('/applications', authenticate, requireRole('admin', 'hr'), async (req, res) => {
   try {
     const apps = await applicationsSource();
-    res.json(apps);
+    res.json(
+      (apps || []).map(a => ({
+        ...a,
+        resumeUrl: a.resumeUrl ? getProfileUrl(req, a.resumeUrl) : ''
+      }))
+    );
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

@@ -555,7 +555,14 @@ async function deleteJobFromDb(id) {
 async function getApplicationsFromMySQL() {
   try {
     const [rows] = await pool.query('SELECT * FROM applications ORDER BY appliedAt DESC');
-    return rows;
+    return rows.map(r => {
+      const out = { ...r };
+      if ((out.resumeUrl === undefined || out.resumeUrl === null || out.resumeUrl === '') && out.resume_url) {
+        out.resumeUrl = out.resume_url;
+      }
+      if ('resume_url' in out) delete out.resume_url;
+      return out;
+    });
   } catch (error) {
     console.error('Database query failed in getApplicationsFromMySQL:', error);
     throw error;
@@ -568,6 +575,12 @@ async function createApplicationInDb(app) {
     const params = [app.id, app.jobId, app.userId, app.fullName, app.email, app.phone, app.resumeUrl, app.coverLetter, app.status || 'applied', app.appliedAt || new Date().toISOString()];
     await pool.execute(sql, params);
   } catch (error) {
+    if (error && (error.code === 'ER_BAD_FIELD_ERROR' || /Unknown column 'resumeUrl'/.test(String(error.message)))) {
+      const sql = 'INSERT INTO applications (id, jobId, userId, fullName, email, phone, resume_url, coverLetter, status, appliedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)';
+      const params = [app.id, app.jobId, app.userId, app.fullName, app.email, app.phone, app.resumeUrl, app.coverLetter, app.status || 'applied', app.appliedAt || new Date().toISOString()];
+      await pool.execute(sql, params);
+      return;
+    }
     console.error('Database insert failed in createApplicationInDb:', error);
     throw error;
   }
