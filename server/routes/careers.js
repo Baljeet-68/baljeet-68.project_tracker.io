@@ -67,13 +67,33 @@ router.get('/public-jobs', async (req, res) => {
   }
 });
 
+const path = require('path');
+const fs = require('fs');
+
 // POST /api/public-apply - handle job applications from PHP
 router.post('/public-apply', async (req, res) => {
   try {
-    const { jobId, fullName, email, phone, coverLetter, resumeUrl } = req.body;
+    const { jobId, fullName, email, phone, coverLetter, resumeUrl, resumeFile } = req.body;
     
     if (!jobId || !fullName || !email) {
       return res.status(400).json({ error: 'Required fields missing' });
+    }
+
+    let finalResumeUrl = resumeUrl || '';
+
+    // Handle File Upload (Base64)
+    if (resumeFile && resumeFile.data && resumeFile.name) {
+      const uploadDir = path.join(__dirname, '..', 'uploads');
+      if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir);
+
+      const fileName = `resume_${Date.now()}_${resumeFile.name.replace(/\s+/g, '_')}`;
+      const filePath = path.join(uploadDir, fileName);
+      
+      // Extract base64 data
+      const base64Data = resumeFile.data.replace(/^data:.*;base64,/, "");
+      fs.writeFileSync(filePath, base64Data, 'base64');
+      
+      finalResumeUrl = fileName; // Store only filename in DB
     }
 
     const application = {
@@ -83,7 +103,7 @@ router.post('/public-apply', async (req, res) => {
       email,
       phone,
       coverLetter,
-      resumeUrl: resumeUrl || '', // In a real app, this would be a file path from an upload
+      resumeUrl: finalResumeUrl,
       status: 'applied',
       appliedAt: new Date().toISOString(),
       userId: null // Public application, no userId
@@ -92,6 +112,7 @@ router.post('/public-apply', async (req, res) => {
     await createApplicationSource(application);
     res.status(201).json({ success: true, applicationId: application.id });
   } catch (error) {
+    console.error('Application Error:', error);
     res.status(500).json({ error: error.message });
   }
 });

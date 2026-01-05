@@ -55,8 +55,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['apply_job'])) {
         'email'       => $_POST['email'],
         'phone'       => $_POST['phone'],
         'coverLetter' => $_POST['cover_letter'],
-        'resumeUrl'   => $_POST['resume_url'] // For now, taking a URL string
+        'resumeUrl'   => $_POST['resume_url']
     ];
+
+    // Handle File Upload
+    if (isset($_FILES['resume_file']) && $_FILES['resume_file']['error'] === UPLOAD_ERR_OK) {
+        $fileData = file_get_contents($_FILES['resume_file']['tmp_name']);
+        $payload['resumeFile'] = [
+            'name' => $_FILES['resume_file']['name'],
+            'data' => 'data:' . $_FILES['resume_file']['type'] . ';base64,' . base64_encode($fileData)
+        ];
+    }
 
     $response = apiRequest('/public-apply', 'POST', $payload);
     
@@ -255,7 +264,7 @@ $jobs = ($jobResponse['code'] === 200 && is_array($jobResponse['data'])) ? $jobR
         <span class="close-modal" onclick="closeModal()">&times;</span>
         <h2 id="modalJobTitle" style="margin-bottom: 25px; color: var(--primary);">Apply for Job</h2>
         
-        <form method="POST" action="">
+        <form method="POST" action="" enctype="multipart/form-data">
             <input type="hidden" name="job_id" id="job_id">
             <input type="hidden" name="apply_job" value="1">
             
@@ -275,7 +284,13 @@ $jobs = ($jobResponse['code'] === 200 && is_array($jobResponse['data'])) ? $jobR
             </div>
 
             <div class="form-group">
-                <label>Resume Link (Google Drive/Dropbox)</label>
+                <label>Upload Resume (PDF or Word)</label>
+                <input type="file" name="resume_file" accept=".pdf,.doc,.docx" class="file-input">
+                <div style="font-size: 0.8rem; color: var(--text-light); margin-top: 5px;">Or provide a link below:</div>
+            </div>
+
+            <div class="form-group">
+                <label>Resume Link (Optional)</label>
                 <input type="url" name="resume_url" placeholder="https://drive.google.com/...">
             </div>
             
