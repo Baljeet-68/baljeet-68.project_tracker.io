@@ -73,28 +73,30 @@ const fs = require('fs');
 // POST /api/public-apply - handle job applications from PHP
 router.post('/public-apply', async (req, res) => {
   try {
-    const { jobId, fullName, email, phone, coverLetter, resumeUrl, resumeFile } = req.body;
+    const { jobId, fullName, email, phone, coverLetter, resumeFile } = req.body;
     
     if (!jobId || !fullName || !email) {
       return res.status(400).json({ error: 'Required fields missing' });
     }
 
-    let finalResumeUrl = resumeUrl || '';
-
-    // Handle File Upload (Base64)
-    if (resumeFile && resumeFile.data && resumeFile.name) {
-      const uploadDir = path.join(__dirname, '..', 'uploads');
-      if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir);
-
-      const fileName = `resume_${Date.now()}_${resumeFile.name.replace(/\s+/g, '_')}`;
-      const filePath = path.join(uploadDir, fileName);
-      
-      // Extract base64 data
-      const base64Data = resumeFile.data.replace(/^data:.*;base64,/, "");
-      fs.writeFileSync(filePath, base64Data, 'base64');
-      
-      finalResumeUrl = fileName; // Store only filename in DB
+    if (!resumeFile || !resumeFile.data || !resumeFile.name) {
+      return res.status(400).json({ error: 'Resume file is required' });
     }
+
+    const uploadDir = path.join(__dirname, '..', 'uploads');
+    if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
+
+    const ext = path.extname(String(resumeFile.name || '')).toLowerCase();
+    const allowedExt = new Set(['.pdf', '.doc', '.docx']);
+    if (!allowedExt.has(ext)) {
+      return res.status(400).json({ error: 'Only PDF, DOC, and DOCX files are allowed' });
+    }
+
+    const fileName = `resume_${Date.now()}_${crypto.randomUUID().slice(0, 8)}${ext}`;
+    const filePath = path.join(uploadDir, fileName);
+
+    const base64Data = String(resumeFile.data).replace(/^data:.*;base64,/, "");
+    fs.writeFileSync(filePath, base64Data, 'base64');
 
     const application = {
       id: crypto.randomUUID(),
@@ -103,7 +105,7 @@ router.post('/public-apply', async (req, res) => {
       email,
       phone,
       coverLetter,
-      resumeUrl: finalResumeUrl,
+      resumeUrl: fileName,
       status: 'applied',
       appliedAt: new Date().toISOString(),
       userId: null // Public application, no userId

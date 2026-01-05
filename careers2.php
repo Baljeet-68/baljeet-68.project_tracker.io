@@ -63,8 +63,7 @@ function apiRequest($endpoint, $method = 'GET', $data = null) {
                 'fullName'    => $fullName,
                 'email'       => $email,
                 'phone'       => $phone,
-                'coverLetter' => $_POST['cover_letter'],
-                'resumeUrl'   => '' // No link provided anymore
+                'coverLetter' => $_POST['cover_letter']
             ];
 
             // Handle File Upload (Convert to Base64/Binary representation for the API)
@@ -72,7 +71,8 @@ function apiRequest($endpoint, $method = 'GET', $data = null) {
                 $fileData = file_get_contents($_FILES['resume_file']['tmp_name']);
                 $payload['resumeFile'] = [
                     'name' => $_FILES['resume_file']['name'],
-                    'data' => 'data:' . $_FILES['resume_file']['type'] . ';base64,' . base64_encode($fileData)
+                    'type' => $_FILES['resume_file']['type'],
+                    'data' => base64_encode($fileData)
                 ];
             }
 
@@ -355,13 +355,7 @@ $jobs = ($jobResponse['code'] === 200 && is_array($jobResponse['data'])) ? $jobR
 
             <div class="form-group">
                 <label>Upload Resume * (PDF or Word)</label>
-                <input type="file" name="resume_file" id="resume_file" accept=".pdf,.doc,.docx" class="file-input">
-                <div style="font-size: 0.8rem; color: var(--text-light); margin-top: 5px;">Or provide a link below:</div>
-            </div>
-
-            <div class="form-group">
-                <label>Resume Link (Required if no file uploaded) *</label>
-                <input type="url" name="resume_url" id="resume_url" placeholder="https://drive.google.com/...">
+                <input type="file" name="resume_file" id="resume_file" accept=".pdf,.doc,.docx" class="file-input" required>
             </div>
 
             
@@ -399,10 +393,9 @@ $jobs = ($jobResponse['code'] === 200 && is_array($jobResponse['data'])) ? $jobR
     // Client-side validation for resume
     document.querySelector('form').onsubmit = function(e) {
         const file = document.getElementById('resume_file').value;
-        const url = document.getElementById('resume_url').value;
         
-        if (!file && !url) {
-            alert('Please either upload a resume file or provide a resume link.');
+        if (!file) {
+            alert('Please upload your resume file.');
             e.preventDefault();
             return false;
         }
