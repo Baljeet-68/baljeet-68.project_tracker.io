@@ -64,7 +64,7 @@ router.get('/jobs', authenticate, async (req, res) => {
 });
 
 // POST /api/jobs - admin/hr only
-router.post('/jobs', authenticate, requireRole(['admin', 'hr']), async (req, res) => {
+router.post('/jobs', authenticate, requireRole('admin', 'hr'), async (req, res) => {
   try {
     const job = {
       id: crypto.randomUUID(),
@@ -80,7 +80,7 @@ router.post('/jobs', authenticate, requireRole(['admin', 'hr']), async (req, res
 });
 
 // PATCH /api/jobs/:id - admin/hr only
-router.patch('/jobs/:id', authenticate, requireRole(['admin', 'hr']), async (req, res) => {
+router.patch('/jobs/:id', authenticate, requireRole('admin', 'hr'), async (req, res) => {
   try {
     await updateJobSource(req.params.id, req.body);
     res.json({ success: true });
@@ -90,7 +90,7 @@ router.patch('/jobs/:id', authenticate, requireRole(['admin', 'hr']), async (req
 });
 
 // DELETE /api/jobs/:id - admin/hr only
-router.delete('/jobs/:id', authenticate, requireRole(['admin', 'hr']), async (req, res) => {
+router.delete('/jobs/:id', authenticate, requireRole('admin', 'hr'), async (req, res) => {
   try {
     await deleteJobSource(req.params.id);
     res.json({ success: true });
@@ -102,7 +102,7 @@ router.delete('/jobs/:id', authenticate, requireRole(['admin', 'hr']), async (re
 // APPLICATION ROUTES
 
 // GET /api/applications - admin/hr only
-router.get('/applications', authenticate, requireRole(['admin', 'hr']), async (req, res) => {
+router.get('/applications', authenticate, requireRole('admin', 'hr'), async (req, res) => {
   try {
     const apps = await applicationsSource();
     res.json(apps);
@@ -128,7 +128,7 @@ router.post('/applications', authenticate, async (req, res) => {
 });
 
 // PATCH /api/applications/:id/status - admin/hr only
-router.patch('/applications/:id/status', authenticate, requireRole(['admin', 'hr']), async (req, res) => {
+router.patch('/applications/:id/status', authenticate, requireRole('admin', 'hr'), async (req, res) => {
   try {
     await updateApplicationSource(req.params.id, req.body.status);
     res.json({ success: true });

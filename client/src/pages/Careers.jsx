@@ -3,19 +3,21 @@ import { authFetch, getUser } from '../auth'
 import { API_BASE_URL } from '../apiConfig'
 import { Card, CardHeader, CardBody, Badge, Button } from '../components/TailAdminComponents'
 import { Modal, InputGroup, Select, Table, Alert } from '../components/FormComponents'
-import { Briefcase, Plus, Edit, Trash2, Users, FileText, MapPin, Clock, DollarSign, Calendar } from 'lucide-react'
+import { Briefcase, Plus, Edit, Trash2, Users, FileText, MapPin, Clock, DollarSign, Calendar, ArrowLeft } from 'lucide-react'
 import { toast } from 'react-toastify'
+import ReactQuill from 'react-quill'
+import 'react-quill/dist/quill.snow.css'
 
 export default function Careers() {
   const [jobs, setJobs] = useState([])
   const [applications, setApplications] = useState([])
   const [loading, setLoading] = useState(false)
   const [activeTab, setActiveTab] = useState('jobs') // 'jobs' or 'applications'
+  const [view, setView] = useState('list') // 'list' or 'form'
   const user = getUser()
   const isAdminOrHR = user?.role?.toLowerCase() === 'admin' || user?.role?.toLowerCase() === 'hr'
 
   // Job form state
-  const [jobDialog, setJobDialog] = useState(false)
   const [editingJob, setEditingJob] = useState(null)
   const [jobForm, setJobForm] = useState({
     title: '',
@@ -72,7 +74,7 @@ export default function Careers() {
 
       if (res.ok) {
         toast.success(editingJob ? 'Job updated' : 'Job posted')
-        setJobDialog(false)
+        setView('list')
         setEditingJob(null)
         setJobForm({ title: '', description: '', location: '', type: 'Full-time', salary: '', status: 'active' })
         loadJobs()
@@ -121,7 +123,16 @@ export default function Careers() {
       salary: job.salary || '',
       status: job.status || 'active'
     })
-    setJobDialog(true)
+    setView('form')
+  }
+
+  const quillModules = {
+    toolbar: [
+      [{ 'header': [1, 2, 3, false] }],
+      ['bold', 'italic', 'underline', 'strike'],
+      [{ 'list': 'ordered' }, { 'list': 'bullet' }],
+      ['link', 'clean']
+    ],
   }
 
   if (!isAdminOrHR) {
@@ -133,6 +144,124 @@ export default function Careers() {
     )
   }
 
+  if (view === 'form') {
+    return (
+      <div className="flex flex-col gap-6">
+        <div className="flex items-center gap-4">
+          <button 
+            onClick={() => { setView('list'); setEditingJob(null); }}
+            className="p-2 hover:bg-slate-100 rounded-full transition-colors"
+          >
+            <ArrowLeft size={20} className="text-slate-600" />
+          </button>
+          <div>
+            <h3 className="text-2xl font-bold text-slate-800">{editingJob ? 'Edit Job Post' : 'Post New Job'}</h3>
+            <p className="text-sm text-slate-500">Fill in the details for the job opening</p>
+          </div>
+        </div>
+
+        <Card className="w-full">
+          <CardBody className="p-6">
+            <div className="flex flex-col gap-6">
+              <InputGroup 
+                label="Job Title" 
+                value={jobForm.title} 
+                onChange={(e) => setJobForm({...jobForm, title: e.target.value})} 
+                placeholder="e.g. Senior React Developer" 
+              />
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <InputGroup 
+                  label="Location" 
+                  value={jobForm.location} 
+                  onChange={(e) => setJobForm({...jobForm, location: e.target.value})} 
+                  placeholder="e.g. Remote / Indore" 
+                />
+                <Select
+                  label="Job Type"
+                  options={[
+                    { value: 'Full-time', label: 'Full-time' },
+                    { value: 'Part-time', label: 'Part-time' },
+                    { value: 'Contract', label: 'Contract' },
+                    { value: 'Internship', label: 'Internship' }
+                  ]}
+                  value={jobForm.type}
+                  onChange={(e) => setJobForm({...jobForm, type: e.target.value})}
+                />
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <InputGroup 
+                  label="Salary Range" 
+                  value={jobForm.salary} 
+                  onChange={(e) => setJobForm({...jobForm, salary: e.target.value})} 
+                  placeholder="e.g. ₹5L - ₹8L" 
+                />
+                {editingJob && (
+                  <Select
+                    label="Status"
+                    options={[
+                      { value: 'active', label: 'Active' },
+                      { value: 'closed', label: 'Closed' }
+                    ]}
+                    value={jobForm.status}
+                    onChange={(e) => setJobForm({...jobForm, status: e.target.value})}
+                  />
+                )}
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 uppercase mb-2">Job Description</label>
+                <div className="quill-wrapper">
+                  <ReactQuill 
+                    theme="snow"
+                    value={jobForm.description}
+                    onChange={(content) => setJobForm({...jobForm, description: content})}
+                    modules={quillModules}
+                    className="bg-white"
+                    placeholder="Detail the responsibilities and requirements..."
+                  />
+                </div>
+                <style dangerouslySetInnerHTML={{ __html: `
+                  .quill-wrapper .ql-toolbar {
+                    border-top-left-radius: 0.75rem;
+                    border-top-right-radius: 0.75rem;
+                    border-color: #e2e8f0;
+                    background-color: #f8fafc;
+                  }
+                  .quill-wrapper .ql-container {
+                    border-bottom-left-radius: 0.75rem;
+                    border-bottom-right-radius: 0.75rem;
+                    border-color: #e2e8f0;
+                    min-height: 250px;
+                    font-size: 0.875rem;
+                    font-family: inherit;
+                  }
+                  .quill-wrapper .ql-editor {
+                    min-height: 250px;
+                  }
+                  .quill-wrapper .ql-editor.ql-blank::before {
+                    font-style: normal;
+                    color: #94a3b8;
+                  }
+                `}} />
+              </div>
+
+              <div className="flex justify-end gap-3 mt-4 pt-6 border-t border-slate-100">
+                <Button variant="secondary" onClick={() => { setView('list'); setEditingJob(null); }}>
+                  Cancel
+                </Button>
+                <Button onClick={handleSaveJob}>
+                  {editingJob ? 'Update Job Post' : 'Post Job Opening'}
+                </Button>
+              </div>
+            </div>
+          </CardBody>
+        </Card>
+      </div>
+    )
+  }
+
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
@@ -140,9 +269,11 @@ export default function Careers() {
           <h3 className="text-2xl font-bold text-slate-800 mb-1">Career Management</h3>
           <p className="text-sm text-slate-500">Post jobs and manage candidate applications</p>
         </div>
-        <Button onClick={() => { setEditingJob(null); setJobDialog(true); }}>
-          <Plus size={18} className="mr-2" /> Post New Job
-        </Button>
+        {activeTab === 'jobs' && (
+          <Button onClick={() => { setEditingJob(null); setJobForm({ title: '', description: '', location: '', type: 'Full-time', salary: '', status: 'active' }); setView('form'); }}>
+            <Plus size={18} className="mr-2" /> Post New Job
+          </Button>
+        )}
       </div>
 
       <div className="flex border-b border-gray-200">
@@ -235,58 +366,6 @@ export default function Careers() {
           </CardBody>
         </Card>
       )}
-
-      {/* Job Modal */}
-      <Modal
-        isOpen={jobDialog}
-        title={editingJob ? 'Edit Job Post' : 'Post New Job'}
-        onClose={() => setJobDialog(false)}
-        footer={
-          <div className="flex gap-2">
-            <Button variant="secondary" size="sm" onClick={() => setJobDialog(false)}>Cancel</Button>
-            <Button size="sm" onClick={handleSaveJob}>{editingJob ? 'Update Job' : 'Post Job'}</Button>
-          </div>
-        }
-      >
-        <div className="flex flex-col gap-4">
-          <InputGroup label="Job Title" value={jobForm.title} onChange={(e) => setJobForm({...jobForm, title: e.target.value})} placeholder="e.g. Senior React Developer" />
-          <div className="grid grid-cols-2 gap-4">
-            <InputGroup label="Location" value={jobForm.location} onChange={(e) => setJobForm({...jobForm, location: e.target.value})} placeholder="e.g. Remote / Indore" />
-            <Select
-              label="Job Type"
-              options={[
-                { value: 'Full-time', label: 'Full-time' },
-                { value: 'Part-time', label: 'Part-time' },
-                { value: 'Contract', label: 'Contract' },
-                { value: 'Internship', label: 'Internship' }
-              ]}
-              value={jobForm.type}
-              onChange={(e) => setJobForm({...jobForm, type: e.target.value})}
-            />
-          </div>
-          <InputGroup label="Salary Range" value={jobForm.salary} onChange={(e) => setJobForm({...jobForm, salary: e.target.value})} placeholder="e.g. ₹5L - ₹8L" />
-          <div>
-            <label className="block text-xs font-bold text-slate-700 uppercase mb-2">Job Description</label>
-            <textarea
-              className="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-fuchsia-500 focus:border-transparent min-h-[150px] text-sm"
-              value={jobForm.description}
-              onChange={(e) => setJobForm({...jobForm, description: e.target.value})}
-              placeholder="Detail the responsibilities and requirements..."
-            />
-          </div>
-          {editingJob && (
-            <Select
-              label="Status"
-              options={[
-                { value: 'active', label: 'Active' },
-                { value: 'closed', label: 'Closed' }
-              ]}
-              value={jobForm.status}
-              onChange={(e) => setJobForm({...jobForm, status: e.target.value})}
-            />
-          )}
-        </div>
-      </Modal>
     </div>
   )
 }

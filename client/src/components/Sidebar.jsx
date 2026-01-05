@@ -52,16 +52,16 @@ export default function Sidebar({ open, onClose, collapsed, setCollapsed }) {
     { label: 'User Management', icon: Users, path: '/users', roles: ['admin'] },
   ]
 
-  const sharedItems = [
-    { label: 'Boosts', icon: Zap, path: '/boosts' },
-    { label: 'Documents', icon: Files, path: '/documents' },
-  ]
+  // const sharedItems = [
+  //   { label: 'Boosts', icon: Zap, path: '/boosts' },
+  //   { label: 'Documents', icon: Files, path: '/documents' },
+  // ]
 
-  const projectItems = [
-    { label: 'Personal', color: 'bg-emerald-400', path: '/projects/personal' },
-    { label: 'Business', color: 'bg-indigo-400', path: '/projects/business' },
-    { label: 'Travel', color: 'bg-purple-400', path: '/projects/travel' },
-  ]
+  // const projectItems = [
+  //   { label: 'Personal', color: 'bg-emerald-400', path: '/projects/personal' },
+  //   { label: 'Business', color: 'bg-indigo-400', path: '/projects/business' },
+  //   { label: 'Travel', color: 'bg-purple-400', path: '/projects/travel' },
+  // ]
 
   const filteredMenuItems = mainMenuItems.filter(item => {
     if (!user?.role) return false

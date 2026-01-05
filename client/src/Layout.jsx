@@ -73,7 +73,7 @@ export default function Layout() {
         sidebarCollapsed ? 'lg:ml-20' : 'lg:ml-72'
       } rounded-xl`}>
         {/* Page Content */}
-        <div className="w-full px-4 sm:px-6 lg:px-8 py-6 mx-auto">
+        <div className="w-full px-0 sm:px-2 lg:px-4 py-6">
           <Outlet />
         </div>
       </main>
