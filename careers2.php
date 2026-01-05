@@ -1,4 +1,5 @@
 <?php
+
 /**
  * MODERN CAREERS PAGE - FULL FEATURED
  */
@@ -7,9 +8,10 @@
 $BASE_API_URL = "https://mmfinfotech.website/Project_Tracker_Tool/server/api";
 $INTERNAL_API_URL = "http://127.0.0.1:4000/Project_Tracker_Tool/server/api";
 
-function apiRequest($endpoint, $method = 'GET', $data = null) {
+function apiRequest($endpoint, $method = 'GET', $data = null)
+{
     global $BASE_API_URL, $INTERNAL_API_URL;
-    
+
     $urls = [$BASE_API_URL . $endpoint, $INTERNAL_API_URL . $endpoint];
     $lastResult = null;
 
@@ -29,12 +31,12 @@ function apiRequest($endpoint, $method = 'GET', $data = null) {
 
         $context = stream_context_create($options);
         $response = @file_get_contents($url, false, $context);
-        
+
         if ($response !== false) {
             $status_line = $http_response_header[0];
             preg_match('{HTTP\/\S*\s(\d{3})}', $status_line, $match);
             $status = $match[1];
-            
+
             return [
                 'data' => json_decode($response, true),
                 'code' => (int)$status,
@@ -46,45 +48,49 @@ function apiRequest($endpoint, $method = 'GET', $data = null) {
     return ['data' => null, 'code' => 0, 'error' => 'Connection failed'];
 }
 
-    // Handle Application Submission
-    $message = '';
-    if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['apply_job'])) {
-        $fullName = trim($_POST['full_name']);
-        $email = trim($_POST['email']);
-        $phone = trim($_POST['phone']);
-        $hasFile = isset($_FILES['resume_file']) && $_FILES['resume_file']['error'] === UPLOAD_ERR_OK;
+// Handle Application Submission
+$message = '';
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['apply_job'])) {
+    $fullName = trim($_POST['full_name']);
+    $email = trim($_POST['email']);
+    $phone = trim($_POST['phone']);
+    $hasFile = isset($_FILES['resume_file']) && $_FILES['resume_file']['error'] === UPLOAD_ERR_OK;
 
-        // PHP Validation
-        if (empty($fullName) || empty($email) || empty($phone) || !$hasFile) {
-            $message = '<div class="alert error">All fields marked with * are mandatory, including your resume file.</div>';
-        } else {
-            $payload = [
-                'jobId'       => $_POST['job_id'],
-                'fullName'    => $fullName,
-                'email'       => $email,
-                'phone'       => $phone,
-                'coverLetter' => $_POST['cover_letter']
+    // PHP Validation
+    if (empty($fullName) || empty($email) || empty($phone) || !$hasFile) {
+        $message = '<div class="alert error">All fields marked with * are mandatory, including your resume file.</div>';
+    } else {
+        $payload = [
+            'jobId'       => $_POST['job_id'],
+            'fullName'    => $fullName,
+            'email'       => $email,
+            'phone'       => $phone,
+            'coverLetter' => $_POST['cover_letter']
+        ];
+
+        // Handle File Upload (Convert to Base64/Binary representation for the API)
+        if ($hasFile) {
+            $fileData = file_get_contents($_FILES['resume_file']['tmp_name']);
+            $payload['resumeFile'] = [
+                'name' => $_FILES['resume_file']['name'],
+                'type' => $_FILES['resume_file']['type'],
+                'data' => base64_encode($fileData)
             ];
+        }
 
-            // Handle File Upload (Convert to Base64/Binary representation for the API)
-            if ($hasFile) {
-                $fileData = file_get_contents($_FILES['resume_file']['tmp_name']);
-                $payload['resumeFile'] = [
-                    'name' => $_FILES['resume_file']['name'],
-                    'type' => $_FILES['resume_file']['type'],
-                    'data' => base64_encode($fileData)
-                ];
-            }
+        $response = apiRequest('/public-apply', 'POST', $payload);
 
-            $response = apiRequest('/public-apply', 'POST', $payload);
-            
-            if ($response['code'] === 201) {
-                $message = '<div class="alert success">Application submitted successfully! Our HR team will contact you.</div>';
-            } else {
-                $message = '<div class="alert error">Failed to submit application: ' . ($response['data']['error'] ?? 'Unknown error') . '</div>';
-            }
+        if ($response['code'] === 201) {
+            $message = '
+            <div class="alert success">
+                <strong>Application submitted successfully!</strong><br>
+                Our HR team will review your profile and contact you if it meets our requirements.
+            </div>';
+        } else {
+            $message = '<div class="alert error">Failed to submit application: ' . ($response['data']['error'] ?? 'Unknown error') . '</div>';
         }
     }
+}
 
 // Fetch Jobs
 $jobResponse = apiRequest('/public-jobs');
@@ -104,6 +110,7 @@ if (!empty($selectedJobId)) {
 
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -123,24 +130,75 @@ if (!empty($selectedJobId)) {
             --dark-bg: #2d3139;
         }
 
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-        body { font-family: inherit; background-color: var(--bg); color: var(--text); line-height: 1.6; }
-        
-        .container { max-width: 1200px; margin: 0 auto; padding: 60px 20px; }
-        
-        header { text-align: center; margin-bottom: 60px; }
-        header h1 { font-size: 2.2rem; color: var(--text); margin-bottom: 15px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; }
-        header .underline { width: 60px; height: 3px; background: var(--primary); margin: 0 auto 20px; }
-        header p { color: var(--text-light); font-size: 1.1rem; }
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
 
-        .alert { padding: 15px; border-radius: 4px; margin-bottom: 25px; text-align: center; font-weight: 500; }
-        .alert.success { background: #e9f7e6; color: #2e7d32; border: 1px solid #c8e6c9; }
-        .alert.error { background: #fee2e2; color: #991b1b; border: 1px solid #fecaca; }
+        body {
+            font-family: inherit;
+            background-color: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+        }
 
-        .job-grid { 
-            display: flex; 
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 60px 20px;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 60px;
+        }
+
+        header h1 {
+            font-size: 2.2rem;
+            color: var(--text);
+            margin-bottom: 15px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        header .underline {
+            width: 60px;
+            height: 3px;
+            background: var(--primary);
+            margin: 0 auto 20px;
+        }
+
+        header p {
+            color: var(--text-light);
+            font-size: 1.1rem;
+        }
+
+        .alert {
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 25px;
+            text-align: center;
+            font-weight: 500;
+        }
+
+        .alert.success {
+            background: #e9f7e6;
+            color: #2e7d32;
+            border: 1px solid #c8e6c9;
+        }
+
+        .alert.error {
+            background: #fee2e2;
+            color: #991b1b;
+            border: 1px solid #fecaca;
+        }
+
+        .job-grid {
+            display: flex;
             flex-direction: column;
-            gap: 12px; 
+            gap: 12px;
             padding: 20px 0;
         }
 
@@ -159,11 +217,11 @@ if (!empty($selectedJobId)) {
             letter-spacing: 0.06em;
         }
 
-        .job-row { 
-            background: var(--card-bg); 
-            border: 1px solid var(--border); 
-            border-radius: 8px; 
-            padding: 16px 18px; 
+        .job-row {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 16px 18px;
             display: grid;
             grid-template-columns: 2fr 1.1fr 1fr 0.7fr;
             gap: 16px;
@@ -210,9 +268,9 @@ if (!empty($selectedJobId)) {
             fill: #ffffff;
         }
 
-        .job-title { 
-            font-size: 1.1rem; 
-            font-weight: 600; 
+        .job-title {
+            font-size: 1.1rem;
+            font-weight: 600;
             color: var(--text);
             margin: 0;
             min-width: 0;
@@ -220,16 +278,16 @@ if (!empty($selectedJobId)) {
             text-overflow: ellipsis;
             white-space: nowrap;
         }
-        
-        .apply-btn { 
-            background: var(--primary); 
-            color: white; 
-            border: none; 
-            padding: 10px 25px; 
-            border-radius: 4px; 
-            font-weight: 600; 
+
+        .apply-btn {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 10px 25px;
+            border-radius: 4px;
+            font-weight: 600;
             font-size: 0.9rem;
-            cursor: pointer; 
+            cursor: pointer;
             transition: all 0.3s ease;
             margin-left: 20px;
             text-decoration: none;
@@ -297,7 +355,7 @@ if (!empty($selectedJobId)) {
             border: 1px solid var(--border);
             border-radius: 10px;
             padding: 26px;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.04);
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.04);
         }
 
         .job-meta-grid {
@@ -357,100 +415,151 @@ if (!empty($selectedJobId)) {
         }
 
         /* Modal / Form Styles */
-        .modal { 
-            display: none; 
-            position: fixed; 
-            top: 0; left: 0; width: 100%; height: 100%; 
-            background: rgba(0,0,0,0.7); 
-            z-index: 1000; 
-            align-items: center; 
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            z-index: 1000;
+            align-items: center;
             justify-content: center;
             padding: 20px;
             backdrop-filter: blur(5px);
         }
-        .modal.active { display: flex; }
-        
-        .modal-content { 
-            background: white; 
-            padding: 40px; 
-            border-radius: 8px; 
-            width: 100%; 
-            max-width: 550px; 
-            position: relative; 
-            max-height: 90vh; 
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: white;
+            padding: 40px;
+            border-radius: 8px;
+            width: 100%;
+            max-width: 550px;
+            position: relative;
+            max-height: 90vh;
             overflow-y: auto;
             box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
         }
-        
-        .close-modal { 
-            position: absolute; 
-            top: 15px; right: 20px; 
-            font-size: 28px; 
-            cursor: pointer; 
+
+        .close-modal {
+            position: absolute;
+            top: 15px;
+            right: 20px;
+            font-size: 28px;
+            cursor: pointer;
             color: #999;
             transition: color 0.2s;
         }
-        .close-modal:hover { color: var(--text); }
 
-        .form-group { margin-bottom: 20px; }
-        .form-group label { display: block; font-weight: 700; margin-bottom: 8px; font-size: 0.85rem; text-transform: uppercase; color: #555; }
-        .form-group input, .form-group textarea { 
-            width: 100%; 
-            padding: 12px 15px; 
-            border: 1px solid #ddd; 
-            border-radius: 4px; 
+        .close-modal:hover {
+            color: var(--text);
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            font-weight: 700;
+            margin-bottom: 8px;
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            color: #555;
+        }
+
+        .form-group input,
+        .form-group textarea {
+            width: 100%;
+            padding: 12px 15px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
             font-family: inherit;
             font-size: 0.95rem;
             transition: border-color 0.2s;
         }
-        .form-group input:focus, .form-group textarea:focus { outline: none; border-color: var(--primary); }
-        
-        .submit-btn { 
-            width: 100%; 
-            background: var(--primary); 
-            color: white; 
-            border: none; 
-            padding: 15px; 
-            border-radius: 4px; 
-            font-weight: 700; 
+
+        .form-group input:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+
+        .submit-btn {
+            width: 100%;
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 15px;
+            border-radius: 4px;
+            font-weight: 700;
             font-size: 1rem;
             text-transform: uppercase;
             cursor: pointer;
             transition: background 0.3s;
         }
-        .submit-btn:hover { background: var(--primary-hover); }
-        
-        .empty-state { text-align: center; padding: 60px; color: var(--text-light); grid-column: 1 / -1; }
+
+        .submit-btn:hover {
+            background: var(--primary-hover);
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px;
+            color: var(--text-light);
+            grid-column: 1 / -1;
+        }
 
         @media (max-width: 768px) {
-            header h1 { font-size: 1.8rem; }
-            .job-head { display: none; }
+            header h1 {
+                font-size: 1.8rem;
+            }
+
+            .job-head {
+                display: none;
+            }
+
             .job-row {
                 grid-template-columns: 1fr;
                 gap: 10px;
                 padding: 16px 16px;
                 transform: none;
             }
-            .job-row:hover { transform: none; }
-            .view-btn { justify-self: start; }
-            .job-meta-grid { grid-template-columns: 1fr; }
+
+            .job-row:hover {
+                transform: none;
+            }
+
+            .view-btn {
+                justify-self: start;
+            }
+
+            .job-meta-grid {
+                grid-template-columns: 1fr;
+            }
         }
     </style>
 </head>
+
 <body>
 
-<div class="container">
-    <header>
-        <h1>Current Openings</h1>
-        <div class="underline"></div>
-        <p>Join the MMF Infotech family and build your future with us</p>
-    </header>
+    <div class="container">
+        <header>
+            <h1>Current Openings</h1>
+            <div class="underline"></div>
+            <p>Join the MMF Infotech family and build your future with us</p>
+        </header>
 
-    <?php echo $message; ?>
+        <?php echo $message; ?>
 
-    <?php if ($selectedJob): ?>
-        <a class="back-link" href="careers2.php">← Back to Jobs</a>
-        <?php
+        <?php if ($selectedJob): ?>
+            <a class="back-link" href="careers2.php">← Back to Jobs</a>
+            <?php
             $selectedLocation = $selectedJob['location'] ?? '';
             $selectedSalary = $selectedJob['salary'] ?? '';
             $selectedCreatedAtRaw = $selectedJob['createdAt'] ?? ($selectedJob['created_at'] ?? '');
@@ -463,86 +572,86 @@ if (!empty($selectedJobId)) {
             if (!empty($selectedDescription)) {
                 $selectedDescription = preg_replace('#<script\b[^>]*>.*?</script>#is', '', $selectedDescription);
             }
-        ?>
+            ?>
 
-        <div class="panel">
-            <div class="job-details-header">
-                <h2 style="color: var(--text); margin: 0;"><?php echo htmlspecialchars($selectedJob['title'] ?? 'Job'); ?></h2>
-                <button type="button" class="apply-btn" onclick="openApplyModal()">Apply Now</button>
+            <div class="panel">
+                <div class="job-details-header">
+                    <h2 style="color: var(--text); margin: 0;"><?php echo htmlspecialchars($selectedJob['title'] ?? 'Job'); ?></h2>
+                    <button type="button" class="apply-btn" onclick="openApplyModal()">Apply Now</button>
+                </div>
+
+                <div class="job-meta-grid">
+                    <div class="job-meta-item">
+                        <div class="job-meta-label">Location</div>
+                        <div class="job-meta-value"><?php echo htmlspecialchars($selectedLocation ?: '—'); ?></div>
+                    </div>
+                    <div class="job-meta-item">
+                        <div class="job-meta-label">Posted Date</div>
+                        <div class="job-meta-value"><?php echo htmlspecialchars($selectedCreatedAt ?: '—'); ?></div>
+                    </div>
+                    <div class="job-meta-item">
+                        <div class="job-meta-label">Salary Range</div>
+                        <div class="job-meta-value"><?php echo htmlspecialchars($selectedSalary ?: '—'); ?></div>
+                    </div>
+                </div>
+
+                <div class="job-meta-label" style="margin-bottom: 8px;">Job Description</div>
+                <div class="job-description"><?php echo $selectedDescription ?: '<span style="color: var(--text-light);">—</span>'; ?></div>
             </div>
 
-            <div class="job-meta-grid">
-                <div class="job-meta-item">
-                    <div class="job-meta-label">Location</div>
-                    <div class="job-meta-value"><?php echo htmlspecialchars($selectedLocation ?: '—'); ?></div>
-                </div>
-                <div class="job-meta-item">
-                    <div class="job-meta-label">Posted Date</div>
-                    <div class="job-meta-value"><?php echo htmlspecialchars($selectedCreatedAt ?: '—'); ?></div>
-                </div>
-                <div class="job-meta-item">
-                    <div class="job-meta-label">Salary Range</div>
-                    <div class="job-meta-value"><?php echo htmlspecialchars($selectedSalary ?: '—'); ?></div>
+            <div id="applyModal" class="modal" role="dialog" aria-modal="true" aria-hidden="true">
+                <div class="modal-content">
+                    <span class="close-modal" onclick="closeApplyModal()">&times;</span>
+                    <h2 style="margin: 0 0 18px; color: var(--primary);">Apply for Job</h2>
+
+                    <form id="applyForm" method="POST" action="<?php echo htmlspecialchars($_SERVER['REQUEST_URI']); ?>" enctype="multipart/form-data">
+                        <input type="hidden" name="job_id" value="<?php echo htmlspecialchars($selectedJob['id']); ?>">
+                        <input type="hidden" name="apply_job" value="1">
+
+                        <div class="form-group">
+                            <label>Full Name *</label>
+                            <input type="text" name="full_name" required placeholder="John Doe">
+                        </div>
+
+                        <div class="form-group">
+                            <label>Email Address *</label>
+                            <input type="email" name="email" required placeholder="john@example.com">
+                        </div>
+
+                        <div class="form-group">
+                            <label>Phone Number *</label>
+                            <input type="text" name="phone" required placeholder="+91 98765 43210">
+                        </div>
+
+                        <div class="form-group">
+                            <label>Upload Resume * (PDF or Word)</label>
+                            <input type="file" name="resume_file" id="resume_file" accept=".pdf,.doc,.docx" class="file-input" required>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Cover Letter / Why should we hire you?</label>
+                            <textarea name="cover_letter" rows="4" placeholder="Tell us about your experience..."></textarea>
+                        </div>
+
+                        <button type="submit" class="submit-btn">Submit Application</button>
+                    </form>
                 </div>
             </div>
-
-            <div class="job-meta-label" style="margin-bottom: 8px;">Job Description</div>
-            <div class="job-description"><?php echo $selectedDescription ?: '<span style="color: var(--text-light);">—</span>'; ?></div>
-        </div>
-
-        <div id="applyModal" class="modal" role="dialog" aria-modal="true" aria-hidden="true">
-            <div class="modal-content">
-                <span class="close-modal" onclick="closeApplyModal()">&times;</span>
-                <h2 style="margin: 0 0 18px; color: var(--primary);">Apply for Job</h2>
-
-                <form id="applyForm" method="POST" action="<?php echo htmlspecialchars($_SERVER['REQUEST_URI']); ?>" enctype="multipart/form-data">
-                    <input type="hidden" name="job_id" value="<?php echo htmlspecialchars($selectedJob['id']); ?>">
-                    <input type="hidden" name="apply_job" value="1">
-                    
-                    <div class="form-group">
-                        <label>Full Name *</label>
-                        <input type="text" name="full_name" required placeholder="John Doe">
+        <?php else: ?>
+            <div class="job-grid">
+                <?php if (empty($jobs)): ?>
+                    <div class="empty-state">
+                        <p>No active job openings at the moment. Please check back later.</p>
                     </div>
-                    
-                    <div class="form-group">
-                        <label>Email Address *</label>
-                        <input type="email" name="email" required placeholder="john@example.com">
+                <?php else: ?>
+                    <div class="job-head">
+                        <div>Job Title</div>
+                        <div>Location</div>
+                        <div>Posted Date</div>
+                        <div style="text-align:right;">View Post</div>
                     </div>
-                    
-                    <div class="form-group">
-                        <label>Phone Number *</label>
-                        <input type="text" name="phone" required placeholder="+91 98765 43210">
-                    </div>
-
-                    <div class="form-group">
-                        <label>Upload Resume * (PDF or Word)</label>
-                        <input type="file" name="resume_file" id="resume_file" accept=".pdf,.doc,.docx" class="file-input" required>
-                    </div>
-
-                    <div class="form-group">
-                        <label>Cover Letter / Why should we hire you?</label>
-                        <textarea name="cover_letter" rows="4" placeholder="Tell us about your experience..."></textarea>
-                    </div>
-                    
-                    <button type="submit" class="submit-btn">Submit Application</button>
-                </form>
-            </div>
-        </div>
-    <?php else: ?>
-        <div class="job-grid">
-            <?php if (empty($jobs)): ?>
-                <div class="empty-state">
-                    <p>No active job openings at the moment. Please check back later.</p>
-                </div>
-            <?php else: ?>
-                <div class="job-head">
-                    <div>Job Title</div>
-                    <div>Location</div>
-                    <div>Posted Date</div>
-                    <div style="text-align:right;">View Post</div>
-                </div>
-                <?php foreach ($jobs as $job): ?>
-                    <?php 
+                    <?php foreach ($jobs as $job): ?>
+                        <?php
                         $title_lower = strtolower($job['title']);
                         $icon_svg = '<path d="M12,2C6.47,2,2,6.47,2,12s4.47,10,10,10s10-4.47,10-10S17.53,2,12,2z M12,20c-4.41,0-8-3.59-8-8s3.59-8,8-8s8,3.59,8,8 S16.41,20,12,20z M15.59,11.59L12,15.17l-3.59-3.58L7,13l5,5l5-5L15.59,11.59z"/>'; // Default
 
@@ -570,64 +679,65 @@ if (!empty($selectedJobId)) {
                             $ts = strtotime($createdAtRaw);
                             if ($ts !== false) $createdAt = date('d M Y', $ts);
                         }
-                    ?>
-                    <div class="job-row">
-                        <div class="job-title-cell">
-                            <div class="job-icon">
-                                <svg viewBox="0 0 24 24"><?php echo $icon_svg; ?></svg>
+                        ?>
+                        <div class="job-row">
+                            <div class="job-title-cell">
+                                <div class="job-icon">
+                                    <svg viewBox="0 0 24 24"><?php echo $icon_svg; ?></svg>
+                                </div>
+                                <h2 class="job-title"><?php echo htmlspecialchars($job['title']); ?></h2>
                             </div>
-                            <h2 class="job-title"><?php echo htmlspecialchars($job['title']); ?></h2>
+                            <div class="job-cell"><?php echo htmlspecialchars($location ?: '—'); ?></div>
+                            <div class="job-cell"><?php echo htmlspecialchars($createdAt ?: '—'); ?></div>
+                            <a class="view-btn" href="careers2.php?job=<?php echo urlencode($job['id']); ?>">View Post</a>
                         </div>
-                        <div class="job-cell"><?php echo htmlspecialchars($location ?: '—'); ?></div>
-                        <div class="job-cell"><?php echo htmlspecialchars($createdAt ?: '—'); ?></div>
-                        <a class="view-btn" href="careers2.php?job=<?php echo urlencode($job['id']); ?>">View Post</a>
-                    </div>
-                <?php endforeach; ?>
-            <?php endif; ?>
-        </div>
-    <?php endif; ?>
-</div>
+                    <?php endforeach; ?>
+                <?php endif; ?>
+            </div>
+        <?php endif; ?>
+    </div>
 
-<script>
-    function openApplyModal() {
-        const modal = document.getElementById('applyModal');
-        if (!modal) return;
-        modal.classList.add('active');
-        modal.setAttribute('aria-hidden', 'false');
-        document.body.style.overflow = 'hidden';
-    }
+    <script>
+        function openApplyModal() {
+            const modal = document.getElementById('applyModal');
+            if (!modal) return;
+            modal.classList.add('active');
+            modal.setAttribute('aria-hidden', 'false');
+            document.body.style.overflow = 'hidden';
+        }
 
-    function closeApplyModal() {
-        const modal = document.getElementById('applyModal');
-        if (!modal) return;
-        modal.classList.remove('active');
-        modal.setAttribute('aria-hidden', 'true');
-        document.body.style.overflow = '';
-    }
+        function closeApplyModal() {
+            const modal = document.getElementById('applyModal');
+            if (!modal) return;
+            modal.classList.remove('active');
+            modal.setAttribute('aria-hidden', 'true');
+            document.body.style.overflow = '';
+        }
 
-    const applyModal = document.getElementById('applyModal');
-    if (applyModal) {
-        applyModal.addEventListener('click', function(e) {
-            if (e.target === applyModal) closeApplyModal();
-        });
-        document.addEventListener('keydown', function(e) {
-            if (e.key === 'Escape') closeApplyModal();
-        });
-    }
+        const applyModal = document.getElementById('applyModal');
+        if (applyModal) {
+            applyModal.addEventListener('click', function(e) {
+                if (e.target === applyModal) closeApplyModal();
+            });
+            document.addEventListener('keydown', function(e) {
+                if (e.key === 'Escape') closeApplyModal();
+            });
+        }
 
-    const applyForm = document.getElementById('applyForm');
-    if (applyForm) {
-        applyForm.onsubmit = function(e) {
-            const file = document.getElementById('resume_file')?.value || '';
-            if (!file) {
-                alert('Please upload your resume file.');
-                e.preventDefault();
-                return false;
-            }
-            return true;
-        };
-    }
-</script>
+        const applyForm = document.getElementById('applyForm');
+        if (applyForm) {
+            applyForm.onsubmit = function(e) {
+                const file = document.getElementById('resume_file')?.value || '';
+                if (!file) {
+                    alert('Please upload your resume file.');
+                    e.preventDefault();
+                    return false;
+                }
+                return true;
+            };
+        }
+    </script>
 
 </body>
+
 </html>
