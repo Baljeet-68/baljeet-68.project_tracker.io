@@ -490,5 +490,94 @@ module.exports = {
   getMilestonesFromMySQL,
   createMilestoneInDb,
   updateMilestoneInDb,
-  deleteMilestoneFromDb
+  deleteMilestoneFromDb,
+  // Career Job Functions
+  getJobsFromMySQL,
+  createJobInDb,
+  updateJobInDb,
+  deleteJobFromDb,
+  // Career Application Functions
+  getApplicationsFromMySQL,
+  createApplicationInDb,
+  updateApplicationInDb
 };
+
+async function getJobsFromMySQL() {
+  try {
+    const [rows] = await pool.query('SELECT * FROM jobs ORDER BY createdAt DESC');
+    return rows;
+  } catch (error) {
+    console.error('Database query failed in getJobsFromMySQL:', error);
+    throw error;
+  }
+}
+
+async function createJobInDb(job) {
+  try {
+    const sql = 'INSERT INTO jobs (id, title, description, location, type, salary, status, createdBy, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)';
+    const params = [job.id, job.title, job.description, job.location, job.type, job.salary, job.status || 'active', job.createdBy, job.createdAt || new Date().toISOString()];
+    await pool.execute(sql, params);
+  } catch (error) {
+    console.error('Database insert failed in createJobInDb:', error);
+    throw error;
+  }
+}
+
+async function updateJobInDb(id, changes) {
+  try {
+    const fields = [];
+    const values = [];
+    Object.keys(changes).forEach(key => {
+      if (changes[key] !== undefined) {
+        fields.push(`${key} = ?`);
+        values.push(changes[key]);
+      }
+    });
+    if (fields.length === 0) return;
+    values.push(id);
+    const sql = `UPDATE jobs SET ${fields.join(', ')} WHERE id = ?`;
+    await pool.execute(sql, values);
+  } catch (error) {
+    console.error('Database update failed in updateJobInDb:', error);
+    throw error;
+  }
+}
+
+async function deleteJobFromDb(id) {
+  try {
+    await pool.execute('DELETE FROM jobs WHERE id = ?', [id]);
+  } catch (error) {
+    console.error('Database delete failed in deleteJobFromDb:', error);
+    throw error;
+  }
+}
+
+async function getApplicationsFromMySQL() {
+  try {
+    const [rows] = await pool.query('SELECT * FROM applications ORDER BY appliedAt DESC');
+    return rows;
+  } catch (error) {
+    console.error('Database query failed in getApplicationsFromMySQL:', error);
+    throw error;
+  }
+}
+
+async function createApplicationInDb(app) {
+  try {
+    const sql = 'INSERT INTO applications (id, jobId, userId, fullName, email, phone, resumeUrl, coverLetter, status, appliedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)';
+    const params = [app.id, app.jobId, app.userId, app.fullName, app.email, app.phone, app.resumeUrl, app.coverLetter, app.status || 'applied', app.appliedAt || new Date().toISOString()];
+    await pool.execute(sql, params);
+  } catch (error) {
+    console.error('Database insert failed in createApplicationInDb:', error);
+    throw error;
+  }
+}
+
+async function updateApplicationInDb(id, status) {
+  try {
+    await pool.execute('UPDATE applications SET status = ? WHERE id = ?', [status, id]);
+  } catch (error) {
+    console.error('Database update failed in updateApplicationInDb:', error);
+    throw error;
+  }
+}

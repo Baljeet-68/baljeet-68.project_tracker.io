@@ -87,6 +87,7 @@ const leaveRoutes = require("./routes/leaves");
 const notificationRoutes = require("./routes/notifications");
 const announcementRoutes = require("./routes/announcements");
 const milestoneRoutes = require("./routes/milestones");
+const careerRoutes = require("./routes/careers");
 
 /* ===============================
    Mount Routes (NO double prefix)
@@ -100,6 +101,7 @@ app.use(BASE_URL, leaveRoutes);
 app.use(BASE_URL, notificationRoutes);
 app.use(BASE_URL, announcementRoutes);
 app.use(BASE_URL, milestoneRoutes);
+app.use(BASE_URL, careerRoutes);
 
 /* ===============================
    404 Handler

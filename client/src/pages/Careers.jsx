@@ -1,0 +1,292 @@
+import React, { useEffect, useState } from 'react'
+import { authFetch, getUser } from '../auth'
+import { API_BASE_URL } from '../apiConfig'
+import { Card, CardHeader, CardBody, Badge, Button } from '../components/TailAdminComponents'
+import { Modal, InputGroup, Select, Table, Alert } from '../components/FormComponents'
+import { Briefcase, Plus, Edit, Trash2, Users, FileText, MapPin, Clock, DollarSign, Calendar } from 'lucide-react'
+import { toast } from 'react-toastify'
+
+export default function Careers() {
+  const [jobs, setJobs] = useState([])
+  const [applications, setApplications] = useState([])
+  const [loading, setLoading] = useState(false)
+  const [activeTab, setActiveTab] = useState('jobs') // 'jobs' or 'applications'
+  const user = getUser()
+  const isAdminOrHR = user?.role?.toLowerCase() === 'admin' || user?.role?.toLowerCase() === 'hr'
+
+  // Job form state
+  const [jobDialog, setJobDialog] = useState(false)
+  const [editingJob, setEditingJob] = useState(null)
+  const [jobForm, setJobForm] = useState({
+    title: '',
+    description: '',
+    location: '',
+    type: 'Full-time',
+    salary: '',
+    status: 'active'
+  })
+
+  useEffect(() => {
+    loadJobs()
+    if (isAdminOrHR) {
+      loadApplications()
+    }
+  }, [])
+
+  const loadJobs = async () => {
+    setLoading(true)
+    try {
+      const res = await authFetch(`${API_BASE_URL}/jobs`)
+      if (res.ok) setJobs(await res.json())
+    } catch (e) {
+      toast.error('Failed to load jobs')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const loadApplications = async () => {
+    try {
+      const res = await authFetch(`${API_BASE_URL}/applications`)
+      if (res.ok) setApplications(await res.json())
+    } catch (e) {
+      toast.error('Failed to load applications')
+    }
+  }
+
+  const handleSaveJob = async () => {
+    if (!jobForm.title || !jobForm.description) {
+      toast.warn('Title and Description are required')
+      return
+    }
+
+    try {
+      const method = editingJob ? 'PATCH' : 'POST'
+      const url = editingJob ? `${API_BASE_URL}/jobs/${editingJob.id}` : `${API_BASE_URL}/jobs`
+      
+      const res = await authFetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(jobForm)
+      })
+
+      if (res.ok) {
+        toast.success(editingJob ? 'Job updated' : 'Job posted')
+        setJobDialog(false)
+        setEditingJob(null)
+        setJobForm({ title: '', description: '', location: '', type: 'Full-time', salary: '', status: 'active' })
+        loadJobs()
+      }
+    } catch (e) {
+      toast.error('Operation failed')
+    }
+  }
+
+  const handleDeleteJob = async (id) => {
+    if (!window.confirm('Delete this job post?')) return
+    try {
+      const res = await authFetch(`${API_BASE_URL}/jobs/${id}`, { method: 'DELETE' })
+      if (res.ok) {
+        toast.success('Job deleted')
+        loadJobs()
+      }
+    } catch (e) {
+      toast.error('Delete failed')
+    }
+  }
+
+  const handleUpdateAppStatus = async (id, status) => {
+    try {
+      const res = await authFetch(`${API_BASE_URL}/applications/${id}/status`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status })
+      })
+      if (res.ok) {
+        toast.success('Status updated')
+        loadApplications()
+      }
+    } catch (e) {
+      toast.error('Update failed')
+    }
+  }
+
+  const openEditJob = (job) => {
+    setEditingJob(job)
+    setJobForm({
+      title: job.title,
+      description: job.description,
+      location: job.location || '',
+      type: job.type || 'Full-time',
+      salary: job.salary || '',
+      status: job.status || 'active'
+    })
+    setJobDialog(true)
+  }
+
+  if (!isAdminOrHR) {
+    return (
+      <div className="p-8 text-center">
+        <h2 className="text-2xl font-bold text-slate-800">Access Denied</h2>
+        <p className="text-slate-500">Only Admin and HR can access this page.</p>
+      </div>
+    )
+  }
+
+  return (
+    <div className="flex flex-col gap-6">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <div>
+          <h3 className="text-2xl font-bold text-slate-800 mb-1">Career Management</h3>
+          <p className="text-sm text-slate-500">Post jobs and manage candidate applications</p>
+        </div>
+        <Button onClick={() => { setEditingJob(null); setJobDialog(true); }}>
+          <Plus size={18} className="mr-2" /> Post New Job
+        </Button>
+      </div>
+
+      <div className="flex border-b border-gray-200">
+        <button
+          className={`px-6 py-3 text-sm font-bold transition-all ${activeTab === 'jobs' ? 'border-b-2 border-fuchsia-500 text-fuchsia-600' : 'text-slate-500 hover:text-slate-700'}`}
+          onClick={() => setActiveTab('jobs')}
+        >
+          <div className="flex items-center gap-2">
+            <Briefcase size={16} /> Job Posts
+          </div>
+        </button>
+        <button
+          className={`px-6 py-3 text-sm font-bold transition-all ${activeTab === 'applications' ? 'border-b-2 border-fuchsia-500 text-fuchsia-600' : 'text-slate-500 hover:text-slate-700'}`}
+          onClick={() => setActiveTab('applications')}
+        >
+          <div className="flex items-center gap-2">
+            <Users size={16} /> Applications ({applications.length})
+          </div>
+        </button>
+      </div>
+
+      {activeTab === 'jobs' ? (
+        <Card>
+          <CardHeader>
+            <h6 className="font-bold mb-0 text-slate-700 uppercase text-xs tracking-wider">Active Job Listings</h6>
+          </CardHeader>
+          <CardBody className="px-0 pt-0 pb-2">
+            <Table
+              columns={[
+                { key: 'title', label: 'Job Title' },
+                { key: 'location', label: 'Location', render: (val) => val || 'N/A' },
+                { key: 'type', label: 'Type' },
+                { key: 'status', label: 'Status', render: (val) => (
+                  <Badge gradient={val === 'active' ? 'from-green-600 to-lime-400' : 'from-slate-600 to-slate-300'} size="sm">
+                    {val}
+                  </Badge>
+                )},
+                { key: 'createdAt', label: 'Posted Date', render: (val) => new Date(val).toLocaleDateString() },
+                { key: 'actions', label: 'Actions', render: (_, job) => (
+                  <div className="flex gap-2">
+                    <button onClick={() => openEditJob(job)} className="p-2 text-blue-500 hover:bg-blue-50 rounded-lg transition-colors">
+                      <Edit size={16} />
+                    </button>
+                    <button onClick={() => handleDeleteJob(job.id)} className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors">
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
+                )}
+              ]}
+              data={jobs}
+            />
+          </CardBody>
+        </Card>
+      ) : (
+        <Card>
+          <CardHeader>
+            <h6 className="font-bold mb-0 text-slate-700 uppercase text-xs tracking-wider">Candidate Applications</h6>
+          </CardHeader>
+          <CardBody className="px-0 pt-0 pb-2">
+            <Table
+              columns={[
+                { key: 'fullName', label: 'Candidate' },
+                { key: 'email', label: 'Email' },
+                { key: 'jobId', label: 'Job', render: (jid) => jobs.find(j => j.id === jid)?.title || 'Unknown Job' },
+                { key: 'status', label: 'Status', render: (val, app) => (
+                  <Select
+                    className="min-w-[120px]"
+                    options={[
+                      { value: 'applied', label: 'Applied' },
+                      { value: 'reviewing', label: 'Reviewing' },
+                      { value: 'shortlisted', label: 'Shortlisted' },
+                      { value: 'rejected', label: 'Rejected' },
+                      { value: 'hired', label: 'Hired' }
+                    ]}
+                    value={val}
+                    onChange={(e) => handleUpdateAppStatus(app.id, e.target.value)}
+                  />
+                )},
+                { key: 'appliedAt', label: 'Applied On', render: (val) => new Date(val).toLocaleDateString() },
+                { key: 'resume', label: 'Resume', render: (_, app) => (
+                  app.resumeUrl ? (
+                    <a href={app.resumeUrl} target="_blank" rel="noreferrer" className="text-fuchsia-600 hover:underline flex items-center gap-1">
+                      <FileText size={14} /> View
+                    </a>
+                  ) : 'No Resume'
+                )}
+              ]}
+              data={applications}
+            />
+          </CardBody>
+        </Card>
+      )}
+
+      {/* Job Modal */}
+      <Modal
+        isOpen={jobDialog}
+        title={editingJob ? 'Edit Job Post' : 'Post New Job'}
+        onClose={() => setJobDialog(false)}
+        footer={
+          <div className="flex gap-2">
+            <Button variant="secondary" size="sm" onClick={() => setJobDialog(false)}>Cancel</Button>
+            <Button size="sm" onClick={handleSaveJob}>{editingJob ? 'Update Job' : 'Post Job'}</Button>
+          </div>
+        }
+      >
+        <div className="flex flex-col gap-4">
+          <InputGroup label="Job Title" value={jobForm.title} onChange={(e) => setJobForm({...jobForm, title: e.target.value})} placeholder="e.g. Senior React Developer" />
+          <div className="grid grid-cols-2 gap-4">
+            <InputGroup label="Location" value={jobForm.location} onChange={(e) => setJobForm({...jobForm, location: e.target.value})} placeholder="e.g. Remote / Indore" />
+            <Select
+              label="Job Type"
+              options={[
+                { value: 'Full-time', label: 'Full-time' },
+                { value: 'Part-time', label: 'Part-time' },
+                { value: 'Contract', label: 'Contract' },
+                { value: 'Internship', label: 'Internship' }
+              ]}
+              value={jobForm.type}
+              onChange={(e) => setJobForm({...jobForm, type: e.target.value})}
+            />
+          </div>
+          <InputGroup label="Salary Range" value={jobForm.salary} onChange={(e) => setJobForm({...jobForm, salary: e.target.value})} placeholder="e.g. ₹5L - ₹8L" />
+          <div>
+            <label className="block text-xs font-bold text-slate-700 uppercase mb-2">Job Description</label>
+            <textarea
+              className="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-fuchsia-500 focus:border-transparent min-h-[150px] text-sm"
+              value={jobForm.description}
+              onChange={(e) => setJobForm({...jobForm, description: e.target.value})}
+              placeholder="Detail the responsibilities and requirements..."
+            />
+          </div>
+          {editingJob && (
+            <Select
+              label="Status"
+              options={[
+                { value: 'active', label: 'Active' },
+                { value: 'closed', label: 'Closed' }
+              ]}
+              value={jobForm.status}
+              onChange={(e) => setJobForm({...jobForm, status: e.target.value})}
+            />
+          )}
+        </div>
+      </Modal>
+    </div>
+  )
+}

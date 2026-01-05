@@ -180,5 +180,7 @@ const bugCounters = {
 }
 
 const milestones = []
+const jobs = []
+const applications = []
 
-module.exports = { users, projects, screens, bugs, activityLog, bugCounters, milestones }
+module.exports = { users, projects, screens, bugs, activityLog, bugCounters, milestones, jobs, applications }

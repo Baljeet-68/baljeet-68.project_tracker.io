@@ -10,6 +10,7 @@ import Attendance from './pages/Attendance'
 import ECommerceProjects from './pages/ECommerceProjects'
 import Notifications from './pages/Notifications'
 import Announcements from './pages/Announcements'
+import Careers from './pages/Careers'
 import { getToken, getUser } from './auth'
 import Layout from './Layout'
 
@@ -40,6 +41,7 @@ export default function App() {
           <Route path="/ecommerce-projects" element={<PrivateRoute roles={['admin', 'ecommerce', 'management']}><ECommerceProjects /></PrivateRoute>} />
           <Route path="/notifications" element={<PrivateRoute><Notifications /></PrivateRoute>} />
           <Route path="/announcements" element={<PrivateRoute><Announcements /></PrivateRoute>} />
+          <Route path="/careers" element={<PrivateRoute roles={['admin', 'hr']}><Careers /></PrivateRoute>} />
         </Route>
 
         <Route path="*" element={<Navigate to="/" replace />} />

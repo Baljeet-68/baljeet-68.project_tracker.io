@@ -20,7 +20,8 @@ import {
   ChevronLeft,
   ChevronRight,
   LogOut,
-  Megaphone
+  Megaphone,
+  Briefcase
 } from 'lucide-react'
 
 import logo from '../../public/assets/img/logos/mmf_logo.svg'
@@ -45,6 +46,7 @@ export default function Sidebar({ open, onClose, collapsed, setCollapsed }) {
     { label: 'IT Projects', icon: BarChart3, path: '/projects', roles: ['admin', 'tester', 'developer',] },
     { label: 'E-Commerce Projects', icon: BarChart3, path: '/ecommerce-projects', roles: ['admin', 'ecommerce', 'management'] },
     { label: 'Announcements', icon: Megaphone, path: '/announcements', roles: ['admin', 'tester', 'developer', 'ecommerce', 'management', 'hr', 'accountant'] },
+    { label: 'Careers', icon: Briefcase, path: '/careers', roles: ['admin', 'hr'] },
     { label: 'Leave Request', icon: Calendar, path: '/attendance', roles: ['admin', 'hr', 'management', 'developer', 'ecommerce', 'accountant'] },
     { label: 'Notifications', icon: Bell, path: '/notifications', roles: ['admin', 'tester', 'developer', 'ecommerce', 'management', 'hr', 'accountant'] },
     { label: 'User Management', icon: Users, path: '/users', roles: ['admin'] },
