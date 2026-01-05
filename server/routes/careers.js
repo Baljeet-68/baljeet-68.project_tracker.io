@@ -67,6 +67,35 @@ router.get('/public-jobs', async (req, res) => {
   }
 });
 
+// POST /api/public-apply - handle job applications from PHP
+router.post('/public-apply', async (req, res) => {
+  try {
+    const { jobId, fullName, email, phone, coverLetter, resumeUrl } = req.body;
+    
+    if (!jobId || !fullName || !email) {
+      return res.status(400).json({ error: 'Required fields missing' });
+    }
+
+    const application = {
+      id: crypto.randomUUID(),
+      jobId,
+      fullName,
+      email,
+      phone,
+      coverLetter,
+      resumeUrl: resumeUrl || '', // In a real app, this would be a file path from an upload
+      status: 'applied',
+      appliedAt: new Date().toISOString(),
+      userId: null // Public application, no userId
+    };
+
+    await createApplicationSource(application);
+    res.status(201).json({ success: true, applicationId: application.id });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // GET /api/jobs - available to authenticated users
 router.get('/jobs', authenticate, async (req, res) => {
   try {
