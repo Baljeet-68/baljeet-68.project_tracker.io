@@ -129,31 +129,53 @@ $jobs = ($jobResponse['code'] === 200 && is_array($jobResponse['data'])) ? $jobR
         .job-grid { 
             display: flex; 
             flex-direction: column;
-            gap: 15px; 
+            gap: 12px; 
             padding: 20px 0;
         }
 
-        .job-card { 
+        .job-head {
+            display: grid;
+            grid-template-columns: 2fr 1.1fr 1fr 0.7fr;
+            gap: 16px;
+            padding: 12px 18px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            background: #f8fafc;
+            color: var(--text-light);
+            font-weight: 700;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+        }
+
+        .job-row { 
             background: var(--card-bg); 
             border: 1px solid var(--border); 
             border-radius: 8px; 
-            padding: 20px 30px; 
-            display: flex;
+            padding: 16px 18px; 
+            display: grid;
+            grid-template-columns: 2fr 1.1fr 1fr 0.7fr;
+            gap: 16px;
             align-items: center;
-            justify-content: space-between;
             transition: all 0.3s ease;
-            cursor: pointer;
         }
 
-        .job-card:hover {
+        .job-row:hover {
             border-color: var(--primary);
             box-shadow: 0 5px 15px rgba(63, 162, 5, 0.1);
             transform: translateX(5px);
         }
 
+        .job-title-cell {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            min-width: 0;
+        }
+
         .job-icon {
-            width: 50px;
-            height: 50px;
+            width: 44px;
+            height: 44px;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -169,11 +191,11 @@ $jobs = ($jobResponse['code'] === 200 && is_array($jobResponse['data'])) ? $jobR
             fill: var(--primary);
         }
 
-        .job-card:hover .job-icon {
+        .job-row:hover .job-icon {
             background: var(--primary);
         }
 
-        .job-card:hover .job-icon svg {
+        .job-row:hover .job-icon svg {
             fill: #ffffff;
         }
 
@@ -182,8 +204,10 @@ $jobs = ($jobResponse['code'] === 200 && is_array($jobResponse['data'])) ? $jobR
             font-weight: 600; 
             color: var(--text);
             margin: 0;
-            margin-left: 20px;
-            flex-grow: 1;
+            min-width: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
         }
         
         .apply-btn { 
@@ -202,6 +226,97 @@ $jobs = ($jobResponse['code'] === 200 && is_array($jobResponse['data'])) ? $jobR
         .apply-btn:hover {
             background: var(--primary-hover);
             transform: scale(1.05);
+        }
+
+        .job-cell {
+            color: var(--text-light);
+            font-size: 0.95rem;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .view-btn {
+            background: transparent;
+            color: var(--primary);
+            border: 1px solid rgba(63, 162, 5, 0.35);
+            padding: 10px 14px;
+            border-radius: 6px;
+            font-weight: 700;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            width: fit-content;
+            justify-self: end;
+        }
+
+        .view-btn:hover {
+            background: rgba(63, 162, 5, 0.08);
+            border-color: var(--primary);
+        }
+
+        .job-details-header {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 16px;
+            margin-bottom: 10px;
+        }
+
+        .job-meta-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px 16px;
+            margin: 14px 0 18px;
+            padding: 14px 16px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            background: #f8fafc;
+        }
+
+        .job-meta-item {
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
+        }
+
+        .job-meta-label {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            font-weight: 800;
+            color: var(--text-light);
+        }
+
+        .job-meta-value {
+            font-size: 0.95rem;
+            font-weight: 700;
+            color: var(--text);
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .job-description {
+            color: var(--text);
+            font-size: 0.98rem;
+            line-height: 1.75;
+        }
+
+        .job-description ul,
+        .job-description ol {
+            padding-left: 18px;
+            margin: 10px 0;
+        }
+
+        .job-description a {
+            color: var(--primary);
+            font-weight: 700;
+            text-decoration: none;
+        }
+
+        .job-description a:hover {
+            text-decoration: underline;
         }
 
         /* Modal / Form Styles */
@@ -272,8 +387,16 @@ $jobs = ($jobResponse['code'] === 200 && is_array($jobResponse['data'])) ? $jobR
 
         @media (max-width: 768px) {
             header h1 { font-size: 1.8rem; }
-            .job-grid { grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); }
-            .job-card .apply-btn { opacity: 1; transform: translateY(0); margin-top: 10px; }
+            .job-head { display: none; }
+            .job-row {
+                grid-template-columns: 1fr;
+                gap: 10px;
+                padding: 16px 16px;
+                transform: none;
+            }
+            .job-row:hover { transform: none; }
+            .view-btn { justify-self: start; }
+            .job-meta-grid { grid-template-columns: 1fr; }
         }
     </style>
 </head>
@@ -294,6 +417,12 @@ $jobs = ($jobResponse['code'] === 200 && is_array($jobResponse['data'])) ? $jobR
                 <p>No active job openings at the moment. Please check back later.</p>
             </div>
         <?php else: ?>
+            <div class="job-head">
+                <div>Job Title</div>
+                <div>Location</div>
+                <div>Posted Date</div>
+                <div style="text-align:right;">View Post</div>
+            </div>
             <?php foreach ($jobs as $job): ?>
                 <?php 
                     $title_lower = strtolower($job['title']);
@@ -315,16 +444,66 @@ $jobs = ($jobResponse['code'] === 200 && is_array($jobResponse['data'])) ? $jobR
                     } elseif (strpos($title_lower, 'business') !== false || strpos($title_lower, 'bd') !== false) {
                         $icon_svg = '<path d="M12,12c2.21,0,4-1.79,4-4s-1.79-4-4-4S8,5.79,8,8S9.79,12,12,12z M12,14c-2.67,0-8,1.34-8,4v2h16v-2C20,15.34,14.67,14,12,14z"/>';
                     }
+
+                    $location = $job['location'] ?? '';
+                    $salary = $job['salary'] ?? '';
+                    $createdAtRaw = $job['createdAt'] ?? ($job['created_at'] ?? '');
+                    $createdAt = '';
+                    if (!empty($createdAtRaw)) {
+                        $ts = strtotime($createdAtRaw);
+                        if ($ts !== false) $createdAt = date('d M Y', $ts);
+                    }
+                    $jobDetails = [
+                        'id' => $job['id'],
+                        'title' => $job['title'],
+                        'location' => $location,
+                        'salary' => $salary,
+                        'createdAt' => $createdAt,
+                        'description' => $job['description'] ?? ''
+                    ];
                 ?>
-                <div class="job-card" onclick="openApplyModal('<?php echo $job['id']; ?>', '<?php echo htmlspecialchars($job['title']); ?>')">
-                    <div class="job-icon">
-                        <svg viewBox="0 0 24 24"><?php echo $icon_svg; ?></svg>
+                <div class="job-row">
+                    <div class="job-title-cell">
+                        <div class="job-icon">
+                            <svg viewBox="0 0 24 24"><?php echo $icon_svg; ?></svg>
+                        </div>
+                        <h2 class="job-title"><?php echo htmlspecialchars($job['title']); ?></h2>
                     </div>
-                    <h2 class="job-title"><?php echo htmlspecialchars($job['title']); ?></h2>
-                    <button class="apply-btn">Apply Now</button>
+                    <div class="job-cell"><?php echo htmlspecialchars($location ?: '—'); ?></div>
+                    <div class="job-cell"><?php echo htmlspecialchars($createdAt ?: '—'); ?></div>
+                    <button type="button" class="view-btn" onclick='openJobDetails(<?php echo json_encode($jobDetails, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT); ?>)'>View Post</button>
                 </div>
             <?php endforeach; ?>
         <?php endif; ?>
+    </div>
+</div>
+
+<!-- Job Details Modal -->
+<div id="jobDetailsModal" class="modal">
+    <div class="modal-content">
+        <span class="close-modal" onclick="closeJobDetailsModal()">&times;</span>
+        <div class="job-details-header">
+            <h2 id="detailsJobTitle" style="color: var(--text); margin: 0;">Job Details</h2>
+            <button type="button" class="apply-btn" onclick="applyFromDetails()">Apply Now</button>
+        </div>
+
+        <div class="job-meta-grid">
+            <div class="job-meta-item">
+                <div class="job-meta-label">Location</div>
+                <div class="job-meta-value" id="detailsJobLocation">—</div>
+            </div>
+            <div class="job-meta-item">
+                <div class="job-meta-label">Posted Date</div>
+                <div class="job-meta-value" id="detailsJobDate">—</div>
+            </div>
+            <div class="job-meta-item">
+                <div class="job-meta-label">Salary Range</div>
+                <div class="job-meta-value" id="detailsJobSalary">—</div>
+            </div>
+        </div>
+
+        <div class="job-meta-label" style="margin-bottom: 8px;">Job Description</div>
+        <div id="detailsJobDescription" class="job-description"></div>
     </div>
 </div>
 
@@ -370,6 +549,8 @@ $jobs = ($jobResponse['code'] === 200 && is_array($jobResponse['data'])) ? $jobR
 </div>
 
 <script>
+    let currentJobForApply = { id: '', title: '' };
+
     function openApplyModal(id, title) {
         document.getElementById('job_id').value = id;
         document.getElementById('modalJobTitle').innerText = 'Apply for ' + title;
@@ -382,11 +563,41 @@ $jobs = ($jobResponse['code'] === 200 && is_array($jobResponse['data'])) ? $jobR
         document.body.style.overflow = 'auto';
     }
 
+    function openJobDetails(job) {
+        currentJobForApply = { id: job.id || '', title: job.title || '' };
+        document.getElementById('detailsJobTitle').innerText = job.title || 'Job Details';
+        document.getElementById('detailsJobLocation').innerText = job.location || '—';
+        document.getElementById('detailsJobDate').innerText = job.createdAt || '—';
+        document.getElementById('detailsJobSalary').innerText = job.salary || '—';
+
+        const descEl = document.getElementById('detailsJobDescription');
+        descEl.innerHTML = job.description || '';
+        descEl.querySelectorAll('script').forEach(s => s.remove());
+
+        document.getElementById('jobDetailsModal').classList.add('active');
+        document.body.style.overflow = 'hidden';
+    }
+
+    function closeJobDetailsModal() {
+        document.getElementById('jobDetailsModal').classList.remove('active');
+        document.body.style.overflow = 'auto';
+    }
+
+    function applyFromDetails() {
+        closeJobDetailsModal();
+        if (!currentJobForApply.id) return;
+        openApplyModal(currentJobForApply.id, currentJobForApply.title || 'Job');
+    }
+
     // Close on outside click
     window.onclick = function(event) {
-        let modal = document.getElementById('applyModal');
-        if (event.target == modal) {
+        let applyModal = document.getElementById('applyModal');
+        let detailsModal = document.getElementById('jobDetailsModal');
+        if (event.target == applyModal) {
             closeModal();
+        }
+        if (event.target == detailsModal) {
+            closeJobDetailsModal();
         }
     }
 
