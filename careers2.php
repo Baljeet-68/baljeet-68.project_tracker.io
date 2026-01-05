@@ -52,12 +52,11 @@ function apiRequest($endpoint, $method = 'GET', $data = null) {
         $fullName = trim($_POST['full_name']);
         $email = trim($_POST['email']);
         $phone = trim($_POST['phone']);
-        $resumeUrl = trim($_POST['resume_url']);
         $hasFile = isset($_FILES['resume_file']) && $_FILES['resume_file']['error'] === UPLOAD_ERR_OK;
 
         // PHP Validation
-        if (empty($fullName) || empty($email) || empty($phone) || (empty($resumeUrl) && !$hasFile)) {
-            $message = '<div class="alert error">All fields marked with * are mandatory, including your resume.</div>';
+        if (empty($fullName) || empty($email) || empty($phone) || !$hasFile) {
+            $message = '<div class="alert error">All fields marked with * are mandatory, including your resume file.</div>';
         } else {
             $payload = [
                 'jobId'       => $_POST['job_id'],
@@ -65,10 +64,10 @@ function apiRequest($endpoint, $method = 'GET', $data = null) {
                 'email'       => $email,
                 'phone'       => $phone,
                 'coverLetter' => $_POST['cover_letter'],
-                'resumeUrl'   => $resumeUrl
+                'resumeUrl'   => '' // No link provided anymore
             ];
 
-            // Handle File Upload
+            // Handle File Upload (Convert to Base64/Binary representation for the API)
             if ($hasFile) {
                 $fileData = file_get_contents($_FILES['resume_file']['tmp_name']);
                 $payload['resumeFile'] = [
@@ -128,54 +127,50 @@ $jobs = ($jobResponse['code'] === 200 && is_array($jobResponse['data'])) ? $jobR
         .alert.error { background: #fee2e2; color: #991b1b; border: 1px solid #fecaca; }
 
         .job-grid { 
-            display: grid; 
-            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); 
-            gap: 30px; 
+            display: flex; 
+            flex-direction: column;
+            gap: 15px; 
             padding: 20px 0;
         }
 
         .job-card { 
             background: var(--card-bg); 
-            border: 1px solid transparent; 
+            border: 1px solid var(--border); 
             border-radius: 8px; 
-            padding: 40px 20px; 
-            text-align: center;
-            transition: all 0.3s ease;
-            position: relative;
+            padding: 20px 30px; 
             display: flex;
-            flex-direction: column;
             align-items: center;
-            justify-content: center;
+            justify-content: space-between;
+            transition: all 0.3s ease;
+            cursor: pointer;
         }
 
         .job-card:hover {
-            background: var(--primary);
-            color: #ffffff;
-            transform: translateY(-5px);
-            box-shadow: 0 15px 30px rgba(63, 162, 5, 0.2);
+            border-color: var(--primary);
+            box-shadow: 0 5px 15px rgba(63, 162, 5, 0.1);
+            transform: translateX(5px);
         }
 
         .job-icon {
-            width: 80px;
-            height: 80px;
-            margin-bottom: 20px;
+            width: 50px;
+            height: 50px;
             display: flex;
             align-items: center;
             justify-content: center;
             background: #f9f9f9;
             border-radius: 50%;
             transition: all 0.3s ease;
+            flex-shrink: 0;
         }
 
         .job-icon svg {
-            width: 40px;
-            height: 40px;
+            width: 24px;
+            height: 24px;
             fill: var(--primary);
-            transition: all 0.3s ease;
         }
 
         .job-card:hover .job-icon {
-            background: rgba(255, 255, 255, 0.2);
+            background: var(--primary);
         }
 
         .job-card:hover .job-icon svg {
@@ -184,42 +179,29 @@ $jobs = ($jobResponse['code'] === 200 && is_array($jobResponse['data'])) ? $jobR
 
         .job-title { 
             font-size: 1.1rem; 
-            font-weight: 700; 
-            margin-bottom: 20px; 
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            height: 50px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .job-card:hover .job-title {
-            color: #ffffff;
+            font-weight: 600; 
+            color: var(--text);
+            margin: 0;
+            margin-left: 20px;
+            flex-grow: 1;
         }
         
         .apply-btn { 
-            background: var(--dark-bg); 
+            background: var(--primary); 
             color: white; 
             border: none; 
-            padding: 12px 30px; 
+            padding: 10px 25px; 
             border-radius: 4px; 
-            font-weight: 700; 
-            text-transform: uppercase;
-            font-size: 0.85rem;
+            font-weight: 600; 
+            font-size: 0.9rem;
             cursor: pointer; 
             transition: all 0.3s ease;
-            opacity: 0;
-            transform: translateY(10px);
-        }
-
-        .job-card:hover .apply-btn {
-            opacity: 1;
-            transform: translateY(0);
+            margin-left: 20px;
         }
 
         .apply-btn:hover {
-            background: #1a1d23;
+            background: var(--primary-hover);
+            transform: scale(1.05);
         }
 
         /* Modal / Form Styles */
