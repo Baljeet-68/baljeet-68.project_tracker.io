@@ -16,6 +16,7 @@ async function migrateCareers() {
         status VARCHAR(20) DEFAULT 'active', -- active, closed
         createdBy VARCHAR(255),
         createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+        expiryDate DATETIME DEFAULT NULL,
         updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
       )
     `;

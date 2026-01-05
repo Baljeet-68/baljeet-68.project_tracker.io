@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { authFetch, getUser, clearToken, clearUser } from '../auth'
 import { LineChart, BarChart, PieChart, AreaChart, ParetoChart } from '../components/ChartComponents'
-import { StatCard, Card, CardHeader, CardBody, Badge } from '../components/TailAdminComponents'
+import { StatCard, Card, CardHeader, CardBody, Badge, PageHeader } from '../components/TailAdminComponents'
 import { TrendingUp, AlertCircle, CheckCircle, Users, Activity, ChevronDown } from 'lucide-react'
 import { API_BASE_URL } from '../apiConfig'
 import { Loader } from '../components/Loader'
@@ -213,12 +213,10 @@ export default function Dashboard() {
   return (
     <div className="flex flex-col gap-6">
       {/* Dashboard Header & Year Selector */}
-      <Card className="p-6 mb-6">
-        <div className="flex flex-col md:flex-row justify-between items-center gap-4">
-          <div>
-            <h4 className="font-bold text-slate-700 mb-1">Dashboard Overview</h4>
-            <p className="text-sm text-slate-500 font-medium">Tracking projects and performance for {selectedYear}</p>
-          </div>
+      <PageHeader
+        title="Dashboard Overview"
+        subtitle={<>Tracking projects and performance for {selectedYear}</>}
+        actions={(
           <div className="relative w-full md:w-auto">
             <select
               value={selectedYear}
@@ -235,8 +233,8 @@ export default function Dashboard() {
               <ChevronDown size={20} strokeWidth={3} />
             </div>
           </div>
-        </div>
-      </Card>
+        )}
+      />
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">

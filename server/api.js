@@ -503,10 +503,17 @@ module.exports = {
 };
 
 async function getJobsFromMySQL() {
-  try {
-    const [rows] = await pool.query('SELECT * FROM jobs ORDER BY createdAt DESC');
-    return rows;
-  } catch (error) {
+    try {
+      // Auto-expire jobs
+      try {
+        await pool.query("UPDATE jobs SET status = 'inactive' WHERE expiryDate < NOW() AND status = 'active'");
+      } catch (e) {
+        console.warn("Auto-expiry failed (likely missing expiryDate column):", e.message);
+      }
+      
+      const [rows] = await pool.query('SELECT * FROM jobs ORDER BY createdAt DESC');
+      return rows;
+    } catch (error) {
     console.error('Database query failed in getJobsFromMySQL:', error);
     throw error;
   }
@@ -514,8 +521,19 @@ async function getJobsFromMySQL() {
 
 async function createJobInDb(job) {
   try {
-    const sql = 'INSERT INTO jobs (id, title, description, location, type, salary, status, createdBy, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)';
-    const params = [job.id, job.title, job.description, job.location, job.type, job.salary, job.status || 'active', job.createdBy, job.createdAt || new Date().toISOString()];
+    const sql = 'INSERT INTO jobs (id, title, description, location, type, salary, status, createdBy, createdAt, expiryDate) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)';
+    const params = [
+      job.id, 
+      job.title, 
+      job.description, 
+      job.location, 
+      job.type, 
+      job.salary, 
+      job.status || 'active', 
+      job.createdBy, 
+      job.createdAt || new Date().toISOString(),
+      job.expiryDate || null
+    ];
     await pool.execute(sql, params);
   } catch (error) {
     console.error('Database insert failed in createJobInDb:', error);

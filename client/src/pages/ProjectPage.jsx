@@ -4,7 +4,7 @@ import { authFetch, getUser, clearToken, clearUser } from '../auth'
 import { API_BASE_URL } from '../apiConfig';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
-import { Card, CardHeader, CardBody, Badge, Button, StatCard } from '../components/TailAdminComponents'
+import { Card, CardHeader, CardBody, Badge, Button, StatCard, PageHeader } from '../components/TailAdminComponents'
 import { Table, Modal, InputGroup, Select, ProgressBar } from '../components/FormComponents'
 import { Loader } from '../components/Loader'
 import {
@@ -759,31 +759,16 @@ export default function ProjectPage() {
 
       <div className="flex flex-wrap -mx-3">
         {/* Header Section */}
-        <div className="w-full max-w-full px-3 mb-6">
-          <Card>
-            <CardBody className="p-6">
-              <div className="flex flex-wrap items-center -mx-3">
-                <div className="flex-none w-auto max-w-full px-3">
-                  <div className="flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-tl from-purple-700 to-pink-500 shadow-soft-2xl">
-                    <Calendar className="text-white" size={24} />
-                  </div>
-                </div>
-                <div className="flex-none w-auto max-w-full px-3 my-auto">
-                  <div className="h-full">
-                    <h4 className="mb-1 font-bold text-slate-700">{project?.name}</h4>
-                    <p className="mb-0 font-semibold leading-normal text-sm text-slate-500">Client: {project?.client}</p>
-                  </div>
-                </div>
-                <div className="w-full max-w-full px-3 mx-auto mt-4 sm:my-auto sm:mr-0 md:w-1/2 md:flex-none lg:w-4/12">
-                  <div className="relative flex flex-wrap items-center justify-end">
-                    <Badge gradient={getStatusGradient(project?.status)} size="lg">
-                      {project?.status}
-                    </Badge>
-                  </div>
-                </div>
-              </div>
-            </CardBody>
-          </Card>
+        <div className="w-full max-w-full px-3">
+          <PageHeader
+            title={project?.name || 'Project'}
+            subtitle={<>Client: {project?.client || '—'}</>}
+            actions={project?.status ? (
+              <Badge gradient={getStatusGradient(project?.status)} size="lg">
+                {project?.status}
+              </Badge>
+            ) : null}
+          />
         </div>
 
         {/* Stats Row */}

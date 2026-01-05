@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import { authFetch, getUser } from '../auth'
 import { API_BASE_URL } from '../apiConfig'
-import { Card, CardHeader, CardBody, Badge, Button } from '../components/TailAdminComponents'
+import { Card, CardHeader, CardBody, Badge, Button, PageHeader } from '../components/TailAdminComponents'
 import { Modal, InputGroup, Select, Table, Alert, ConfirmDialog } from '../components/FormComponents'
 import { Megaphone, Plus, Edit, Trash2, Calendar, Target, User, Users as UsersIcon } from 'lucide-react'
 import { Loader } from '../components/Loader'
@@ -185,17 +185,15 @@ export default function Announcements() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex justify-between items-center">
-        <div>
-          <h4 className="font-bold text-slate-700">Announcements</h4>
-          <p className="text-sm text-slate-500">View and manage company-wide or targeted announcements</p>
-        </div>
-        {isAdminOrHR && (
+      <PageHeader
+        title="Announcements"
+        subtitle="View and manage company-wide or targeted announcements"
+        actions={isAdminOrHR ? (
           <Button variant="info" size="sm" onClick={() => { resetForm(); setAnnouncementDialog(true); }}>
             <Plus size={14} className="mr-1 inline" /> Create Announcement
           </Button>
-        )}
-      </div>
+        ) : null}
+      />
 
       {error && <Alert variant="danger">{error}</Alert>}
 

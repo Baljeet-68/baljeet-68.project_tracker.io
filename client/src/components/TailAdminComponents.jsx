@@ -8,6 +8,20 @@ export const Card = ({ children, className = '', shadow = true }) => {
   )
 }
 
+export const PageHeader = ({ title, subtitle, actions, className = '' }) => (
+  <Card className={`p-6 mb-6 ${className}`}>
+    <div className="flex flex-col md:flex-row justify-between items-center gap-4">
+      <div>
+        <h4 className="font-bold text-slate-700 mb-1">{title}</h4>
+        <p className="text-sm text-slate-500 font-medium">{subtitle}</p>
+      </div>
+      <div className="flex gap-3">
+        {actions}
+      </div>
+    </div>
+  </Card>
+)
+
 // Card Header
 export const CardHeader = ({ children, className = '' }) => (
   <div className={`p-6 pb-0 mb-0 bg-white border-b-0 rounded-t-3xl ${className}`}>

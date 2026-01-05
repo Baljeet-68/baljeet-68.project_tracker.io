@@ -1,16 +1,16 @@
 import React from 'react'
 import Lottie from 'lottie-react'
 import underDevData from '../../public/assets/img/illustrations/under_dev.json'
-import { Card, CardBody } from '../components/TailAdminComponents'
+import { Card, CardBody, PageHeader } from '../components/TailAdminComponents'
 
 export default function ECommerceProjects() {
   return (
     <div className="mx-auto max-w-7xl">
-      <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <h2 className="text-2xl font-bold text-slate-800 dark:text-white">
-          E-Commerce Projects
-        </h2>
-      </div>
+      <PageHeader
+        title="E-Commerce Projects"
+        subtitle="Manage and track e-commerce projects"
+      />
+      
 
       <Card>
         <CardBody>

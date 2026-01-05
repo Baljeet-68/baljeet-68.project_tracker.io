@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import { authFetch, getUser } from '../auth'
 import { API_BASE_URL } from '../apiConfig'
-import { Card, CardHeader, CardBody, Badge, Button } from '../components/TailAdminComponents'
+import { Card, CardHeader, CardBody, Badge, Button, PageHeader } from '../components/TailAdminComponents'
 import { Modal, InputGroup, Select, Table, Alert } from '../components/FormComponents'
 import { Briefcase, Plus, Edit, Trash2, Users, FileText, MapPin, Clock, DollarSign, Calendar, ArrowLeft } from 'lucide-react'
 import { toast } from 'react-toastify'
@@ -94,6 +94,22 @@ export default function Careers() {
       }
     } catch (e) {
       toast.error('Delete failed')
+    }
+  }
+
+  const handleUpdateJobStatus = async (id, status) => {
+    try {
+      const res = await authFetch(`${API_BASE_URL}/jobs/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status })
+      })
+      if (res.ok) {
+        toast.success('Status updated')
+        loadJobs()
+      }
+    } catch (e) {
+      toast.error('Update failed')
     }
   }
 
@@ -202,6 +218,7 @@ export default function Careers() {
                     label="Status"
                     options={[
                       { value: 'active', label: 'Active' },
+                      { value: 'inactive', label: 'Inactive' },
                       { value: 'closed', label: 'Closed' }
                     ]}
                     value={jobForm.status}
@@ -264,17 +281,15 @@ export default function Careers() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <div>
-          <h3 className="text-2xl font-bold text-slate-800 mb-1">Career Management</h3>
-          <p className="text-sm text-slate-500">Post jobs and manage candidate applications</p>
-        </div>
-        {activeTab === 'jobs' && (
+      <PageHeader
+        title="Career Management"
+        subtitle="Post jobs and manage candidate applications"
+        actions={activeTab === 'jobs' ? (
           <Button onClick={() => { setEditingJob(null); setJobForm({ title: '', description: '', location: '', type: 'Full-time', salary: '', status: 'active' }); setView('form'); }}>
             <Plus size={18} className="mr-2" /> Post New Job
           </Button>
-        )}
-      </div>
+        ) : null}
+      />
 
       <div className="flex border-b border-gray-200">
         <button
@@ -297,19 +312,26 @@ export default function Careers() {
 
       {activeTab === 'jobs' ? (
         <Card>
-          <CardHeader>
-            <h6 className="font-bold mb-0 text-slate-700 uppercase text-xs tracking-wider">Active Job Listings</h6>
-          </CardHeader>
-          <CardBody className="px-0 pt-0 pb-2">
+          {/* <CardHeader>
+            <h6 className="font-bold mb-4 text-slate-700 pb-4 uppercase text-xs tracking-wider">Active Job Listings</h6>
+          </CardHeader> */}
+          <CardBody className="flex-auto p-6 " >
             <Table
               columns={[
                 { key: 'title', label: 'Job Title' },
                 { key: 'location', label: 'Location', render: (val) => val || 'N/A' },
                 { key: 'type', label: 'Type' },
-                { key: 'status', label: 'Status', render: (val) => (
-                  <Badge gradient={val === 'active' ? 'from-green-600 to-lime-400' : 'from-slate-600 to-slate-300'} size="sm">
-                    {val}
-                  </Badge>
+                { key: 'status', label: 'Status', render: (val, job) => (
+                  <Select
+                    className="min-w-[120px]"
+                    options={[
+                      { value: 'active', label: 'Active' },
+                      { value: 'inactive', label: 'Inactive' },
+                      { value: 'closed', label: 'Closed' }
+                    ]}
+                    value={val}
+                    onChange={(e) => handleUpdateJobStatus(job.id, e.target.value)}
+                  />
                 )},
                 { key: 'createdAt', label: 'Posted Date', render: (val) => new Date(val).toLocaleDateString() },
                 { key: 'actions', label: 'Actions', render: (_, job) => (
@@ -329,10 +351,8 @@ export default function Careers() {
         </Card>
       ) : (
         <Card>
-          <CardHeader>
-            <h6 className="font-bold mb-0 text-slate-700 uppercase text-xs tracking-wider">Candidate Applications</h6>
-          </CardHeader>
-          <CardBody className="px-0 pt-0 pb-2">
+          
+          <CardBody className="flex-auto p-6 ">
             <Table
               columns={[
                 { key: 'fullName', label: 'Candidate' },

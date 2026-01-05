@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { authFetch, getUser, saveUser } from '../auth'
 import { API_BASE_URL } from '../apiConfig'
-import { Card, CardHeader, CardBody, Button } from '../components/TailAdminComponents'
+import { Card, CardHeader, CardBody, Button, PageHeader } from '../components/TailAdminComponents'
 import { InputGroup, Alert } from '../components/FormComponents'
 import { User, Lock, Camera, CheckCircle2, AlertCircle, Trash2, Mail } from 'lucide-react'
 import { Loader } from '../components/Loader'
@@ -130,10 +130,10 @@ export default function Settings() {
 
   return (
     <div className="max-w-4xl mx-auto">
-      <div className="mb-8">
-        <h4 className="font-bold text-slate-700">Account Settings</h4>
-        <p className="text-slate-500 text-sm">Update your profile information and security settings</p>
-      </div>
+      <PageHeader
+        title="Account Settings"
+        subtitle="Update your profile information and security settings"
+      />
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {/* Profile Sidebar */}

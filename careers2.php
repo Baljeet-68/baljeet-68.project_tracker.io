@@ -1,3 +1,4 @@
+<?php include 'header.php';?>
 <?php
 
 /**
@@ -172,7 +173,7 @@ if (!empty($selectedJobId)) {
 
         header p {
             color: var(--text-light);
-            font-size: 1.1rem;
+            font-size: 2rem;
         }
 
         .alert {
@@ -212,7 +213,7 @@ if (!empty($selectedJobId)) {
             background: #f8fafc;
             color: var(--text-light);
             font-weight: 700;
-            font-size: 0.75rem;
+            font-size: 1.5rem;
             text-transform: uppercase;
             letter-spacing: 0.06em;
         }
@@ -269,7 +270,7 @@ if (!empty($selectedJobId)) {
         }
 
         .job-title {
-            font-size: 1.1rem;
+            font-size: 1.4rem;
             font-weight: 600;
             color: var(--text);
             margin: 0;
@@ -303,7 +304,7 @@ if (!empty($selectedJobId)) {
 
         .job-cell {
             color: var(--text-light);
-            font-size: 0.95rem;
+            font-size: 1.4rem;
             overflow: hidden;
             text-overflow: ellipsis;
             white-space: nowrap;
@@ -316,7 +317,7 @@ if (!empty($selectedJobId)) {
             padding: 10px 14px;
             border-radius: 6px;
             font-weight: 700;
-            font-size: 0.85rem;
+            font-size: 1.2rem;
             cursor: pointer;
             transition: all 0.2s ease;
             width: fit-content;
@@ -774,3 +775,4 @@ if (!empty($selectedJobId)) {
 </body>
 
 </html>
+<?php include 'footer.php';?>

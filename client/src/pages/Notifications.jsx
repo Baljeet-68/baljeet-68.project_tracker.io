@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Bell, User, Calendar, AlertTriangle, CheckCircle2, MessageSquare, Clock, ArrowRight, RefreshCw } from 'lucide-react'
-import { Card, CardHeader, CardBody, Badge, Button } from '../components/TailAdminComponents'
+import { Card, CardHeader, CardBody, Badge, Button, PageHeader } from '../components/TailAdminComponents'
 import { Alert } from '../components/FormComponents'
 import { authFetch } from '../auth'
 import { API_BASE_URL } from '../apiConfig'
@@ -128,20 +128,20 @@ export default function Notifications() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex justify-between items-center">
-        <div>
-          <h4 className="font-bold text-slate-700">Notifications</h4>
-          <p className="text-sm text-slate-500">Stay updated with the latest activities and alerts</p>
-        </div>
-        <Button 
-          variant="primary" 
-          size="sm"
-          onClick={markAllRead}
-          disabled={!notifications.some(n => n.status === 'unread') || loading}
-        >
-          {notifications.some(n => n.status === 'unread') ? 'Mark all as read' : 'No new notification'}
-        </Button>
-      </div>
+      <PageHeader
+        title="Notifications"
+        subtitle="Stay updated with the latest activities and alerts"
+        actions={(
+          <Button 
+            variant="primary" 
+            size="sm"
+            onClick={markAllRead}
+            disabled={!notifications.some(n => n.status === 'unread') || loading}
+          >
+            {notifications.some(n => n.status === 'unread') ? 'Mark all as read' : 'No new notification'}
+          </Button>
+        )}
+      />
 
       {/* Stat Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">

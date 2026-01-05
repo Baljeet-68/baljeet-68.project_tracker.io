@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { useLocation } from 'react-router-dom'
-import { Card, CardHeader, CardBody, Badge, Button } from '../components/TailAdminComponents'
+import { Card, CardHeader, CardBody, Badge, Button, PageHeader } from '../components/TailAdminComponents'
 import { Table, Modal, InputGroup, Select, Alert, ConfirmDialog } from '../components/FormComponents'
 import { 
   Calendar as CalendarIcon, Clock, Users, CheckCircle, XCircle, 
@@ -407,21 +407,15 @@ export default function Attendance() {
   return (
     <div className="flex flex-col gap-6">
       {/* Header */}
-      <Card className="p-6 mb-6">
-        <div className="flex flex-col md:flex-row justify-between items-center gap-4">
-          <div>
-            <h4 className="font-bold text-slate-700 mb-1">Leave Management</h4>
-            <p className="text-sm text-slate-500 font-medium">Manage and track leave requests</p>
-          </div>
-          <div className="flex gap-3">
-            {user.role !== 'admin' && (
-              <Button variant="primary" size="sm" className="flex items-center gap-2" onClick={() => setShowLeaveModal(true)}>
-                <Plus size={14} /> Request Leave
-              </Button>
-            )}
-          </div>
-        </div>
-      </Card>
+      <PageHeader
+        title="Leave Management"
+        subtitle="Manage and track leave requests"
+        actions={user.role !== 'admin' ? (
+          <Button variant="primary" size="sm" className="flex items-center gap-2" onClick={() => setShowLeaveModal(true)}>
+            <Plus size={14} /> Request Leave
+          </Button>
+        ) : null}
+      />
 
       {/* Summary Stats */}
       {user.role !== 'admin' && (

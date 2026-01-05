@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { authFetch, getUser, clearToken, clearUser } from '../auth'
 import { API_BASE_URL } from '../apiConfig';
-import { Card, CardHeader, CardBody, Badge, Button } from '../components/TailAdminComponents'
+import { Card, CardHeader, CardBody, Badge, Button, PageHeader } from '../components/TailAdminComponents'
 import { Table, Select, Modal, InputGroup, Alert } from '../components/FormComponents'
 import { Eye, Plus, Edit, FolderPlus, Briefcase, User, FileText } from 'lucide-react'
 import { Loader } from '../components/Loader'
@@ -195,49 +195,46 @@ export default function Projects() {
   ]
 
   return (
-    <div className="flex flex-wrap -mx-3">
-      <div className="w-full max-w-full px-3 mb-6">
-        <Card>
-          <CardHeader>
-            <div className="flex justify-between items-center">
-              <div>
-                <h6 className="font-bold text-slate-700 mb-0">Projects Management</h6>
-                <p className="text-xs text-slate-500 font-medium">Track and organize all your projects</p>
-              </div>
-              {user?.role === 'admin' && (
-                <Button size="sm" variant="primary" onClick={() => setProjectDialog(true)}>
-                  <Plus size={14} className="mr-2" /> New Project
-                </Button>
-              )}
-            </div>
-            {error && (
-              <Alert variant="danger" className="mt-4">
-                {error}
-              </Alert>
-            )}
-            
-            <div className="mt-4 max-w-xs">
-              <Select
-                label="Filter by Status"
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-                options={[
-                  { value: '', label: 'All Statuses' },
-                  { value: 'Under Planning', label: 'Under Planning' },
-                  { value: 'Running', label: 'Running' },
-                  { value: 'On Hold', label: 'On Hold' },
-                  { value: 'Completed', label: 'Completed' },
-                  { value: 'Critical', label: 'Critical' },
-                ]}
-                className="mb-0"
-              />
-            </div>
-          </CardHeader>
-          <CardBody className="px-0 pt-0 pb-2">
-            <Table columns={columns} data={filteredProjects} loading={loading} pagination={true} pageSize={10} />
-          </CardBody>
-        </Card>
-      </div>
+    <div className="flex flex-col gap-6">
+      <PageHeader
+        title="Projects Management"
+        subtitle="Track and organize all your projects"
+        actions={user?.role === 'admin' ? (
+          <Button size="sm" variant="primary" onClick={() => setProjectDialog(true)}>
+            <Plus size={14} className="mr-2" /> New Project
+          </Button>
+        ) : null}
+      />
+
+      <Card>
+        <CardHeader>
+          {error && (
+            <Alert variant="danger" className="mb-4">
+              {error}
+            </Alert>
+          )}
+
+          <div className="max-w-xs">
+            <Select
+              label="Filter by Status"
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              options={[
+                { value: '', label: 'All Statuses' },
+                { value: 'Under Planning', label: 'Under Planning' },
+                { value: 'Running', label: 'Running' },
+                { value: 'On Hold', label: 'On Hold' },
+                { value: 'Completed', label: 'Completed' },
+                { value: 'Critical', label: 'Critical' },
+              ]}
+              className="mb-0"
+            />
+          </div>
+        </CardHeader>
+        <CardBody className="px-0 pt-0 pb-2">
+          <Table columns={columns} data={filteredProjects} loading={loading} pagination={true} pageSize={10} />
+        </CardBody>
+      </Card>
 
       {/* Add Project Modal */}
       <Modal 

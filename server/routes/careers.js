@@ -28,7 +28,15 @@ if (USE_LIVE_DB) {
   createApplicationSource = dbApi.createApplicationInDb;
   updateApplicationSource = dbApi.updateApplicationInDb;
 } else {
-  jobsSource = async () => localData.jobs || [];
+  jobsSource = async () => {
+    const now = new Date();
+    (localData.jobs || []).forEach(j => {
+      if (j.expiryDate && new Date(j.expiryDate) < now && j.status === 'active') {
+        j.status = 'inactive';
+      }
+    });
+    return localData.jobs || [];
+  };
   createJobSource = async (j) => {
     if (!localData.jobs) localData.jobs = [];
     localData.jobs.push(j);
@@ -137,7 +145,8 @@ router.post('/jobs', authenticate, requireRole('admin', 'hr'), async (req, res) 
       id: crypto.randomUUID(),
       ...req.body,
       createdBy: req.user.userId,
-      createdAt: new Date().toISOString()
+      createdAt: new Date().toISOString(),
+      expiryDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString() // Auto-expire in 30 days
     };
     await createJobSource(job);
     res.status(201).json(job);
