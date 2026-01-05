@@ -53,7 +53,21 @@ if (USE_LIVE_DB) {
 
 // JOB ROUTES
 
-// GET /api/jobs - available to everyone
+// GET /api/public-jobs - available to everyone without token
+router.get('/public-jobs', async (req, res) => {
+  try {
+    const jobs = await jobsSource();
+    // Only return active jobs for the public API
+    const activeJobs = jobs.filter(job => 
+      job.status && job.status.toLowerCase() === 'active'
+    );
+    res.json(activeJobs);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// GET /api/jobs - available to authenticated users
 router.get('/jobs', authenticate, async (req, res) => {
   try {
     const jobs = await jobsSource();
