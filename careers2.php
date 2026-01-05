@@ -490,22 +490,43 @@ if (!empty($selectedJobId)) {
             border-color: var(--primary);
         }
 
-        .submit-btn {
-            width: 100%;
-            background: var(--primary);
-            color: white;
-            border: none;
-            padding: 15px;
-            border-radius: 4px;
-            font-weight: 700;
+        .submit-btn { 
+            width: 100%; 
+            background: var(--primary); 
+            color: white; 
+            border: none; 
+            padding: 15px; 
+            border-radius: 4px; 
+            font-weight: 700; 
             font-size: 1rem;
             text-transform: uppercase;
             cursor: pointer;
             transition: background 0.3s;
         }
+        .submit-btn:hover { background: var(--primary-hover); }
+        .submit-btn:disabled { cursor: not-allowed; opacity: 0.9; }
 
-        .submit-btn:hover {
-            background: var(--primary-hover);
+        .btn-content {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .btn-spinner {
+            width: 16px;
+            height: 16px;
+            border-radius: 999px;
+            border: 2px solid rgba(255, 255, 255, 0.35);
+            border-top-color: #ffffff;
+            animation: spin 0.8s linear infinite;
+            display: none;
+        }
+
+        .submit-btn.is-loading .btn-spinner { display: inline-block; }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
         }
 
         .empty-state {
@@ -633,10 +654,15 @@ if (!empty($selectedJobId)) {
                             <textarea name="cover_letter" rows="4" placeholder="Tell us about your experience..."></textarea>
                         </div>
 
-                        <button type="submit" class="submit-btn">Submit Application</button>
-                    </form>
-                </div>
+                    <button type="submit" class="submit-btn" id="applySubmitBtn">
+                        <span class="btn-content">
+                            <span class="btn-spinner" aria-hidden="true"></span>
+                            <span class="btn-label">Submit Application</span>
+                        </span>
+                    </button>
+                </form>
             </div>
+        </div>
         <?php else: ?>
             <div class="job-grid">
                 <?php if (empty($jobs)): ?>
@@ -724,19 +750,26 @@ if (!empty($selectedJobId)) {
             });
         }
 
-        const applyForm = document.getElementById('applyForm');
-        if (applyForm) {
-            applyForm.onsubmit = function(e) {
-                const file = document.getElementById('resume_file')?.value || '';
-                if (!file) {
-                    alert('Please upload your resume file.');
-                    e.preventDefault();
-                    return false;
-                }
-                return true;
-            };
-        }
-    </script>
+    const applyForm = document.getElementById('applyForm');
+    if (applyForm) {
+        applyForm.onsubmit = function(e) {
+            const file = document.getElementById('resume_file')?.value || '';
+            if (!file) {
+                alert('Please upload your resume file.');
+                e.preventDefault();
+                return false;
+            }
+            const submitBtn = document.getElementById('applySubmitBtn');
+            if (submitBtn) {
+                submitBtn.disabled = true;
+                submitBtn.classList.add('is-loading');
+                const label = submitBtn.querySelector('.btn-label');
+                if (label) label.textContent = 'Submitting...';
+            }
+            return true;
+        };
+    }
+</script>
 
 </body>
 
