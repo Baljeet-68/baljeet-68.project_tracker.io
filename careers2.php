@@ -46,35 +46,46 @@ function apiRequest($endpoint, $method = 'GET', $data = null) {
     return ['data' => null, 'code' => 0, 'error' => 'Connection failed'];
 }
 
-// Handle Application Submission
-$message = '';
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['apply_job'])) {
-    $payload = [
-        'jobId'       => $_POST['job_id'],
-        'fullName'    => $_POST['full_name'],
-        'email'       => $_POST['email'],
-        'phone'       => $_POST['phone'],
-        'coverLetter' => $_POST['cover_letter'],
-        'resumeUrl'   => $_POST['resume_url']
-    ];
+    // Handle Application Submission
+    $message = '';
+    if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['apply_job'])) {
+        $fullName = trim($_POST['full_name']);
+        $email = trim($_POST['email']);
+        $phone = trim($_POST['phone']);
+        $resumeUrl = trim($_POST['resume_url']);
+        $hasFile = isset($_FILES['resume_file']) && $_FILES['resume_file']['error'] === UPLOAD_ERR_OK;
 
-    // Handle File Upload
-    if (isset($_FILES['resume_file']) && $_FILES['resume_file']['error'] === UPLOAD_ERR_OK) {
-        $fileData = file_get_contents($_FILES['resume_file']['tmp_name']);
-        $payload['resumeFile'] = [
-            'name' => $_FILES['resume_file']['name'],
-            'data' => 'data:' . $_FILES['resume_file']['type'] . ';base64,' . base64_encode($fileData)
-        ];
-    }
+        // PHP Validation
+        if (empty($fullName) || empty($email) || empty($phone) || (empty($resumeUrl) && !$hasFile)) {
+            $message = '<div class="alert error">All fields marked with * are mandatory, including your resume.</div>';
+        } else {
+            $payload = [
+                'jobId'       => $_POST['job_id'],
+                'fullName'    => $fullName,
+                'email'       => $email,
+                'phone'       => $phone,
+                'coverLetter' => $_POST['cover_letter'],
+                'resumeUrl'   => $resumeUrl
+            ];
 
-    $response = apiRequest('/public-apply', 'POST', $payload);
-    
-    if ($response['code'] === 201) {
-        $message = '<div class="alert success">Application submitted successfully! Our HR team will contact you.</div>';
-    } else {
-        $message = '<div class="alert error">Failed to submit application. Please try again.</div>';
+            // Handle File Upload
+            if ($hasFile) {
+                $fileData = file_get_contents($_FILES['resume_file']['tmp_name']);
+                $payload['resumeFile'] = [
+                    'name' => $_FILES['resume_file']['name'],
+                    'data' => 'data:' . $_FILES['resume_file']['type'] . ';base64,' . base64_encode($fileData)
+                ];
+            }
+
+            $response = apiRequest('/public-apply', 'POST', $payload);
+            
+            if ($response['code'] === 201) {
+                $message = '<div class="alert success">Application submitted successfully! Our HR team will contact you.</div>';
+            } else {
+                $message = '<div class="alert error">Failed to submit application: ' . ($response['data']['error'] ?? 'Unknown error') . '</div>';
+            }
+        }
     }
-}
 
 // Fetch Jobs
 $jobResponse = apiRequest('/public-jobs');
@@ -90,131 +101,197 @@ $jobs = ($jobResponse['code'] === 200 && is_array($jobResponse['data'])) ? $jobR
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
     <style>
         :root {
-            --primary: #2563eb;
-            --primary-hover: #1d4ed8;
-            --bg: #f8fafc;
-            --text: #1e293b;
-            --text-light: #64748b;
+            --primary: #3fa205;
+            --primary-hover: #358a04;
+            --bg: #ffffff;
+            --text: #333333;
+            --text-light: #666666;
             --card-bg: #ffffff;
-            --border: #e2e8f0;
-            --success: #22c55e;
+            --border: #eeeeee;
+            --success: #3fa205;
             --error: #ef4444;
+            --dark-bg: #2d3139;
         }
 
         * { box-sizing: border-box; margin: 0; padding: 0; }
-        body { font-family: 'Inter', sans-serif; background-color: var(--bg); color: var(--text); line-height: 1.6; }
+        body { font-family: inherit; background-color: var(--bg); color: var(--text); line-height: 1.6; }
         
-        .container { max-width: 1000px; margin: 0 auto; padding: 40px 20px; }
+        .container { max-width: 1200px; margin: 0 auto; padding: 60px 20px; }
         
-        header { text-align: center; margin-bottom: 50px; }
-        header h1 { font-size: 2.5rem; color: var(--text); margin-bottom: 10px; font-weight: 700; }
+        header { text-align: center; margin-bottom: 60px; }
+        header h1 { font-size: 2.2rem; color: var(--text); margin-bottom: 15px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; }
+        header .underline { width: 60px; height: 3px; background: var(--primary); margin: 0 auto 20px; }
         header p { color: var(--text-light); font-size: 1.1rem; }
 
-        .alert { padding: 15px; border-radius: 8px; margin-bottom: 25px; text-align: center; font-weight: 500; }
-        .alert.success { background: #dcfce7; color: #166534; border: 1px solid #bbf7d0; }
+        .alert { padding: 15px; border-radius: 4px; margin-bottom: 25px; text-align: center; font-weight: 500; }
+        .alert.success { background: #e9f7e6; color: #2e7d32; border: 1px solid #c8e6c9; }
         .alert.error { background: #fee2e2; color: #991b1b; border: 1px solid #fecaca; }
 
-        .job-grid { display: grid; gap: 20px; }
+        .job-grid { 
+            display: grid; 
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); 
+            gap: 30px; 
+            padding: 20px 0;
+        }
+
         .job-card { 
             background: var(--card-bg); 
-            border: 1px solid var(--border); 
-            border-radius: 12px; 
-            padding: 25px; 
-            transition: transform 0.2s, box-shadow 0.2s;
-            cursor: pointer;
+            border: 1px solid transparent; 
+            border-radius: 8px; 
+            padding: 40px 20px; 
+            text-align: center;
+            transition: all 0.3s ease;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
         }
-        .job-card:hover { transform: translateY(-3px); box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); }
-        
-        .job-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 15px; }
-        .job-title { font-size: 1.25rem; font-weight: 600; color: var(--primary); }
-        .job-type { 
-            font-size: 0.75rem; 
-            text-transform: uppercase; 
-            background: #dbeafe; 
-            color: #1e40af; 
-            padding: 4px 10px; 
-            border-radius: 9999px; 
-            font-weight: 600;
+
+        .job-card:hover {
+            background: var(--primary);
+            color: #ffffff;
+            transform: translateY(-5px);
+            box-shadow: 0 15px 30px rgba(63, 162, 5, 0.2);
         }
-        
-        .job-meta { display: flex; gap: 15px; color: var(--text-light); font-size: 0.9rem; margin-bottom: 15px; }
-        .job-meta span { display: flex; align-items: center; gap: 5px; }
-        
-        .job-desc { color: var(--text); font-size: 0.95rem; margin-bottom: 20px; }
+
+        .job-icon {
+            width: 80px;
+            height: 80px;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #f9f9f9;
+            border-radius: 50%;
+            transition: all 0.3s ease;
+        }
+
+        .job-icon svg {
+            width: 40px;
+            height: 40px;
+            fill: var(--primary);
+            transition: all 0.3s ease;
+        }
+
+        .job-card:hover .job-icon {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .job-card:hover .job-icon svg {
+            fill: #ffffff;
+        }
+
+        .job-title { 
+            font-size: 1.1rem; 
+            font-weight: 700; 
+            margin-bottom: 20px; 
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            height: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .job-card:hover .job-title {
+            color: #ffffff;
+        }
         
         .apply-btn { 
-            background: var(--primary); 
+            background: var(--dark-bg); 
             color: white; 
             border: none; 
-            padding: 10px 25px; 
-            border-radius: 8px; 
-            font-weight: 600; 
+            padding: 12px 30px; 
+            border-radius: 4px; 
+            font-weight: 700; 
+            text-transform: uppercase;
+            font-size: 0.85rem;
             cursor: pointer; 
-            transition: background 0.2s;
+            transition: all 0.3s ease;
+            opacity: 0;
+            transform: translateY(10px);
         }
-        .apply-btn:hover { background: var(--primary-hover); }
+
+        .job-card:hover .apply-btn {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .apply-btn:hover {
+            background: #1a1d23;
+        }
 
         /* Modal / Form Styles */
         .modal { 
             display: none; 
             position: fixed; 
             top: 0; left: 0; width: 100%; height: 100%; 
-            background: rgba(0,0,0,0.5); 
+            background: rgba(0,0,0,0.7); 
             z-index: 1000; 
             align-items: center; 
             justify-content: center;
             padding: 20px;
+            backdrop-filter: blur(5px);
         }
         .modal.active { display: flex; }
         
         .modal-content { 
             background: white; 
-            padding: 35px; 
-            border-radius: 16px; 
+            padding: 40px; 
+            border-radius: 8px; 
             width: 100%; 
-            max-width: 600px; 
+            max-width: 550px; 
             position: relative; 
             max-height: 90vh; 
             overflow-y: auto;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
         }
         
         .close-modal { 
             position: absolute; 
-            top: 20px; right: 20px; 
-            font-size: 24px; 
+            top: 15px; right: 20px; 
+            font-size: 28px; 
             cursor: pointer; 
-            color: var(--text-light);
+            color: #999;
+            transition: color 0.2s;
         }
+        .close-modal:hover { color: var(--text); }
 
         .form-group { margin-bottom: 20px; }
-        .form-group label { display: block; font-weight: 600; margin-bottom: 8px; font-size: 0.9rem; }
+        .form-group label { display: block; font-weight: 700; margin-bottom: 8px; font-size: 0.85rem; text-transform: uppercase; color: #555; }
         .form-group input, .form-group textarea { 
             width: 100%; 
-            padding: 12px; 
-            border: 1px solid var(--border); 
-            border-radius: 8px; 
+            padding: 12px 15px; 
+            border: 1px solid #ddd; 
+            border-radius: 4px; 
             font-family: inherit;
-            font-size: 1rem;
+            font-size: 0.95rem;
+            transition: border-color 0.2s;
         }
-        .form-group input:focus { outline: none; border-color: var(--primary); ring: 2px solid #bfdbfe; }
+        .form-group input:focus, .form-group textarea:focus { outline: none; border-color: var(--primary); }
         
         .submit-btn { 
             width: 100%; 
             background: var(--primary); 
             color: white; 
             border: none; 
-            padding: 14px; 
-            border-radius: 8px; 
+            padding: 15px; 
+            border-radius: 4px; 
             font-weight: 700; 
             font-size: 1rem;
+            text-transform: uppercase;
             cursor: pointer;
+            transition: background 0.3s;
         }
+        .submit-btn:hover { background: var(--primary-hover); }
         
-        .empty-state { text-align: center; padding: 60px; color: var(--text-light); }
+        .empty-state { text-align: center; padding: 60px; color: var(--text-light); grid-column: 1 / -1; }
 
-        @media (max-width: 640px) {
-            header h1 { font-size: 2rem; }
-            .job-header { flex-direction: column; gap: 10px; }
+        @media (max-width: 768px) {
+            header h1 { font-size: 1.8rem; }
+            .job-grid { grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); }
+            .job-card .apply-btn { opacity: 1; transform: translateY(0); margin-top: 10px; }
         }
     </style>
 </head>
@@ -222,8 +299,9 @@ $jobs = ($jobResponse['code'] === 200 && is_array($jobResponse['data'])) ? $jobR
 
 <div class="container">
     <header>
-        <h1>Join Our Team</h1>
-        <p>Explore current openings at MMF Infotech</p>
+        <h1>Current Openings</h1>
+        <div class="underline"></div>
+        <p>Join the MMF Infotech family and build your future with us</p>
     </header>
 
     <?php echo $message; ?>
@@ -235,23 +313,33 @@ $jobs = ($jobResponse['code'] === 200 && is_array($jobResponse['data'])) ? $jobR
             </div>
         <?php else: ?>
             <?php foreach ($jobs as $job): ?>
+                <?php 
+                    $title_lower = strtolower($job['title']);
+                    $icon_svg = '<path d="M12,2C6.47,2,2,6.47,2,12s4.47,10,10,10s10-4.47,10-10S17.53,2,12,2z M12,20c-4.41,0-8-3.59-8-8s3.59-8,8-8s8,3.59,8,8 S16.41,20,12,20z M15.59,11.59L12,15.17l-3.59-3.58L7,13l5,5l5-5L15.59,11.59z"/>'; // Default
+
+                    if (strpos($title_lower, 'php') !== false) {
+                        $icon_svg = '<path d="M12 2C6.477 2 2 6.477 2 12s4.477 10 10 10 10-4.477 10-10S17.523 2 12 2zm-1.8 14.5h-1.6v-5.6H7.1v-1.3h4.7v1.3h-1.6v5.6zm4.1 0h-1.6v-5.6h-1.5v-1.3h4.6v1.3h-1.5v5.6z"/>';
+                        $icon_content = '<span style="font-weight:900; font-size: 24px; color: var(--primary);">php</span>';
+                    } elseif (strpos($title_lower, 'ios') !== false || strpos($title_lower, 'iphone') !== false) {
+                        $icon_svg = '<path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.1 2.48-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.36 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z"/>';
+                    } elseif (strpos($title_lower, 'android') !== false) {
+                        $icon_svg = '<path d="M6 18c0 .55.45 1 1 1h1v3.5c0 .83.67 1.5 1.5 1.5s1.5-.67 1.5-1.5V19h2v3.5c0 .83.67 1.5 1.5 1.5s1.5-.67 1.5-1.5V19h1c.55 0 1-.45 1-1V8H6v10zM3.5 8C2.67 8 2 8.67 2 9.5v7c0 .83.67 1.5 1.5 1.5S5 17.33 5 16.5v-7C5 8.67 4.33 8 3.5 8zm17 0c-.83 0-1.5.67-1.5 1.5v7c0 .83.67 1.5 1.5 1.5s1.5-.67 1.5-1.5v-7c0-.83-.67-1.5-1.5-1.5zm-4.97-5.84l1.2-1.2c.35-.35.35-.91 0-1.25-.35-.35-.91-.35-1.25 0l-1.58 1.58C13.04 1.09 11.55 1 10.11 1c-1.46 0-2.97.09-3.87.3l-1.58-1.58c-.35-.35-.91-.35-1.25 0-.35.35-.35.91 0 1.25l1.2 1.2C3.12 3.3 2.09 5.01 2.01 7h15.98c-.08-1.99-1.11-3.7-2.63-4.84zM7 5c-.55 0-1-.45-1-1s.45-1 1-1 1 .45 1 1-.45 1-1 1zm6 0c-.55 0-1-.45-1-1s.45-1 1-1 1 .45 1 1-.45 1-1 1z"/>';
+                    } elseif (strpos($title_lower, 'python') !== false) {
+                        $icon_svg = '<path d="M14.25.18l.9.2.73.26.59.3.45.32.34.34.25.34.16.33.1.3.04.26.02.2-.01.13V8.5l-.05.63-.13.55-.21.46-.26.38-.38.31-.44.25-.51.17-.57.1-.64.03h-2v4.5l.07.41.13.34.22.28.3.21.31.12.32.06.4.02h2.5l.34.02.31.06.28.12.22.18.15.26.09.3.03.42V20l-.02.3-.08.32-.14.3-.22.27-.3.21-.4.15-.5.09-.6.04H12l-.6-.04-.5-.09-.4-.15-.3-.21-.22-.27-.14-.3-.08-.32-.02-.3v-1.6l.01-.13.02-.2.04-.26.1-.3.16-.33.25-.34.34-.34.45-.32.59-.3.73-.26.9-.2.17-.03h1.1l.4-.02.4-.05.3-.11.2-.15.07-.26.01-.3V14h-4l-.63-.05-.55-.13-.46-.21-.38-.26-.31-.38-.25-.44-.17-.51-.1-.57-.03-.64V9.5l.04-.6.09-.5.15-.4.21-.3.27-.22.3-.14.32-.08.3-.02H15l.6-.04.5-.09.4-.15.3-.21.22-.27.14-.3.08-.32.02-.3V4.4l-.01-.13-.02-.2-.04-.26-.1-.3-.16-.33-.25-.34-.34-.34-.45-.32-.59-.3-.73-.26-.9-.2-.17-.03H10.1l-.4.02-.4.05-.3.11-.2.15-.07.26-.01.3v1.2H7.6l-.34.02-.31.06-.28.12-.22.18-.15.26-.09.3-.03.42V10l.02.3.08.32.14.3.22.27.3.21.4.15.5.09.6.04H12l.6-.04.5-.09.4-.15.3-.21.22-.27.14-.3.08-.32.02-.3V4.5l-.07-.41-.13-.34-.22-.28-.3-.21-.31-.12-.32-.06-.4-.02H8.5l-.34-.02-.31-.06-.28-.12-.22-.18-.15-.26-.09-.3-.03-.42V4l.02-.3.08-.32.14-.3.22-.27.3-.21.4-.15.5-.09.6-.04H12l.6.04.5.09.4.15.3.21.22.27.14.3.08.32.02.3v1.6l-.01.13-.02.2-.04.26-.1.3-.16.33-.25.34-.34.34-.45.32-.59.3-.73.26-.9.2-.17.03H8.9l-.4.02-.4.05-.3.11-.2.15-.07.26-.01.3v1.2H4.4l-.34.02-.31.06-.28.12-.22.18-.15.26-.09.3-.03.42V10l.02.3.08.32.14.3.22.27.3.21.4.15.5.09.6.04H8l.63.05.55.13.46.21.38.26.31.38.25.44.17.51.1.57.03.64v4l-.04.6-.09.5-.15.4-.21.3-.27.22-.3.14-.32.08-.3.02H9l-.6.04-.5.09-.4.15-.3.21-.22.27-.14.3-.08.32-.02.3v1.6l.01.13.02.2.04.26.1.3.16.33.25.34.34.34.45.32.59.3.73.26.9.2.17.03h1.1l.4-.02.4-.05.3-.11.2-.15.07-.26.01-.3V15h4.1l.34-.02.31-.06.28-.12.22-.18.15-.26.09-.3.03-.42V10l-.02-.3-.08-.32-.14-.3-.22-.27-.3-.21-.4-.15-.5-.09-.6-.04H12l-.63-.05-.55-.13-.46-.21-.38-.26-.31-.38-.25-.44-.17-.51-.1-.57-.03-.64V5.5l.04-.6.09-.5.15-.4.21-.3.27-.22.3-.14.32-.08.3-.02H15z"/>';
+                    } elseif (strpos($title_lower, 'content') !== false || strpos($title_lower, 'writer') !== false) {
+                        $icon_svg = '<path d="M14,2H6C4.9,2,4,2.9,4,4v16c0,1.1,0.9,2,2,2h12c1.1,0,2-0.9,2-2V8L14,2z M13,9V3.5L18.5,9H13z M16,16H8v-2h8V16z M16,12H8v-2h8 V12z M16,20H8v-2h8V20z"/>';
+                    } elseif (strpos($title_lower, 'marketing') !== false || strpos($title_lower, 'seo') !== false) {
+                        $icon_svg = '<path d="M12,2C6.47,2,2,6.47,2,12s4.47,10,10,10s10-4.47,10-10S17.53,2,12,2z M13,17h-2v-2h2V17z M13,13h-2V7h2V13z"/>';
+                    } elseif (strpos($title_lower, 'business') !== false || strpos($title_lower, 'bd') !== false) {
+                        $icon_svg = '<path d="M12,12c2.21,0,4-1.79,4-4s-1.79-4-4-4S8,5.79,8,8S9.79,12,12,12z M12,14c-2.67,0-8,1.34-8,4v2h16v-2C20,15.34,14.67,14,12,14z"/>';
+                    }
+                ?>
                 <div class="job-card" onclick="openApplyModal('<?php echo $job['id']; ?>', '<?php echo htmlspecialchars($job['title']); ?>')">
-                    <div class="job-header">
-                        <h2 class="job-title"><?php echo htmlspecialchars($job['title']); ?></h2>
-                        <span class="job-type"><?php echo htmlspecialchars($job['type']); ?></span>
+                    <div class="job-icon">
+                        <svg viewBox="0 0 24 24"><?php echo $icon_svg; ?></svg>
                     </div>
-                    <div class="job-meta">
-                        <span>📍 <?php echo htmlspecialchars($job['location']); ?></span>
-                        <span>💰 <?php echo htmlspecialchars($job['salary'] ?? 'Competitive'); ?></span>
-                    </div>
-                    <div class="job-desc">
-                        <?php 
-                            // Clean HTML for preview
-                            $clean_desc = strip_tags($job['description']);
-                            echo (strlen($clean_desc) > 160) ? substr($clean_desc, 0, 160) . '...' : $clean_desc;
-                        ?>
-                    </div>
-                    <button class="apply-btn">Quick Apply</button>
+                    <h2 class="job-title"><?php echo htmlspecialchars($job['title']); ?></h2>
+                    <button class="apply-btn">Apply Now</button>
                 </div>
             <?php endforeach; ?>
         <?php endif; ?>
@@ -269,30 +357,31 @@ $jobs = ($jobResponse['code'] === 200 && is_array($jobResponse['data'])) ? $jobR
             <input type="hidden" name="apply_job" value="1">
             
             <div class="form-group">
-                <label>Full Name</label>
+                <label>Full Name *</label>
                 <input type="text" name="full_name" required placeholder="John Doe">
             </div>
             
             <div class="form-group">
-                <label>Email Address</label>
+                <label>Email Address *</label>
                 <input type="email" name="email" required placeholder="john@example.com">
             </div>
             
             <div class="form-group">
-                <label>Phone Number</label>
-                <input type="text" name="phone" placeholder="+91 98765 43210">
+                <label>Phone Number *</label>
+                <input type="text" name="phone" required placeholder="+91 98765 43210">
             </div>
 
             <div class="form-group">
-                <label>Upload Resume (PDF or Word)</label>
-                <input type="file" name="resume_file" accept=".pdf,.doc,.docx" class="file-input">
+                <label>Upload Resume * (PDF or Word)</label>
+                <input type="file" name="resume_file" id="resume_file" accept=".pdf,.doc,.docx" class="file-input">
                 <div style="font-size: 0.8rem; color: var(--text-light); margin-top: 5px;">Or provide a link below:</div>
             </div>
 
             <div class="form-group">
-                <label>Resume Link (Optional)</label>
-                <input type="url" name="resume_url" placeholder="https://drive.google.com/...">
+                <label>Resume Link (Required if no file uploaded) *</label>
+                <input type="url" name="resume_url" id="resume_url" placeholder="https://drive.google.com/...">
             </div>
+
             
             <div class="form-group">
                 <label>Cover Letter / Why should we hire you?</label>
@@ -324,6 +413,19 @@ $jobs = ($jobResponse['code'] === 200 && is_array($jobResponse['data'])) ? $jobR
             closeModal();
         }
     }
+
+    // Client-side validation for resume
+    document.querySelector('form').onsubmit = function(e) {
+        const file = document.getElementById('resume_file').value;
+        const url = document.getElementById('resume_url').value;
+        
+        if (!file && !url) {
+            alert('Please either upload a resume file or provide a resume link.');
+            e.preventDefault();
+            return false;
+        }
+        return true;
+    };
 </script>
 
 </body>
