@@ -89,6 +89,17 @@ function apiRequest($endpoint, $method = 'GET', $data = null) {
 // Fetch Jobs
 $jobResponse = apiRequest('/public-jobs');
 $jobs = ($jobResponse['code'] === 200 && is_array($jobResponse['data'])) ? $jobResponse['data'] : [];
+
+$selectedJobId = isset($_GET['job']) ? trim($_GET['job']) : '';
+$selectedJob = null;
+if (!empty($selectedJobId)) {
+    foreach ($jobs as $j) {
+        if (isset($j['id']) && (string)$j['id'] === (string)$selectedJobId) {
+            $selectedJob = $j;
+            break;
+        }
+    }
+}
 ?>
 
 <!DOCTYPE html>
@@ -221,6 +232,10 @@ $jobs = ($jobResponse['code'] === 200 && is_array($jobResponse['data'])) ? $jobR
             cursor: pointer; 
             transition: all 0.3s ease;
             margin-left: 20px;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
         }
 
         .apply-btn:hover {
@@ -261,6 +276,28 @@ $jobs = ($jobResponse['code'] === 200 && is_array($jobResponse['data'])) ? $jobR
             justify-content: space-between;
             gap: 16px;
             margin-bottom: 10px;
+        }
+
+        .back-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            color: var(--primary);
+            font-weight: 800;
+            text-decoration: none;
+            margin: 6px 0 18px;
+        }
+
+        .back-link:hover {
+            text-decoration: underline;
+        }
+
+        .panel {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 26px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.04);
         }
 
         .job-meta-grid {
@@ -411,207 +448,156 @@ $jobs = ($jobResponse['code'] === 200 && is_array($jobResponse['data'])) ? $jobR
 
     <?php echo $message; ?>
 
-    <div class="job-grid">
-        <?php if (empty($jobs)): ?>
-            <div class="empty-state">
-                <p>No active job openings at the moment. Please check back later.</p>
-            </div>
-        <?php else: ?>
-            <div class="job-head">
-                <div>Job Title</div>
-                <div>Location</div>
-                <div>Posted Date</div>
-                <div style="text-align:right;">View Post</div>
-            </div>
-            <?php foreach ($jobs as $job): ?>
-                <?php 
-                    $title_lower = strtolower($job['title']);
-                    $icon_svg = '<path d="M12,2C6.47,2,2,6.47,2,12s4.47,10,10,10s10-4.47,10-10S17.53,2,12,2z M12,20c-4.41,0-8-3.59-8-8s3.59-8,8-8s8,3.59,8,8 S16.41,20,12,20z M15.59,11.59L12,15.17l-3.59-3.58L7,13l5,5l5-5L15.59,11.59z"/>'; // Default
+    <?php if ($selectedJob): ?>
+        <a class="back-link" href="careers2.php">← Back to Jobs</a>
+        <?php
+            $selectedLocation = $selectedJob['location'] ?? '';
+            $selectedSalary = $selectedJob['salary'] ?? '';
+            $selectedCreatedAtRaw = $selectedJob['createdAt'] ?? ($selectedJob['created_at'] ?? '');
+            $selectedCreatedAt = '';
+            if (!empty($selectedCreatedAtRaw)) {
+                $ts = strtotime($selectedCreatedAtRaw);
+                if ($ts !== false) $selectedCreatedAt = date('d M Y', $ts);
+            }
+            $selectedDescription = $selectedJob['description'] ?? '';
+            if (!empty($selectedDescription)) {
+                $selectedDescription = preg_replace('#<script\b[^>]*>.*?</script>#is', '', $selectedDescription);
+            }
+        ?>
 
-                    if (strpos($title_lower, 'php') !== false) {
-                        $icon_svg = '<path d="M12 2C6.477 2 2 6.477 2 12s4.477 10 10 10 10-4.477 10-10S17.523 2 12 2zm-1.8 14.5h-1.6v-5.6H7.1v-1.3h4.7v1.3h-1.6v5.6zm4.1 0h-1.6v-5.6h-1.5v-1.3h4.6v1.3h-1.5v5.6z"/>';
-                        $icon_content = '<span style="font-weight:900; font-size: 24px; color: var(--primary);">php</span>';
-                    } elseif (strpos($title_lower, 'ios') !== false || strpos($title_lower, 'iphone') !== false) {
-                        $icon_svg = '<path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.1 2.48-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.36 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z"/>';
-                    } elseif (strpos($title_lower, 'android') !== false) {
-                        $icon_svg = '<path d="M6 18c0 .55.45 1 1 1h1v3.5c0 .83.67 1.5 1.5 1.5s1.5-.67 1.5-1.5V19h2v3.5c0 .83.67 1.5 1.5 1.5s1.5-.67 1.5-1.5V19h1c.55 0 1-.45 1-1V8H6v10zM3.5 8C2.67 8 2 8.67 2 9.5v7c0 .83.67 1.5 1.5 1.5S5 17.33 5 16.5v-7C5 8.67 4.33 8 3.5 8zm17 0c-.83 0-1.5.67-1.5 1.5v7c0 .83.67 1.5 1.5 1.5s1.5-.67 1.5-1.5v-7c0-.83-.67-1.5-1.5-1.5zm-4.97-5.84l1.2-1.2c.35-.35.35-.91 0-1.25-.35-.35-.91-.35-1.25 0l-1.58 1.58C13.04 1.09 11.55 1 10.11 1c-1.46 0-2.97.09-3.87.3l-1.58-1.58c-.35-.35-.91-.35-1.25 0-.35.35-.35.91 0 1.25l1.2 1.2C3.12 3.3 2.09 5.01 2.01 7h15.98c-.08-1.99-1.11-3.7-2.63-4.84zM7 5c-.55 0-1-.45-1-1s.45-1 1-1 1 .45 1 1-.45 1-1 1zm6 0c-.55 0-1-.45-1-1s.45-1 1-1 1 .45 1 1-.45 1-1 1z"/>';
-                    } elseif (strpos($title_lower, 'python') !== false) {
-                        $icon_svg = '<path d="M14.25.18l.9.2.73.26.59.3.45.32.34.34.25.34.16.33.1.3.04.26.02.2-.01.13V8.5l-.05.63-.13.55-.21.46-.26.38-.38.31-.44.25-.51.17-.57.1-.64.03h-2v4.5l.07.41.13.34.22.28.3.21.31.12.32.06.4.02h2.5l.34.02.31.06.28.12.22.18.15.26.09.3.03.42V20l-.02.3-.08.32-.14.3-.22.27-.3.21-.4.15-.5.09-.6.04H12l-.6-.04-.5-.09-.4-.15-.3-.21-.22-.27-.14-.3-.08-.32-.02-.3v-1.6l.01-.13.02-.2.04-.26.1-.3.16-.33.25-.34.34-.34.45-.32.59-.3.73-.26.9-.2.17-.03h1.1l.4-.02.4-.05.3-.11.2-.15.07-.26.01-.3V14h-4l-.63-.05-.55-.13-.46-.21-.38-.26-.31-.38-.25-.44-.17-.51-.1-.57-.03-.64V9.5l.04-.6.09-.5.15-.4.21-.3.27-.22.3-.14.32-.08.3-.02H15l.6-.04.5-.09.4-.15.3-.21.22-.27.14-.3.08-.32.02-.3V4.4l-.01-.13-.02-.2-.04-.26-.1-.3-.16-.33-.25-.34-.34-.34-.45-.32-.59-.3-.73-.26-.9-.2-.17-.03H10.1l-.4.02-.4.05-.3.11-.2.15-.07.26-.01.3v1.2H7.6l-.34.02-.31.06-.28.12-.22.18-.15.26-.09.3-.03.42V10l.02.3.08.32.14.3.22.27.3.21.4.15.5.09.6.04H12l.6-.04.5-.09.4-.15.3-.21.22-.27.14-.3.08-.32.02-.3V4.5l-.07-.41-.13-.34-.22-.28-.3-.21-.31-.12-.32-.06-.4-.02H8.5l-.34-.02-.31-.06-.28-.12-.22-.18-.15-.26-.09-.3-.03-.42V4l.02-.3.08-.32.14-.3.22-.27.3-.21.4-.15.5-.09.6-.04H12l.6.04.5.09.4.15.3.21.22.27.14.3.08.32.02.3v1.6l-.01.13-.02.2-.04.26-.1.3-.16.33-.25.34-.34.34-.45.32-.59.3-.73.26-.9.2-.17.03H8.9l-.4.02-.4.05-.3.11-.2.15-.07.26-.01.3v1.2H4.4l-.34.02-.31.06-.28.12-.22.18-.15.26-.09.3-.03.42V10l.02.3.08.32.14.3.22.27.3.21.4.15.5.09.6.04H8l.63.05.55.13.46.21.38.26.31.38.25.44.17.51.1.57.03.64v4l-.04.6-.09.5-.15.4-.21.3-.27.22-.3.14-.32.08-.3.02H9l-.6.04-.5.09-.4.15-.3.21-.22.27-.14.3-.08.32-.02.3v1.6l.01.13.02.2.04.26.1.3.16.33.25.34.34.34.45.32.59.3.73.26.9.2.17.03h1.1l.4-.02.4-.05.3-.11.2-.15.07-.26.01-.3V15h4.1l.34-.02.31-.06.28-.12.22-.18.15-.26.09-.3.03-.42V10l-.02-.3-.08-.32-.14-.3-.22-.27-.3-.21-.4-.15-.5-.09-.6-.04H12l-.63-.05-.55-.13-.46-.21-.38-.26-.31-.38-.25-.44-.17-.51-.1-.57-.03-.64V5.5l.04-.6.09-.5.15-.4.21-.3.27-.22.3-.14.32-.08.3-.02H15z"/>';
-                    } elseif (strpos($title_lower, 'content') !== false || strpos($title_lower, 'writer') !== false) {
-                        $icon_svg = '<path d="M14,2H6C4.9,2,4,2.9,4,4v16c0,1.1,0.9,2,2,2h12c1.1,0,2-0.9,2-2V8L14,2z M13,9V3.5L18.5,9H13z M16,16H8v-2h8V16z M16,12H8v-2h8 V12z M16,20H8v-2h8V20z"/>';
-                    } elseif (strpos($title_lower, 'marketing') !== false || strpos($title_lower, 'seo') !== false) {
-                        $icon_svg = '<path d="M12,2C6.47,2,2,6.47,2,12s4.47,10,10,10s10-4.47,10-10S17.53,2,12,2z M13,17h-2v-2h2V17z M13,13h-2V7h2V13z"/>';
-                    } elseif (strpos($title_lower, 'business') !== false || strpos($title_lower, 'bd') !== false) {
-                        $icon_svg = '<path d="M12,12c2.21,0,4-1.79,4-4s-1.79-4-4-4S8,5.79,8,8S9.79,12,12,12z M12,14c-2.67,0-8,1.34-8,4v2h16v-2C20,15.34,14.67,14,12,14z"/>';
-                    }
+        <div class="panel">
+            <div class="job-details-header">
+                <h2 style="color: var(--text); margin: 0;"><?php echo htmlspecialchars($selectedJob['title'] ?? 'Job'); ?></h2>
+                <a class="apply-btn" href="#apply-section">Apply Now</a>
+            </div>
 
-                    $location = $job['location'] ?? '';
-                    $salary = $job['salary'] ?? '';
-                    $createdAtRaw = $job['createdAt'] ?? ($job['created_at'] ?? '');
-                    $createdAt = '';
-                    if (!empty($createdAtRaw)) {
-                        $ts = strtotime($createdAtRaw);
-                        if ($ts !== false) $createdAt = date('d M Y', $ts);
-                    }
-                    $jobDetails = [
-                        'id' => $job['id'],
-                        'title' => $job['title'],
-                        'location' => $location,
-                        'salary' => $salary,
-                        'createdAt' => $createdAt,
-                        'description' => $job['description'] ?? ''
-                    ];
-                ?>
-                <div class="job-row">
-                    <div class="job-title-cell">
-                        <div class="job-icon">
-                            <svg viewBox="0 0 24 24"><?php echo $icon_svg; ?></svg>
-                        </div>
-                        <h2 class="job-title"><?php echo htmlspecialchars($job['title']); ?></h2>
-                    </div>
-                    <div class="job-cell"><?php echo htmlspecialchars($location ?: '—'); ?></div>
-                    <div class="job-cell"><?php echo htmlspecialchars($createdAt ?: '—'); ?></div>
-                    <button type="button" class="view-btn" onclick='openJobDetails(<?php echo json_encode($jobDetails, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT); ?>)'>View Post</button>
+            <div class="job-meta-grid">
+                <div class="job-meta-item">
+                    <div class="job-meta-label">Location</div>
+                    <div class="job-meta-value"><?php echo htmlspecialchars($selectedLocation ?: '—'); ?></div>
                 </div>
-            <?php endforeach; ?>
-        <?php endif; ?>
-    </div>
-</div>
+                <div class="job-meta-item">
+                    <div class="job-meta-label">Posted Date</div>
+                    <div class="job-meta-value"><?php echo htmlspecialchars($selectedCreatedAt ?: '—'); ?></div>
+                </div>
+                <div class="job-meta-item">
+                    <div class="job-meta-label">Salary Range</div>
+                    <div class="job-meta-value"><?php echo htmlspecialchars($selectedSalary ?: '—'); ?></div>
+                </div>
+            </div>
 
-<!-- Job Details Modal -->
-<div id="jobDetailsModal" class="modal">
-    <div class="modal-content">
-        <span class="close-modal" onclick="closeJobDetailsModal()">&times;</span>
-        <div class="job-details-header">
-            <h2 id="detailsJobTitle" style="color: var(--text); margin: 0;">Job Details</h2>
-            <button type="button" class="apply-btn" onclick="applyFromDetails()">Apply Now</button>
+            <div class="job-meta-label" style="margin-bottom: 8px;">Job Description</div>
+            <div class="job-description"><?php echo $selectedDescription ?: '<span style="color: var(--text-light);">—</span>'; ?></div>
         </div>
 
-        <div class="job-meta-grid">
-            <div class="job-meta-item">
-                <div class="job-meta-label">Location</div>
-                <div class="job-meta-value" id="detailsJobLocation">—</div>
-            </div>
-            <div class="job-meta-item">
-                <div class="job-meta-label">Posted Date</div>
-                <div class="job-meta-value" id="detailsJobDate">—</div>
-            </div>
-            <div class="job-meta-item">
-                <div class="job-meta-label">Salary Range</div>
-                <div class="job-meta-value" id="detailsJobSalary">—</div>
-            </div>
+        <div id="apply-section" style="margin-top: 22px;" class="panel">
+            <h2 style="margin: 0 0 18px; color: var(--primary);">Apply for Job</h2>
+
+            <form id="applyForm" method="POST" action="<?php echo htmlspecialchars($_SERVER['REQUEST_URI']); ?>" enctype="multipart/form-data">
+                <input type="hidden" name="job_id" value="<?php echo htmlspecialchars($selectedJob['id']); ?>">
+                <input type="hidden" name="apply_job" value="1">
+                
+                <div class="form-group">
+                    <label>Full Name *</label>
+                    <input type="text" name="full_name" required placeholder="John Doe">
+                </div>
+                
+                <div class="form-group">
+                    <label>Email Address *</label>
+                    <input type="email" name="email" required placeholder="john@example.com">
+                </div>
+                
+                <div class="form-group">
+                    <label>Phone Number *</label>
+                    <input type="text" name="phone" required placeholder="+91 98765 43210">
+                </div>
+
+                <div class="form-group">
+                    <label>Upload Resume * (PDF or Word)</label>
+                    <input type="file" name="resume_file" id="resume_file" accept=".pdf,.doc,.docx" class="file-input" required>
+                </div>
+
+                <div class="form-group">
+                    <label>Cover Letter / Why should we hire you?</label>
+                    <textarea name="cover_letter" rows="4" placeholder="Tell us about your experience..."></textarea>
+                </div>
+                
+                <button type="submit" class="submit-btn">Submit Application</button>
+            </form>
         </div>
+    <?php else: ?>
+        <div class="job-grid">
+            <?php if (empty($jobs)): ?>
+                <div class="empty-state">
+                    <p>No active job openings at the moment. Please check back later.</p>
+                </div>
+            <?php else: ?>
+                <div class="job-head">
+                    <div>Job Title</div>
+                    <div>Location</div>
+                    <div>Posted Date</div>
+                    <div style="text-align:right;">View Post</div>
+                </div>
+                <?php foreach ($jobs as $job): ?>
+                    <?php 
+                        $title_lower = strtolower($job['title']);
+                        $icon_svg = '<path d="M12,2C6.47,2,2,6.47,2,12s4.47,10,10,10s10-4.47,10-10S17.53,2,12,2z M12,20c-4.41,0-8-3.59-8-8s3.59-8,8-8s8,3.59,8,8 S16.41,20,12,20z M15.59,11.59L12,15.17l-3.59-3.58L7,13l5,5l5-5L15.59,11.59z"/>'; // Default
 
-        <div class="job-meta-label" style="margin-bottom: 8px;">Job Description</div>
-        <div id="detailsJobDescription" class="job-description"></div>
-    </div>
-</div>
+                        if (strpos($title_lower, 'php') !== false) {
+                            $icon_svg = '<path d="M12 2C6.477 2 2 6.477 2 12s4.477 10 10 10 10-4.477 10-10S17.523 2 12 2zm-1.8 14.5h-1.6v-5.6H7.1v-1.3h4.7v1.3h-1.6v5.6zm4.1 0h-1.6v-5.6h-1.5v-1.3h4.6v1.3h-1.5v5.6z"/>';
+                            $icon_content = '<span style="font-weight:900; font-size: 24px; color: var(--primary);">php</span>';
+                        } elseif (strpos($title_lower, 'ios') !== false || strpos($title_lower, 'iphone') !== false) {
+                            $icon_svg = '<path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.1 2.48-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.36 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z"/>';
+                        } elseif (strpos($title_lower, 'android') !== false) {
+                            $icon_svg = '<path d="M6 18c0 .55.45 1 1 1h1v3.5c0 .83.67 1.5 1.5 1.5s1.5-.67 1.5-1.5V19h2v3.5c0 .83.67 1.5 1.5 1.5s1.5-.67 1.5-1.5V19h1c.55 0 1-.45 1-1V8H6v10zM3.5 8C2.67 8 2 8.67 2 9.5v7c0 .83.67 1.5 1.5 1.5S5 17.33 5 16.5v-7C5 8.67 4.33 8 3.5 8zm17 0c-.83 0-1.5.67-1.5 1.5v7c0 .83.67 1.5 1.5 1.5s1.5-.67 1.5-1.5v-7c0-.83-.67-1.5-1.5-1.5zm-4.97-5.84l1.2-1.2c.35-.35.35-.91 0-1.25-.35-.35-.91-.35-1.25 0l-1.58 1.58C13.04 1.09 11.55 1 10.11 1c-1.46 0-2.97.09-3.87.3l-1.58-1.58c-.35-.35-.91-.35-1.25 0-.35.35-.35.91 0 1.25l1.2 1.2C3.12 3.3 2.09 5.01 2.01 7h15.98c-.08-1.99-1.11-3.7-2.63-4.84zM7 5c-.55 0-1-.45-1-1s.45-1 1-1 1 .45 1 1-.45 1-1 1zm6 0c-.55 0-1-.45-1-1s.45-1 1-1 1 .45 1 1-.45 1-1 1z"/>';
+                        } elseif (strpos($title_lower, 'python') !== false) {
+                            $icon_svg = '<path d="M14.25.18l.9.2.73.26.59.3.45.32.34.34.25.34.16.33.1.3.04.26.02.2-.01.13V8.5l-.05.63-.13.55-.21.46-.26.38-.38.31-.44.25-.51.17-.57.1-.64.03h-2v4.5l.07.41.13.34.22.28.3.21.31.12.32.06.4.02h2.5l.34.02.31.06.28.12.22.18.15.26.09.3.03.42V20l-.02.3-.08.32-.14.3-.22.27-.3.21-.4.15-.5.09-.6.04H12l-.6-.04-.5-.09-.4-.15-.3-.21-.22-.27-.14-.3-.08-.32-.02-.3v-1.6l.01-.13.02-.2.04-.26.1-.3.16-.33.25-.34.34-.34.45-.32.59-.3.73-.26.9-.2.17-.03h1.1l.4-.02.4-.05.3-.11.2-.15.07-.26.01-.3V14h-4l-.63-.05-.55-.13-.46-.21-.38-.26-.31-.38-.25-.44-.17-.51-.1-.57-.03-.64V9.5l.04-.6.09-.5.15-.4.21-.3.27-.22.3-.14.32-.08.3-.02H15l.6-.04.5-.09.4-.15.3-.21.22-.27.14-.3.08-.32.02-.3V4.4l-.01-.13-.02-.2-.04-.26-.1-.3-.16-.33-.25-.34-.34-.34-.45-.32-.59-.3-.73-.26-.9-.2-.17-.03H10.1l-.4.02-.4.05-.3.11-.2.15-.07.26-.01.3v1.2H7.6l-.34.02-.31.06-.28.12-.22.18-.15.26-.09.3-.03.42V10l.02.3.08.32.14.3.22.27.3.21.4.15.5.09.6.04H12l.6-.04.5-.09.4-.15.3-.21.22-.27.14-.3.08-.32.02-.3V4.5l-.07-.41-.13-.34-.22-.28-.3-.21-.31-.12-.32-.06-.4-.02H8.5l-.34-.02-.31-.06-.28-.12-.22-.18-.15-.26-.09-.3-.03-.42V4l.02-.3.08-.32.14-.3.22-.27.3-.21.4-.15.5-.09.6-.04H12l.6.04.5.09.4.15.3.21.22.27.14.3.08.32.02.3v1.6l-.01.13-.02.2-.04.26-.1.3-.16.33-.25.34-.34.34-.45.32-.59.3-.73.26-.9.2-.17.03H8.9l-.4.02-.4.05-.3.11-.2.15-.07.26-.01.3v1.2H4.4l-.34.02-.31.06-.28.12-.22.18-.15.26-.09.3-.03.42V10l.02.3.08.32.14.3.22.27.3.21.4.15.5.09.6.04H8l.63.05.55.13.46.21.38.26.31.38.25.44.17.51.1.57.03.64v4l-.04.6-.09.5-.15.4-.21.3-.27.22-.3.14-.32.08-.3.02H9l-.6.04-.5.09-.4.15-.3.21-.22.27-.14.3-.08.32-.02.3v1.6l.01.13.02.2.04.26.1.3.16.33.25.34.34.34.45.32.59.3.73.26.9.2.17.03h1.1l.4-.02.4-.05.3-.11.2-.15.07-.26.01-.3V15h4.1l.34-.02.31-.06.28-.12.22-.18.15-.26.09-.3.03-.42V10l-.02-.3-.08-.32-.14-.3-.22-.27-.3-.21-.4-.15-.5-.09-.6-.04H12l-.63-.05-.55-.13-.46-.21-.38-.26-.31-.38-.25-.44-.17-.51-.1-.57-.03-.64V5.5l.04-.6.09-.5.15-.4.21-.3.27-.22.3-.14.32-.08.3-.02H15z"/>';
+                        } elseif (strpos($title_lower, 'content') !== false || strpos($title_lower, 'writer') !== false) {
+                            $icon_svg = '<path d="M14,2H6C4.9,2,4,2.9,4,4v16c0,1.1,0.9,2,2,2h12c1.1,0,2-0.9,2-2V8L14,2z M13,9V3.5L18.5,9H13z M16,16H8v-2h8V16z M16,12H8v-2h8 V12z M16,20H8v-2h8V20z"/>';
+                        } elseif (strpos($title_lower, 'marketing') !== false || strpos($title_lower, 'seo') !== false) {
+                            $icon_svg = '<path d="M12,2C6.47,2,2,6.47,2,12s4.47,10,10,10s10-4.47,10-10S17.53,2,12,2z M13,17h-2v-2h2V17z M13,13h-2V7h2V13z"/>';
+                        } elseif (strpos($title_lower, 'business') !== false || strpos($title_lower, 'bd') !== false) {
+                            $icon_svg = '<path d="M12,12c2.21,0,4-1.79,4-4s-1.79-4-4-4S8,5.79,8,8S9.79,12,12,12z M12,14c-2.67,0-8,1.34-8,4v2h16v-2C20,15.34,14.67,14,12,14z"/>';
+                        }
 
-<!-- Application Modal -->
-<div id="applyModal" class="modal">
-    <div class="modal-content">
-        <span class="close-modal" onclick="closeModal()">&times;</span>
-        <h2 id="modalJobTitle" style="margin-bottom: 25px; color: var(--primary);">Apply for Job</h2>
-        
-        <form method="POST" action="" enctype="multipart/form-data">
-            <input type="hidden" name="job_id" id="job_id">
-            <input type="hidden" name="apply_job" value="1">
-            
-            <div class="form-group">
-                <label>Full Name *</label>
-                <input type="text" name="full_name" required placeholder="John Doe">
-            </div>
-            
-            <div class="form-group">
-                <label>Email Address *</label>
-                <input type="email" name="email" required placeholder="john@example.com">
-            </div>
-            
-            <div class="form-group">
-                <label>Phone Number *</label>
-                <input type="text" name="phone" required placeholder="+91 98765 43210">
-            </div>
-
-            <div class="form-group">
-                <label>Upload Resume * (PDF or Word)</label>
-                <input type="file" name="resume_file" id="resume_file" accept=".pdf,.doc,.docx" class="file-input" required>
-            </div>
-
-            
-            <div class="form-group">
-                <label>Cover Letter / Why should we hire you?</label>
-                <textarea name="cover_letter" rows="4" placeholder="Tell us about your experience..."></textarea>
-            </div>
-            
-            <button type="submit" class="submit-btn">Submit Application</button>
-        </form>
-    </div>
+                        $location = $job['location'] ?? '';
+                        $createdAtRaw = $job['createdAt'] ?? ($job['created_at'] ?? '');
+                        $createdAt = '';
+                        if (!empty($createdAtRaw)) {
+                            $ts = strtotime($createdAtRaw);
+                            if ($ts !== false) $createdAt = date('d M Y', $ts);
+                        }
+                    ?>
+                    <div class="job-row">
+                        <div class="job-title-cell">
+                            <div class="job-icon">
+                                <svg viewBox="0 0 24 24"><?php echo $icon_svg; ?></svg>
+                            </div>
+                            <h2 class="job-title"><?php echo htmlspecialchars($job['title']); ?></h2>
+                        </div>
+                        <div class="job-cell"><?php echo htmlspecialchars($location ?: '—'); ?></div>
+                        <div class="job-cell"><?php echo htmlspecialchars($createdAt ?: '—'); ?></div>
+                        <a class="view-btn" href="careers2.php?job=<?php echo urlencode($job['id']); ?>">View Post</a>
+                    </div>
+                <?php endforeach; ?>
+            <?php endif; ?>
+        </div>
+    <?php endif; ?>
 </div>
 
 <script>
-    let currentJobForApply = { id: '', title: '' };
-
-    function openApplyModal(id, title) {
-        document.getElementById('job_id').value = id;
-        document.getElementById('modalJobTitle').innerText = 'Apply for ' + title;
-        document.getElementById('applyModal').classList.add('active');
-        document.body.style.overflow = 'hidden'; // Prevent scroll
+    const applyForm = document.getElementById('applyForm');
+    if (applyForm) {
+        applyForm.onsubmit = function(e) {
+            const file = document.getElementById('resume_file')?.value || '';
+            if (!file) {
+                alert('Please upload your resume file.');
+                e.preventDefault();
+                return false;
+            }
+            return true;
+        };
     }
-
-    function closeModal() {
-        document.getElementById('applyModal').classList.remove('active');
-        document.body.style.overflow = 'auto';
-    }
-
-    function openJobDetails(job) {
-        currentJobForApply = { id: job.id || '', title: job.title || '' };
-        document.getElementById('detailsJobTitle').innerText = job.title || 'Job Details';
-        document.getElementById('detailsJobLocation').innerText = job.location || '—';
-        document.getElementById('detailsJobDate').innerText = job.createdAt || '—';
-        document.getElementById('detailsJobSalary').innerText = job.salary || '—';
-
-        const descEl = document.getElementById('detailsJobDescription');
-        descEl.innerHTML = job.description || '';
-        descEl.querySelectorAll('script').forEach(s => s.remove());
-
-        document.getElementById('jobDetailsModal').classList.add('active');
-        document.body.style.overflow = 'hidden';
-    }
-
-    function closeJobDetailsModal() {
-        document.getElementById('jobDetailsModal').classList.remove('active');
-        document.body.style.overflow = 'auto';
-    }
-
-    function applyFromDetails() {
-        closeJobDetailsModal();
-        if (!currentJobForApply.id) return;
-        openApplyModal(currentJobForApply.id, currentJobForApply.title || 'Job');
-    }
-
-    // Close on outside click
-    window.onclick = function(event) {
-        let applyModal = document.getElementById('applyModal');
-        let detailsModal = document.getElementById('jobDetailsModal');
-        if (event.target == applyModal) {
-            closeModal();
-        }
-        if (event.target == detailsModal) {
-            closeJobDetailsModal();
-        }
-    }
-
-    // Client-side validation for resume
-    document.querySelector('form').onsubmit = function(e) {
-        const file = document.getElementById('resume_file').value;
-        
-        if (!file) {
-            alert('Please upload your resume file.');
-            e.preventDefault();
-            return false;
-        }
-        return true;
-    };
 </script>
 
 </body>
