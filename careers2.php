@@ -468,7 +468,7 @@ if (!empty($selectedJobId)) {
         <div class="panel">
             <div class="job-details-header">
                 <h2 style="color: var(--text); margin: 0;"><?php echo htmlspecialchars($selectedJob['title'] ?? 'Job'); ?></h2>
-                <a class="apply-btn" href="#apply-section">Apply Now</a>
+                <button type="button" class="apply-btn" onclick="openApplyModal()">Apply Now</button>
             </div>
 
             <div class="job-meta-grid">
@@ -490,40 +490,43 @@ if (!empty($selectedJobId)) {
             <div class="job-description"><?php echo $selectedDescription ?: '<span style="color: var(--text-light);">—</span>'; ?></div>
         </div>
 
-        <div id="apply-section" style="margin-top: 22px;" class="panel">
-            <h2 style="margin: 0 0 18px; color: var(--primary);">Apply for Job</h2>
+        <div id="applyModal" class="modal" role="dialog" aria-modal="true" aria-hidden="true">
+            <div class="modal-content">
+                <span class="close-modal" onclick="closeApplyModal()">&times;</span>
+                <h2 style="margin: 0 0 18px; color: var(--primary);">Apply for Job</h2>
 
-            <form id="applyForm" method="POST" action="<?php echo htmlspecialchars($_SERVER['REQUEST_URI']); ?>" enctype="multipart/form-data">
-                <input type="hidden" name="job_id" value="<?php echo htmlspecialchars($selectedJob['id']); ?>">
-                <input type="hidden" name="apply_job" value="1">
-                
-                <div class="form-group">
-                    <label>Full Name *</label>
-                    <input type="text" name="full_name" required placeholder="John Doe">
-                </div>
-                
-                <div class="form-group">
-                    <label>Email Address *</label>
-                    <input type="email" name="email" required placeholder="john@example.com">
-                </div>
-                
-                <div class="form-group">
-                    <label>Phone Number *</label>
-                    <input type="text" name="phone" required placeholder="+91 98765 43210">
-                </div>
+                <form id="applyForm" method="POST" action="<?php echo htmlspecialchars($_SERVER['REQUEST_URI']); ?>" enctype="multipart/form-data">
+                    <input type="hidden" name="job_id" value="<?php echo htmlspecialchars($selectedJob['id']); ?>">
+                    <input type="hidden" name="apply_job" value="1">
+                    
+                    <div class="form-group">
+                        <label>Full Name *</label>
+                        <input type="text" name="full_name" required placeholder="John Doe">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Email Address *</label>
+                        <input type="email" name="email" required placeholder="john@example.com">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Phone Number *</label>
+                        <input type="text" name="phone" required placeholder="+91 98765 43210">
+                    </div>
 
-                <div class="form-group">
-                    <label>Upload Resume * (PDF or Word)</label>
-                    <input type="file" name="resume_file" id="resume_file" accept=".pdf,.doc,.docx" class="file-input" required>
-                </div>
+                    <div class="form-group">
+                        <label>Upload Resume * (PDF or Word)</label>
+                        <input type="file" name="resume_file" id="resume_file" accept=".pdf,.doc,.docx" class="file-input" required>
+                    </div>
 
-                <div class="form-group">
-                    <label>Cover Letter / Why should we hire you?</label>
-                    <textarea name="cover_letter" rows="4" placeholder="Tell us about your experience..."></textarea>
-                </div>
-                
-                <button type="submit" class="submit-btn">Submit Application</button>
-            </form>
+                    <div class="form-group">
+                        <label>Cover Letter / Why should we hire you?</label>
+                        <textarea name="cover_letter" rows="4" placeholder="Tell us about your experience..."></textarea>
+                    </div>
+                    
+                    <button type="submit" class="submit-btn">Submit Application</button>
+                </form>
+            </div>
         </div>
     <?php else: ?>
         <div class="job-grid">
@@ -586,6 +589,32 @@ if (!empty($selectedJobId)) {
 </div>
 
 <script>
+    function openApplyModal() {
+        const modal = document.getElementById('applyModal');
+        if (!modal) return;
+        modal.classList.add('active');
+        modal.setAttribute('aria-hidden', 'false');
+        document.body.style.overflow = 'hidden';
+    }
+
+    function closeApplyModal() {
+        const modal = document.getElementById('applyModal');
+        if (!modal) return;
+        modal.classList.remove('active');
+        modal.setAttribute('aria-hidden', 'true');
+        document.body.style.overflow = '';
+    }
+
+    const applyModal = document.getElementById('applyModal');
+    if (applyModal) {
+        applyModal.addEventListener('click', function(e) {
+            if (e.target === applyModal) closeApplyModal();
+        });
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') closeApplyModal();
+        });
+    }
+
     const applyForm = document.getElementById('applyForm');
     if (applyForm) {
         applyForm.onsubmit = function(e) {
