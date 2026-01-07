@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { authenticate } = require('../middleware/auth');
+const { logActivity } = require('../middleware/helpers');
 const { USE_LIVE_DB } = require('../config');
 const dbApi = USE_LIVE_DB ? require('../api') : null;
 const localData = !USE_LIVE_DB ? require('../data') : null;
@@ -60,6 +61,7 @@ router.post('/projects/:id/milestones', authenticate, async (req, res) => {
       updatedAt: new Date().toISOString()
     };
     await createMilestoneInDbSource(milestone);
+    logActivity(req.params.id, 'milestone', milestone.id, 'created', req.user.userId, { milestoneNumber });
     res.status(201).json(milestone);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -69,8 +71,16 @@ router.post('/projects/:id/milestones', authenticate, async (req, res) => {
 // PATCH /api/milestones/:id
 router.patch('/milestones/:id', authenticate, async (req, res) => {
   try {
+    const allMilestones = await milestonesSource();
+    const milestone = allMilestones.find(m => m.id === req.params.id);
+    
     const changes = { ...req.body, updatedAt: new Date().toISOString() };
     await updateMilestoneInDbSource(req.params.id, changes);
+    
+    if (milestone) {
+      logActivity(milestone.projectId, 'milestone', milestone.id, 'updated', req.user.userId, { ...req.body, milestoneNumber: milestone.milestoneNumber });
+    }
+    
     res.json({ success: true });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -80,7 +90,15 @@ router.patch('/milestones/:id', authenticate, async (req, res) => {
 // DELETE /api/milestones/:id
 router.delete('/milestones/:id', authenticate, async (req, res) => {
   try {
+    const allMilestones = await milestonesSource();
+    const milestone = allMilestones.find(m => m.id === req.params.id);
+
     await deleteMilestoneFromDbSource(req.params.id);
+    
+    if (milestone) {
+      logActivity(milestone.projectId, 'milestone', milestone.id, 'deleted', req.user.userId, { milestoneNumber: milestone.milestoneNumber });
+    }
+
     res.json({ success: true });
   } catch (error) {
     res.status(500).json({ error: error.message });

@@ -2,7 +2,7 @@
 export const Card = ({ children, className = '', shadow = true }) => {
   const shadowClass = shadow ? 'shadow-soft-2xl' : ''
   return (
-    <div className={`relative flex flex-col min-w-0 break-words bg-white border-0 ${shadowClass} rounded-3xl bg-clip-border ${className}`}>
+    <div className={`relative flex flex-col min-w-0 break-words bg-white border-0 ${shadowClass} rounded-3xl bg-clip-border overflow-hidden ${className}`}>
       {children}
     </div>
   )

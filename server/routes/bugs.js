@@ -269,7 +269,7 @@ router.post(`/projects/:id/bugs`, authenticate, requireRole('tester', 'admin'), 
       p.bugs = p.bugs || [];
       p.bugs.push(bug.id);
     }
-    logActivity(req.params.id, 'bug', bug.id, 'created', req.user.userId, { bugNumber: bug.bugNumber });
+    logActivity(req.params.id, 'bug', bug.id, 'created', req.user.userId, { bugNumber: bug.bugNumber, description: bug.description });
     res.status(201).json(await enrichBug(req, bug));
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -334,7 +334,7 @@ router.patch(`/bugs/:id`, authenticate, async (req, res) => {
     changes.updatedAt = new Date().toISOString();
     await updateBugInDbSource(bug.id, changes);
     const updatedBug = await bugByIdSource(bug.id);
-    logActivity(bug.projectId, 'bug', bug.id, 'updated', req.user.userId, changes);
+    logActivity(bug.projectId, 'bug', bug.id, 'updated', req.user.userId, { ...changes, bugNumber: bug.bugNumber, description: bug.description });
     res.json(await enrichBug(req, updatedBug));
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -372,7 +372,7 @@ router.patch(`/bugs/:id/status`, authenticate, requireRole('developer', 'tester'
     changes.updatedAt = new Date().toISOString();
     await updateBugInDbSource(bug.id, changes);
     const updatedBug = await bugByIdSource(bug.id);
-    logActivity(bug.projectId, 'bug', bug.id, 'status_change', req.user.userId, changes);
+    logActivity(bug.projectId, 'bug', bug.id, 'status_change', req.user.userId, { ...changes, bugNumber: bug.bugNumber, description: bug.description });
     res.json(await enrichBug(req, updatedBug));
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -397,7 +397,7 @@ router.delete(`/bugs/:id`, authenticate, requireRole('admin'), async (req, res) 
       bugs.splice(index, 1);
     }
 
-    logActivity(bug.projectId, 'bug', bug.id, 'deleted', req.user.userId, { description: bug.description });
+    logActivity(bug.projectId, 'bug', bug.id, 'deleted', req.user.userId, { bugNumber: bug.bugNumber, description: bug.description });
     res.status(204).send();
   } catch (error) {
     res.status(500).json({ error: error.message });

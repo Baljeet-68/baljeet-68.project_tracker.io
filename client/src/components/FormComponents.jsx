@@ -60,7 +60,7 @@ export const Table = ({ columns, data, loading = false, pagination = false, page
               {columns.map((col) => (
                 <th
                   key={col.key}
-                  className="px-6 py-4 font-bold text-left uppercase align-middle border-b border-gray-200 shadow-none text-xxs border-b-solid tracking-tight-soft text-slate-500"
+                  className="px-6 py-5 font-bold text-left uppercase align-middle border-b border-gray-200 shadow-none text-xxs border-b-solid tracking-tight-soft text-slate-500"
                 >
                   {col.label}
                 </th>
@@ -69,9 +69,9 @@ export const Table = ({ columns, data, loading = false, pagination = false, page
           </thead>
           <tbody>
             {paginatedData.map((row, idx) => (
-              <tr key={idx}>
+              <tr key={idx} className="hover:bg-slate-50/50 transition-colors">
                 {columns.map((col) => (
-                  <td key={`${idx}-${col.key}`} className="p-2 align-middle bg-transparent border-b whitespace-nowrap shadow-transparent px-6 text-sm">
+                  <td key={`${idx}-${col.key}`} className="py-5 align-middle bg-transparent border-b whitespace-nowrap shadow-transparent px-6 text-sm">
                     {col.render ? col.render(row[col.key], row) : row[col.key]}
                   </td>
                 ))}
@@ -82,7 +82,7 @@ export const Table = ({ columns, data, loading = false, pagination = false, page
       </div>
       
       {pagination && (
-        <div className="mt-8 mb-4 px-4">
+        <div className="mt-4 mb-4 px-4">
           <div className="flex flex-wrap items-center justify-between bg-white rounded-full border border-gray-100 shadow-sm px-6 py-3 gap-4">
             {/* Left & Center: Navigation */}
             <div className="flex items-center gap-4 md:gap-8">
@@ -327,25 +327,35 @@ export const Alert = ({ children, variant = 'info', className = '' }) => {
 }
 
 // Select Component
-export const Select = ({ label, options, error, ...props }) => (
-  <div className="mb-4">
+export const Select = ({ label, options, error, icon, containerClassName = "mb-4", ...props }) => (
+  <div className={containerClassName}>
     {label && (
       <label className="mb-2 ml-1 font-bold text-xs text-slate-700">
         {label}
       </label>
     )}
-    <select
-      className={`focus:shadow-soft-primary-outline text-sm leading-5.6 block w-full appearance-none rounded-lg border border-solid bg-white bg-clip-padding px-3 py-2 font-normal text-gray-700 transition-all focus:border-fuchsia-300 focus:outline-none focus:transition-shadow ${
-        error ? 'border-red-500' : 'border-gray-300'
-      }`}
-      {...props}
-    >
-      {options.map((opt) => (
-        <option key={opt.value} value={opt.value}>
-          {opt.label}
-        </option>
-      ))}
-    </select>
+    <div className="relative flex items-center">
+      {icon && (
+        <div className="absolute left-3 flex items-center pointer-events-none">
+          {icon}
+        </div>
+      )}
+      <select
+        className={`focus:shadow-soft-primary-outline text-sm leading-5.6 block w-full appearance-none rounded-lg border border-solid bg-white bg-clip-padding py-2 font-normal text-gray-700 transition-all focus:border-fuchsia-300 focus:outline-none focus:transition-shadow ${
+          error ? 'border-red-500' : 'border-gray-300'
+        } ${icon ? 'pl-10' : 'px-3'} pr-8`}
+        {...props}
+      >
+        {options.map((opt) => (
+          <option key={opt.value} value={opt.value}>
+            {opt.label}
+          </option>
+        ))}
+      </select>
+      <div className="absolute right-3 pointer-events-none text-slate-400">
+        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+      </div>
+    </div>
     {error && <p className="text-red-600 text-xs mt-1 ml-1">{error}</p>}
   </div>
 )

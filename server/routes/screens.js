@@ -195,7 +195,11 @@ router.patch(`/screens/:id`, authenticate, async (req, res) => {
 
     await updateScreenInDbSource(updatedScreen.id, changes);
 
-    logActivity(scr.projectId, 'screen', scr.id, 'updated', req.user.userId, changes);
+    if (Object.keys(changes).length === 1 && changes.plannedDeadline !== undefined) {
+      logActivity(scr.projectId, 'screen', scr.id, 'deadline_updated', req.user.userId, { plannedDeadline: changes.plannedDeadline });
+    } else {
+      logActivity(scr.projectId, 'screen', scr.id, 'updated', req.user.userId, changes);
+    }
     res.json(await enrichScreen(req, updatedScreen));
   } catch (error) {
     res.status(500).json({ error: error.message });

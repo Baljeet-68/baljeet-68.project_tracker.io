@@ -23,7 +23,13 @@ import {
   Clock,
   Eye,
   EyeOff,
-  ChevronRight
+  ChevronRight,
+  Layout,
+  Settings,
+  MessageSquare,
+  RefreshCw,
+  Bug,
+  Activity
 } from 'lucide-react'
 
 export default function ProjectPage() {
@@ -562,6 +568,68 @@ export default function ProjectPage() {
     return true
   })
 
+  const getActivityDetails = (act) => {
+    const { entityType, action, changes } = act;
+    let description = '';
+    let icon = <Clock size={14} />;
+    let gradient = 'from-slate-600 to-slate-400';
+
+    switch (entityType) {
+      case 'bug':
+        icon = <Bug size={14} />;
+        gradient = 'from-red-600 to-rose-400';
+        const bugRef = changes.bugNumber ? `Bug #${changes.bugNumber}` : 'a bug';
+        const bugDesc = changes.description ? `: "${changes.description}"` : '';
+        
+        if (action === 'created') {
+          description = `Reported ${bugRef}${bugDesc}`;
+        } else if (action === 'status_change') {
+          const status = changes.status || changes.newStatus;
+          description = `Changed status of ${bugRef} to "${status}"`;
+        } else if (action === 'deadline_updated') {
+          description = `Updated deadline for ${bugRef} to ${formatDateDisplay(changes.deadline)}`;
+        } else if (action === 'updated') {
+          description = `Updated details for ${bugRef}${bugDesc}`;
+        } else if (action === 'deleted') {
+          description = `Deleted ${bugRef}${bugDesc}`;
+        }
+        break;
+      case 'screen':
+        icon = <Layout size={14} />;
+        gradient = 'from-blue-600 to-cyan-400';
+        if (action === 'created') {
+          description = `Added a new screen: "${changes.title || 'Untitled'}"`;
+        } else if (action === 'status_change') {
+          const status = changes.status || changes.newStatus;
+          description = `Updated screen status to "${status}"`;
+        } else if (action === 'deadline_updated') {
+          description = `Updated screen deadline to ${formatDateDisplay(changes.plannedDeadline)}`;
+        } else if (action === 'updated') {
+          description = `Updated screen details for "${changes.title || 'Untitled'}"`;
+        } else if (action === 'deleted') {
+          description = `Deleted screen: "${changes.title || 'Untitled'}"`;
+        }
+        break;
+      case 'project':
+        icon = <Settings size={14} />;
+        gradient = 'from-purple-700 to-pink-500';
+        if (action === 'updated') description = `Updated project settings`;
+        else if (action === 'deleted') description = `Deleted the project`;
+        break;
+      case 'milestone':
+        icon = <Activity size={14} />;
+        gradient = 'from-indigo-600 to-purple-500';
+        if (action === 'created') description = `Created milestone #${changes.milestoneNumber}`;
+        else if (action === 'updated') description = `Updated milestone #${changes.milestoneNumber}`;
+        else if (action === 'deleted') description = `Deleted milestone #${changes.milestoneNumber}`;
+        break;
+      default:
+        description = act.description || 'Performed an action';
+    }
+
+    return { description, icon, gradient };
+  };
+
   if (loading) return <Loader message="Loading project details..." />
 
   if (!project) return (
@@ -1084,24 +1152,107 @@ export default function ProjectPage() {
 
               {tabIndex === 4 && (
                 <div>
-                  <h6 className="font-bold mb-4">Project Activity Feed</h6>
-                  <div className="relative flex flex-col gap-6 before:absolute before:top-0 before:left-4 before:h-full before:w-0.5 before:bg-gray-200">
+                  <div className="flex items-center justify-between mb-8">
+                    <h6 className="font-bold text-slate-700 uppercase text-xs tracking-wider">Project Activity Feed</h6>
+                    <button 
+                      onClick={loadData} 
+                      className="p-2 rounded-lg hover:bg-slate-50 text-slate-400 hover:text-fuchsia-600 transition-all flex items-center gap-2 text-xs font-bold"
+                      title="Refresh Activity"
+                    >
+                      <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
+                      REFRESH
+                    </button>
+                  </div>
+
+                  <div className="relative flex flex-col gap-10 before:absolute before:top-0 before:left-5 before:h-full before:w-0.5 before:bg-slate-100 pb-4">
                     {activityList.length === 0 ? (
-                      <p className="text-slate-500 text-sm ml-8">No activity recorded yet.</p>
+                      <div className="flex flex-col items-center justify-center py-16 text-center">
+                        <div className="w-20 h-20 rounded-full bg-slate-50 flex items-center justify-center text-slate-300 mb-6 border-4 border-white shadow-soft-sm">
+                          <Activity size={36} />
+                        </div>
+                        <h6 className="text-slate-800 font-bold mb-1">No Activity Yet</h6>
+                        <p className="text-slate-500 text-sm max-w-xs">Events related to this project will appear here as they happen.</p>
+                      </div>
                     ) : (
-                      activityList.map((act, idx) => (
-                        <div key={idx} className="relative flex items-start ml-4 pl-6">
-                          <div className="absolute left-[-12px] top-1 w-6 h-6 rounded-full bg-white border-4 border-fuchsia-500 z-10"></div>
-                          <div className="flex-auto">
-                            <p className="text-sm font-bold text-slate-700 mb-0">{act.description}</p>
-                            <div className="flex items-center gap-2 mt-1">
-                              <p className="text-xs text-slate-500 mb-0 font-semibold">{act.userName}</p>
-                              <span className="text-slate-300 text-xs">•</span>
-                              <p className="text-xs text-slate-400 mb-0">{new Date(act.createdAt).toLocaleString()}</p>
+                      [...activityList].reverse().map((act, idx) => {
+                        const { description, icon, gradient } = getActivityDetails(act);
+                        const isLast = idx === activityList.length - 1;
+
+                        return (
+                          <div key={idx} className="relative flex items-start ml-0 group animate-fadeIn">
+                            {/* Timeline Point & Icon */}
+                            <div className={`absolute left-0 top-0 w-10 h-10 rounded-xl bg-gradient-to-tl ${gradient} shadow-soft-md flex items-center justify-center text-white z-10 group-hover:scale-110 transition-transform duration-300`}>
+                              {icon}
+                            </div>
+                            
+                            <div className="flex-auto ml-14">
+                              <div className="bg-white rounded-2xl p-4 border border-slate-100 shadow-soft-sm group-hover:shadow-soft-md transition-all duration-300 group-hover:border-fuchsia-100">
+                                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
+                                  <div className="flex items-center gap-2">
+                                    <div className="w-7 h-7 rounded-lg bg-slate-50 flex items-center justify-center text-slate-500 text-[10px] font-bold border border-slate-100">
+                                      {act.createdByName?.charAt(0) || 'U'}
+                                    </div>
+                                    <p className="text-xs text-slate-500 mb-0 font-medium">
+                                      <span className="text-slate-800 font-bold">{act.createdByName}</span>
+                                    </p>
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <Clock size={10} className="text-slate-400" />
+                                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                                      {new Date(act.createdAt).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}
+                                    </p>
+                                  </div>
+                                </div>
+
+                                <p className="text-sm font-bold text-slate-700 mb-0 leading-relaxed">
+                                  {description}
+                                </p>
+
+                                {/* Detailed Changes Preview */}
+                                {act.changes && (
+                                  <div className="mt-3 pt-3 border-t border-slate-50">
+                                    {act.entityType === 'bug' && act.action === 'status_change' && (
+                                      <div className="flex items-center gap-2">
+                                        <Badge gradient={getStatusGradient(act.changes.oldStatus)} size="sm">{act.changes.oldStatus}</Badge>
+                                        <ChevronRight size={12} className="text-slate-300" />
+                                        <Badge gradient={getStatusGradient(act.changes.newStatus || act.changes.status)} size="sm">{act.changes.newStatus || act.changes.status}</Badge>
+                                      </div>
+                                    )}
+                                    
+                                    {act.entityType === 'screen' && act.action === 'status_change' && (
+                                      <div className="flex items-center gap-2">
+                                        <Badge gradient={getStatusGradient(act.changes.oldStatus)} size="sm">{act.changes.oldStatus}</Badge>
+                                        <ChevronRight size={12} className="text-slate-300" />
+                                        <Badge gradient={getStatusGradient(act.changes.newStatus || act.changes.status)} size="sm">{act.changes.newStatus || act.changes.status}</Badge>
+                                      </div>
+                                    )}
+
+                                    {act.action === 'deadline_updated' && (
+                                      <div className="flex items-center gap-2 text-[11px] font-bold text-slate-500">
+                                        <Calendar size={12} className="text-fuchsia-500" />
+                                        <span>New Deadline:</span>
+                                        <span className="text-slate-700 bg-slate-50 px-2 py-0.5 rounded border border-slate-100">
+                                          {formatDateDisplay(act.changes.deadline || act.changes.plannedDeadline)}
+                                        </span>
+                                      </div>
+                                    )}
+
+                                    {act.entityType === 'milestone' && act.action === 'created' && act.changes.module && (
+                                      <div className="flex flex-wrap gap-1 mt-1">
+                                        {act.changes.module.split(',').map((m, i) => (
+                                          <span key={i} className="text-[10px] px-2 py-0.5 bg-indigo-50 text-indigo-600 rounded-full font-bold border border-indigo-100">
+                                            {m.trim()}
+                                          </span>
+                                        ))}
+                                      </div>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
                             </div>
                           </div>
-                        </div>
-                      ))
+                        );
+                      })
                     )}
                   </div>
                 </div>

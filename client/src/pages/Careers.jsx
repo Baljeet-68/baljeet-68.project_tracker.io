@@ -315,7 +315,7 @@ export default function Careers() {
           {/* <CardHeader>
             <h6 className="font-bold mb-4 text-slate-700 pb-4 uppercase text-xs tracking-wider">Active Job Listings</h6>
           </CardHeader> */}
-          <CardBody className="flex-auto p-6 " >
+          <CardBody className="flex-auto p-0" >
             <Table
               columns={[
                 { key: 'title', label: 'Job Title' },
@@ -323,6 +323,7 @@ export default function Careers() {
                 { key: 'type', label: 'Type' },
                 { key: 'status', label: 'Status', render: (val, job) => (
                   <Select
+                    containerClassName="mb-0"
                     className="min-w-[120px]"
                     options={[
                       { value: 'active', label: 'Active' },
@@ -346,13 +347,15 @@ export default function Careers() {
                 )}
               ]}
               data={jobs}
+              pagination={true}
+              pageSize={10}
             />
           </CardBody>
         </Card>
       ) : (
         <Card>
           
-          <CardBody className="flex-auto p-6 ">
+          <CardBody className="flex-auto p-0">
             <Table
               columns={[
                 { key: 'fullName', label: 'Candidate' },
@@ -360,6 +363,7 @@ export default function Careers() {
                 { key: 'jobId', label: 'Job', render: (jid) => jobs.find(j => j.id === jid)?.title || 'Unknown Job' },
                 { key: 'status', label: 'Status', render: (val, app) => (
                   <Select
+                    containerClassName="mb-0"
                     className="min-w-[120px]"
                     options={[
                       { value: 'applied', label: 'Applied' },
@@ -375,13 +379,15 @@ export default function Careers() {
                 { key: 'appliedAt', label: 'Applied On', render: (val) => new Date(val).toLocaleDateString() },
                 { key: 'resume', label: 'Resume', render: (_, app) => (
                   app.resumeUrl ? (
-                    <a href={app.resumeUrl} target="_blank" rel="noreferrer" className="text-fuchsia-600 hover:underline flex items-center gap-1">
-                      <FileText size={14} /> View
+                    <a href={app.resumeUrl} target="_blank" rel="noreferrer" className="text-fuchsia-600 hover:underline flex items-center gap-1.5 font-bold">
+                      <FileText size={16} /> View
                     </a>
-                  ) : 'No Resume'
+                  ) : <span className="text-slate-400">No Resume</span>
                 )}
               ]}
               data={applications}
+              pagination={true}
+              pageSize={10}
             />
           </CardBody>
         </Card>

@@ -28,9 +28,22 @@ import logo from '../../public/assets/img/logos/mmf_logo.svg'
 
 export default function Sidebar({ open, onClose, collapsed, setCollapsed }) {
   const [isHovered, setIsHovered] = React.useState(false)
+  const [showProfileMenu, setShowProfileMenu] = React.useState(false)
   const user = getUser()
   const location = useLocation()
   const navigate = useNavigate()
+
+  const dropdownRef = React.useRef(null)
+
+  React.useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setShowProfileMenu(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
 
   const handleLogout = () => {
     clearToken()
@@ -163,40 +176,70 @@ export default function Sidebar({ open, onClose, collapsed, setCollapsed }) {
 
           {/* Bottom Section */}
           <div className={`mt-auto pt-6 space-y-4 ${isActuallyCollapsed ? 'px-0' : 'px-2'}`}>
-            <div className={`space-y-2 border-t border-white/10 pt-6 ${isActuallyCollapsed ? 'flex flex-col items-center' : ''}`}>
-              <NavItem
-                item={{ label: 'Settings', icon: Settings, path: '/settings' }}
-                isActuallyCollapsed={isActuallyCollapsed}
-                onClose={onClose}
-              />
-              <button
-                onClick={handleLogout}
-                className={`group relative flex items-center transition-all duration-300 text-white/70 hover:bg-white/10 hover:text-white w-full rounded-2xl ${isActuallyCollapsed ? 'justify-center py-3 px-0' : 'gap-3 px-4 py-3'
-                  }`}
-              >
-                <div className={`flex items-center justify-center w-10 h-10 rounded-xl bg-white/10 transition-all group-hover:bg-white/20 flex-shrink-0`}>
-                  <LogOut size={20} className="flex-shrink-0" />
-                </div>
-                {!isActuallyCollapsed && <span className="text-sm font-bold">Sign Out</span>}
-              </button>
+            <div className={`space-y-2  border-white/10 pt-6 ${isActuallyCollapsed ? 'flex flex-col items-center' : ''}`}>
+             
+              
             </div>
 
             {/* User Profile */}
-            <div className={`p-3 rounded-2xl bg-white/10 backdrop-blur-sm border border-white/10 flex items-center gap-3 ${isActuallyCollapsed ? 'justify-center p-2' : ''}`}>
-              <div className="w-10 h-10 rounded-xl overflow-hidden shadow-soft-sm flex-shrink-0 border-2 border-white/20">
-                <img
-                  src={user?.profilePicture || `https://ui-avatars.com/api/?name=${user?.name || user?.username || 'User'}&background=ffffff&color=004e92`}
-                  alt="Avatar"
-                  className="w-full h-full object-cover"
-                />
-              </div>
-              {!isActuallyCollapsed && (
-                <div className="flex flex-1 items-center justify-between overflow-hidden">
-                  <div className="flex flex-col overflow-hidden text-white">
-                    <span className="text-xs font-bold truncate">{user?.name || user?.username || 'User Name'}</span>
-                    <span className="text-[10px] font-bold text-white/60 truncate uppercase">{user?.role || 'Member'}</span>
+            <div 
+              ref={dropdownRef}
+              className="relative"
+            >
+              <div 
+                onClick={() => !isActuallyCollapsed && setShowProfileMenu(!showProfileMenu)}
+                className={`p-3 rounded-2xl bg-white/10 backdrop-blur-sm border border-white/10 flex items-center gap-3 transition-all duration-300 ${isActuallyCollapsed ? 'justify-center p-2' : 'cursor-pointer hover:bg-white/20'}`}
+              >
+                <div className="w-10 h-10 rounded-xl overflow-hidden shadow-soft-sm flex-shrink-0 border-2 border-white/20">
+                  <img
+                    src={user?.profilePicture || `https://ui-avatars.com/api/?name=${user?.name || user?.username || 'User'}&background=ffffff&color=004e92`}
+                    alt="Avatar"
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+                {!isActuallyCollapsed && (
+                  <div className="flex flex-1 items-center justify-between overflow-hidden">
+                    <div className="flex flex-col overflow-hidden text-white">
+                      <span className="text-xs font-bold truncate">{user?.name || user?.username || 'User Name'}</span>
+                      <span className="text-[10px] font-bold text-white/60 truncate uppercase">{user?.role || 'Member'}</span>
+                    </div>
+                    <ChevronsUpDown size={14} className={`text-white/40 ml-2 flex-shrink-0 transition-transform duration-300 ${showProfileMenu ? 'rotate-180' : ''}`} />
                   </div>
-                  <ChevronsUpDown size={14} className="text-white/40 ml-2 flex-shrink-0" />
+                )}
+              </div>
+
+              {/* Profile Dropdown Menu */}
+              {showProfileMenu && !isActuallyCollapsed && (
+                <div 
+                  className="absolute bottom-full left-0 w-full mb-2  border-white/10 rounded-2xl shadow-soft-2xl overflow-hidden z-[60] animate-in fade-in slide-in-from-bottom-2 duration-200"
+                  style={{
+                    background: 'linear-gradient(to bottom, #004e92, #000428)'
+                  }}
+                >
+                  <div className="p-2 space-y-1">
+                    <Link
+                      to="/settings"
+                      onClick={() => setShowProfileMenu(false)}
+                      className="flex items-center gap-3 px-3 py-2.5 text-sm font-bold text-white/70 hover:bg-white/10 hover:text-white rounded-xl transition-all group/item"
+                    >
+                      <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-white/10 group-hover/item:bg-white/20 transition-all">
+                        <Settings size={16} className="text-white flex-shrink-0" />
+                      </div>
+                      Settings
+                    </Link>
+                    <button
+                      onClick={() => {
+                        setShowProfileMenu(false)
+                        handleLogout()
+                      }}
+                      className="flex items-center gap-3 px-3 py-2.5 text-sm font-bold text-white/70 hover:bg-white/10 hover:text-white rounded-xl transition-all w-full text-left group/item"
+                    >
+                      <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-white/10 group-hover/item:bg-white/20 transition-all">
+                        <LogOut size={16} className="text-white flex-shrink-0" />
+                      </div>
+                      Logout
+                    </button>
+                  </div>
                 </div>
               )}
             </div>
