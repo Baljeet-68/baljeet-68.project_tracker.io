@@ -32,6 +32,74 @@ import {
   Activity
 } from 'lucide-react'
 
+/**
+ * Utility functions for formatting and UI helpers
+ */
+const formatDateDisplay = (dateStr) => {
+  if (!dateStr) return '—'
+  const cleanDateStr = typeof dateStr === 'string' && dateStr.includes('T') ? dateStr.split('T')[0] : (typeof dateStr === 'string' ? dateStr : new Date(dateStr).toISOString().split('T')[0])
+  const parts = cleanDateStr.split('-')
+  if (parts.length !== 3) return cleanDateStr
+
+  const [year, month, day] = parts
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+  const monthIndex = parseInt(month, 10) - 1
+  return `${day}-${months[monthIndex]}-${year}`
+}
+
+const formatFileSize = (bytes) => {
+  if (bytes === 0) return '0 Bytes'
+  const k = 1024
+  const sizes = ['Bytes', 'KB', 'MB', 'GB']
+  const i = Math.floor(Math.log(bytes) / Math.log(k))
+  return Math.round((bytes / Math.pow(k, i)) * 100) / 100 + ' ' + sizes[i]
+}
+
+const getStatusGradient = (status) => {
+  if (!status) return 'from-slate-600 to-slate-300'
+  const s = status.toLowerCase()
+  
+  switch (s) {
+    case 'open': return 'from-red-600 to-rose-400'
+    case 'in progress': return 'from-orange-500 to-yellow-400'
+    case 'resolved':
+    case 'donr':
+    case 'done':
+    case 'completed':
+      return 'from-green-600 to-lime-400'
+    case 'closed': return 'from-slate-600 to-slate-300'
+    case 'blocked': return 'from-red-600 to-rose-400'
+    case 'apporved':
+    case 'approved':
+      return 'from-purple-700 to-pink-500'
+    case 'aproval pending':
+    case 'approval pending':
+      return 'from-blue-600 to-cyan-400'
+    case 'pending': return 'from-slate-400 to-slate-300'
+    case 'planning':
+    case 'under planning':
+    case 'planned':
+      return 'from-blue-600 to-cyan-400'
+    case 'active':
+    case 'running':
+      return 'from-purple-700 to-pink-500'
+    case 'on hold': return 'from-orange-500 to-yellow-400'
+    case 'maintenance': return 'from-slate-600 to-slate-300'
+    case 'critical': return 'from-red-600 to-rose-400'
+    default: return 'from-slate-600 to-slate-300'
+  }
+}
+
+const getSeverityGradient = (severity) => {
+  switch (severity) {
+    case 'low': return 'from-blue-600 to-cyan-400'
+    case 'medium': return 'from-orange-500 to-yellow-400'
+    case 'high': return 'from-red-600 to-rose-400'
+    case 'critical': return 'from-red-900 to-slate-800'
+    default: return 'from-slate-600 to-slate-300'
+  }
+}
+
 export default function ProjectPage() {
   const { id } = useParams()
   const [project, setProject] = useState(null)
@@ -70,20 +138,80 @@ export default function ProjectPage() {
 
 
   // Filter states
-  const [bugStatusFilter, setBugStatusFilter] = useState('')
-  const [bugSeverityFilter, setBugSeverityFilter] = useState('')
-  const [bugAssigneeFilter, setBugAssigneeFilter] = useState('')
+  const [bugFilters, setBugFilters] = useState({
+    status: '',
+    severity: '',
+    assignee: ''
+  })
 
   // Attachment preview
   const [previewDialog, setPreviewDialog] = useState(false)
   const [previewAttachment, setPreviewAttachment] = useState(null)
   const [previewBug, setPreviewBug] = useState(null)
 
+  const generateProjectSummary = React.useCallback(() => {
+    if (!project) return 'Loading project summary...';
+
+    const status = project?.status || 'Active';
+    const totalBugs = bugsList.length;
+    const openBugs = bugsList.filter(b => b.status === 'Open' || b.status === 'In Progress').length;
+    const resolvedBugs = totalBugs - openBugs;
+    const totalTasks = screensList.length;
+    const completedTasks = screensList.filter(s => s.status === 'Done').length;
+    const pendingTasks = totalTasks - completedTasks;
+    const totalMilestones = milestonesList.length;
+    const completedMilestones = milestonesList.filter(m => m.status === 'Completed' || m.status === 'Done').length;
+    const pendingMilestones = totalMilestones - completedMilestones;
+
+    const progressPercentage = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
+    const resolutionRate = totalBugs > 0 ? Math.round((resolvedBugs / totalBugs) * 100) : 0;
+    const milestoneProgress = totalMilestones > 0 ? Math.round((completedMilestones / totalMilestones) * 100) : 0;
+
+    // Developer Breakdown
+    const devStats = (project?.developerNames || []).map(dev => {
+      const devBugs = bugsList.filter(b => b.assignedDeveloperId === dev.id && (b.status === 'Open' || b.status === 'In Progress')).length;
+      const devTasks = screensList.filter(s => s.assigneeId === dev.id && s.status !== 'Done').length;
+      return { name: dev.name, bugs: devBugs, tasks: devTasks };
+    }).filter(d => d.bugs > 0 || d.tasks > 0);
+
+    const devBreakdownText = devStats.length > 0 
+      ? ` Currently, the workload distribution is as follows: ${devStats.map(d => `${d.name} is managing ${d.tasks} pending task${d.tasks !== 1 ? 's' : ''} and ${d.bugs} open bug${d.bugs !== 1 ? 's' : ''}`).join('; ')}.`
+      : '';
+
+    const bugSummary = `A total of ${totalBugs} bugs have been reported throughout the project lifecycle, with ${resolvedBugs} successfully resolved (${resolutionRate}% resolution rate), leaving ${openBugs} issues currently active.`;
+    const taskSummary = `Regarding the project scope, we have ${totalTasks} total tasks (screens) defined, of which ${completedTasks} are finalized, resulting in a ${progressPercentage}% completion rate. There are ${pendingTasks} tasks still requiring development effort.`;
+    const milestoneSummary = totalMilestones > 0 ? `We have ${totalMilestones} milestones planned, with ${completedMilestones} completed (${milestoneProgress}% progress).` : '';
+
+    const baseMessage = `Project "${project?.name || 'Unknown'}" for client "${project?.client || 'Unknown'}" is currently in the ${status} phase. `;
+
+    switch (status) {
+      case 'Planning':
+        return `${baseMessage} We are currently in the structural definition phase. ${taskSummary} ${milestoneSummary} ${bugSummary}${devBreakdownText} The focus is on establishing a solid foundation before ramping up development.`;
+      case 'Active':
+      case 'Running':
+        return `${baseMessage} The project is moving forward with active development and testing. ${taskSummary} ${milestoneSummary} ${bugSummary} This indicates a steady flow of implementation and quality assurance. ${devBreakdownText} The team is prioritizing high-impact tasks and resolving critical bugs to maintain momentum.`;
+      case 'On Hold':
+        return `${baseMessage} Development is currently paused, but we have a clear picture of the current state. ${taskSummary} ${milestoneSummary} ${bugSummary} Work will resume from this point once the current blockers are cleared. ${devBreakdownText}`;
+      case 'Completed':
+      case 'Done':
+        return `${baseMessage} The project has been successfully delivered. ${totalTasks} out of ${totalTasks} tasks were completed, ${completedMilestones} of ${totalMilestones} milestones reached, and ${resolvedBugs} out of ${totalBugs} bugs were resolved during the process. The system is stable and meets the project requirements.`;
+      case 'Critical':
+        return `${baseMessage} Immediate attention is required due to the project's critical status. ${bugSummary} The volume of ${openBugs} open issues is impacting delivery. ${taskSummary} ${milestoneSummary} ${devBreakdownText} We are shifting resources to address these bottlenecks urgently.`;
+      case 'Maintenance':
+        return `${baseMessage} We are now in the post-launch support phase. ${bugSummary} Monitoring is ongoing to ensure system stability. ${taskSummary} ${milestoneSummary} Any new requirements will be handled as iterative updates. ${devBreakdownText}`;
+      default:
+        return `${baseMessage} The project is progressing through its current phase. ${taskSummary} ${milestoneSummary} ${bugSummary} ${devBreakdownText} We are monitoring performance metrics to ensure timely delivery.`;
+    }
+  }, [project, bugsList, screensList, milestonesList]);
+
   useEffect(() => {
     loadData()
   }, [id])
 
-  const handleAuthError = (e) => {
+  /**
+   * Centralized error handling for authentication issues
+   */
+  const handleAuthError = React.useCallback((e) => {
     if (e.message === 'Unauthorized: Token expired or invalid') {
       clearToken()
       clearUser()
@@ -91,8 +219,11 @@ export default function ProjectPage() {
     } else {
       toast.error(e.message)
     }
-  }
+  }, [nav])
 
+  /**
+   * Fetch all project-related data concurrently
+   */
   const loadData = async () => {
     setLoading(true)
     try {
@@ -107,7 +238,8 @@ export default function ProjectPage() {
       if (!projRes.ok) throw new Error('Failed to fetch project')
       const projData = await projRes.json()
       setProject(projData)
-      // preload project start/end for admin editing as yyyy-mm-dd
+      
+      // Initialize edit states
       setProjectStart(projData.startDate ? new Date(projData.startDate).toISOString().slice(0, 10) : '')
       setProjectEnd(projData.endDate ? new Date(projData.endDate).toISOString().slice(0, 10) : '')
       setProjectStatus(projData.status || '')
@@ -123,6 +255,9 @@ export default function ProjectPage() {
     }
   }
 
+  /**
+   * Handle bug reporting with attachments
+   */
   const handleAddBug = async () => {
     if (!bugForm.description) return
     try {
@@ -135,17 +270,15 @@ export default function ProjectPage() {
         })
       })
       if (!res.ok) throw new Error('Failed to create bug')
-      const newBug = await res.json()
-      setBugsList([...bugsList, newBug])
+      
       setBugForm({ description: '', severity: 'medium', screenId: '', module: '', assignedDeveloperId: '', attachments: [], deadline: '' })
       setBugDialog(false)
-      loadData() // Reload to get updated activity
+      loadData()
     } catch (e) {
       handleAuthError(e)
     }
   }
 
-  // Open edit dialog for bug deadline (admin or assigned developer)
   const openBugEdit = (bug) => {
     setBugEditId(bug.id)
     setBugEditDeadline(bug.deadline ? new Date(bug.deadline).toISOString().slice(0, 10) : '')
@@ -184,7 +317,7 @@ export default function ProjectPage() {
           name: file.name,
           size: file.size,
           type: file.type,
-          data: event.target.result // Base64 encoded data
+          data: event.target.result
         }
         setBugForm(prevForm => ({
           ...prevForm,
@@ -202,16 +335,7 @@ export default function ProjectPage() {
     })
   }
 
-  const formatFileSize = (bytes) => {
-    if (bytes === 0) return '0 Bytes'
-    const k = 1024
-    const sizes = ['Bytes', 'KB', 'MB', 'GB']
-    const i = Math.floor(Math.log(bytes) / Math.log(k))
-    return Math.round((bytes / Math.pow(k, i)) * 100) / 100 + ' ' + sizes[i]
-  }
-
   const isImageFile = (type) => type.startsWith('image/')
-
   const isVideoFile = (type) => type.startsWith('video/')
 
   const showAttachmentPreview = (attachment, bug = null) => {
@@ -219,77 +343,6 @@ export default function ProjectPage() {
     setPreviewBug(bug)
     setPreviewDialog(true)
   }
-
-  const generateProjectSummary = () => {
-    if (!project || !bugsList || !screensList) return 'Gathering comprehensive project metrics and status data...';
-
-    const { status, developerNames } = project;
-    
-    // Bug Metrics
-    const totalBugs = bugsList.length;
-    const resolvedBugs = bugsList.filter(b => b.status === 'Resolved' || b.status === 'Closed').length;
-    const openBugs = bugsList.filter(b => b.status === 'Open' || b.status === 'In Progress').length;
-    
-    // Task (Screen) Metrics
-    const totalTasks = screensList.length;
-    const completedTasks = screensList.filter(s => s.status === 'Done').length;
-    const pendingTasks = totalTasks - completedTasks;
-
-    // Milestone Metrics
-    const totalMilestones = milestonesList.length;
-    const completedMilestones = milestonesList.filter(m => {
-      if (!m.status) return false;
-      const s = m.status.toLowerCase();
-      return s === 'done' || s === 'donr' || s === 'approved' || s === 'apporved';
-    }).length;
-    const pendingMilestones = totalMilestones - completedMilestones;
-
-    const progressPercentage = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
-    const resolutionRate = totalBugs > 0 ? Math.round((resolvedBugs / totalBugs) * 100) : 0;
-    const milestoneProgress = totalMilestones > 0 ? Math.round((completedMilestones / totalMilestones) * 100) : 0;
-
-    // Developer Breakdown
-    const devStats = (developerNames || []).map(dev => {
-      const devBugs = bugsList.filter(b => b.assignedDeveloperId === dev.id && (b.status === 'Open' || b.status === 'In Progress')).length;
-      const devTasks = screensList.filter(s => s.assigneeId === dev.id && s.status !== 'Done').length;
-      return { name: dev.name, bugs: devBugs, tasks: devTasks };
-    }).filter(d => d.bugs > 0 || d.tasks > 0);
-
-    const devBreakdownText = devStats.length > 0 
-      ? ` Currently, the workload distribution is as follows: ${devStats.map(d => `${d.name} is managing ${d.tasks} pending task${d.tasks !== 1 ? 's' : ''} and ${d.bugs} open bug${d.bugs !== 1 ? 's' : ''}`).join('; ')}.`
-      : '';
-
-    const bugSummary = `A total of ${totalBugs} bugs have been reported throughout the project lifecycle, with ${resolvedBugs} successfully resolved (${resolutionRate}% resolution rate), leaving ${openBugs} issues currently active.`;
-    const taskSummary = `Regarding the project scope, we have ${totalTasks} total tasks (screens) defined, of which ${completedTasks} are finalized, resulting in a ${progressPercentage}% completion rate. There are ${pendingTasks} tasks still requiring development effort.`;
-    const milestoneSummary = totalMilestones > 0 ? `We have ${totalMilestones} milestones planned, with ${completedMilestones} completed (${milestoneProgress}% progress).` : '';
-
-    const baseMessage = `Project "${project.name}" for client "${project.client}" is currently in the ${status} phase. `;
-
-    switch (status) {
-      case 'Planning':
-        return `${baseMessage} We are currently in the structural definition phase. ${taskSummary} ${milestoneSummary} ${bugSummary}${devBreakdownText} The focus is on establishing a solid foundation before ramping up development.`;
-      
-      case 'Active':
-      case 'Running':
-        return `${baseMessage} The project is moving forward with active development and testing. ${taskSummary} ${milestoneSummary} ${bugSummary} This indicates a steady flow of implementation and quality assurance. ${devBreakdownText} The team is prioritizing high-impact tasks and resolving critical bugs to maintain momentum.`;
-      
-      case 'On Hold':
-        return `${baseMessage} Development is currently paused, but we have a clear picture of the current state. ${taskSummary} ${milestoneSummary} ${bugSummary} Work will resume from this point once the current blockers are cleared. ${devBreakdownText}`;
-      
-      case 'Completed':
-      case 'Done':
-        return `${baseMessage} The project has been successfully delivered. ${totalTasks} out of ${totalTasks} tasks were completed, ${completedMilestones} of ${totalMilestones} milestones reached, and ${resolvedBugs} out of ${totalBugs} bugs were resolved during the process. The system is stable and meets the project requirements.`;
-      
-      case 'Critical':
-        return `${baseMessage} Immediate attention is required due to the project's critical status. ${bugSummary} The volume of ${openBugs} open issues is impacting delivery. ${taskSummary} ${milestoneSummary} ${devBreakdownText} We are shifting resources to address these bottlenecks urgently.`;
-      
-      case 'Maintenance':
-        return `${baseMessage} We are now in the post-launch support phase. ${bugSummary} Monitoring is ongoing to ensure system stability. ${taskSummary} ${milestoneSummary} Any new requirements will be handled as iterative updates. ${devBreakdownText}`;
-      
-      default:
-        return `${baseMessage} The project is progressing through its current phase. ${taskSummary} ${milestoneSummary} ${bugSummary} ${devBreakdownText} We are monitoring performance metrics to ensure timely delivery.`;
-    }
-  };
 
   const handleUpdateBugStatus = async (bugId, newStatus) => {
     try {
@@ -299,10 +352,8 @@ export default function ProjectPage() {
         body: JSON.stringify({ status: newStatus })
       })
       if (!res.ok) throw new Error('Failed to update bug status')
-      const updatedBug = await res.json()
-      setBugsList(bugsList.map(b => b.id === bugId ? updatedBug : b))
       loadData()
-      showToast('Bug status updated successfully!', 'success')
+      toast.success('Bug status updated successfully!')
     } catch (e) {
       handleAuthError(e)
     }
@@ -316,10 +367,8 @@ export default function ProjectPage() {
         body: JSON.stringify({ status: newStatus, actualEndDate: new Date() })
       })
       if (!res.ok) throw new Error('Failed to update screen status')
-      const updatedScreen = await res.json()
-      setScreensList(screensList.map(s => s.id === screenId ? updatedScreen : s))
       loadData()
-      showToast('Screen status updated successfully!', 'success')
+      toast.success('Screen status updated successfully!')
     } catch (e) {
       handleAuthError(e)
     }
@@ -329,7 +378,6 @@ export default function ProjectPage() {
     if (!screenForm.title) return
     try {
       if (editingScreen) {
-        // update existing screen
         const res = await authFetch(`${API_BASE_URL}/screens/${editingScreen.id}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
@@ -348,7 +396,7 @@ export default function ProjectPage() {
       setScreenForm({ title: '', module: '', assigneeId: '', plannedDeadline: '', notes: '' })
       setScreenDialog(false)
       loadData()
-      showToast(editingScreen ? 'Screen updated successfully!' : 'Screen added successfully!', 'success')
+      toast.success(editingScreen ? 'Screen updated successfully!' : 'Screen added successfully!')
     } catch (e) {
       handleAuthError(e)
     }
@@ -382,13 +430,12 @@ export default function ProjectPage() {
       setScreenEditDeadlineId(null)
       setScreenEditDeadlineValue('')
       loadData()
-      showToast('Screen deadline updated successfully!', 'success')
+      toast.success('Screen deadline updated successfully!')
     } catch (e) {
       handleAuthError(e)
     }
   }
 
-  // Update project settings (admin)
   const handleUpdateProjectSettings = async () => {
     try {
       const res = await authFetch(`${API_BASE_URL}/projects/${id}`, {
@@ -405,7 +452,7 @@ export default function ProjectPage() {
         throw new Error(errData.error || 'Failed to update project settings')
       }
       loadData()
-      showToast('Project settings updated successfully!', 'success')
+      toast.success('Project settings updated successfully!')
     } catch (e) {
       handleAuthError(e)
     }
@@ -416,9 +463,8 @@ export default function ProjectPage() {
     try {
       const res = await authFetch(`${API_BASE_URL}/bugs/${bugId}`, { method: 'DELETE' })
       if (!res.ok) throw new Error('Failed to delete bug')
-      setBugsList(bugsList.filter(b => b.id !== bugId))
       loadData()
-      showToast('Bug deleted successfully!', 'success')
+      toast.success('Bug deleted successfully!')
     } catch (e) {
       handleAuthError(e)
     }
@@ -429,7 +475,6 @@ export default function ProjectPage() {
     try {
       const res = await authFetch(`${API_BASE_URL}/screens/${screenId}`, { method: 'DELETE' })
       if (!res.ok) throw new Error('Failed to delete screen')
-      setScreensList(screensList.filter(s => s.id !== screenId))
       loadData()
       toast.success('Screen deleted successfully!')
     } catch (e) {
@@ -459,7 +504,7 @@ export default function ProjectPage() {
       setMilestoneDialog(false)
       setEditingMilestone(null)
       loadData()
-      showToast(editingMilestone ? 'Milestone updated successfully!' : 'Milestone added successfully!', 'success')
+      toast.success(editingMilestone ? 'Milestone updated successfully!' : 'Milestone added successfully!')
     } catch (e) {
       handleAuthError(e)
     }
@@ -484,12 +529,9 @@ export default function ProjectPage() {
 
   const handleToggleModule = (moduleTitle) => {
     const currentModules = milestoneForm.module ? milestoneForm.module.split(',').map(m => m.trim()).filter(m => m !== '') : []
-    let newModules
-    if (currentModules.includes(moduleTitle)) {
-      newModules = currentModules.filter(m => m !== moduleTitle)
-    } else {
-      newModules = [...currentModules, moduleTitle]
-    }
+    const newModules = currentModules.includes(moduleTitle)
+      ? currentModules.filter(m => m !== moduleTitle)
+      : [...currentModules, moduleTitle]
     setMilestoneForm({ ...milestoneForm, module: newModules.join(', ') })
   }
 
@@ -499,76 +541,28 @@ export default function ProjectPage() {
       const res = await authFetch(`${API_BASE_URL}/milestones/${mid}`, { method: 'DELETE' })
       if (!res.ok) throw new Error('Failed to delete milestone')
       loadData()
-      showToast('Milestone deleted successfully!', 'success')
+      toast.success('Milestone deleted successfully!')
     } catch (e) {
       handleAuthError(e)
     }
   }
 
-  const getStatusGradient = (status) => {
-    if (!status) return 'from-slate-600 to-slate-300'
-    const s = status.toLowerCase()
-    
-    switch (s) {
-      // Bug Statuses
-      case 'open': return 'from-red-600 to-rose-400'
-      case 'in progress': return 'from-orange-500 to-yellow-400'
-      case 'resolved':
-      case 'donr':
-      case 'done':
-      case 'completed':
-        return 'from-green-600 to-lime-400'
-      case 'closed': return 'from-slate-600 to-slate-300'
-      case 'blocked': return 'from-red-600 to-rose-400'
+  /**
+   * Memoized bug list filtering
+   */
+  const filteredBugs = React.useMemo(() => {
+    return bugsList.filter(b => {
+      if (bugFilters.status && b.status !== bugFilters.status) return false
+      if (bugFilters.severity && b.severity !== bugFilters.severity) return false
+      if (bugFilters.assignee && b.assignedDeveloperId !== bugFilters.assignee) return false
+      return true
+    })
+  }, [bugsList, bugFilters])
 
-      // Milestone specific
-      case 'apporved':
-      case 'approved':
-        return 'from-purple-700 to-pink-500'
-      case 'aproval pending':
-      case 'approval pending':
-        return 'from-blue-600 to-cyan-400'
-      case 'pending': return 'from-slate-400 to-slate-300'
-      
-      // Project Statuses
-      case 'planning':
-      case 'under planning':
-      case 'planned':
-        return 'from-blue-600 to-cyan-400'
-      case 'active':
-      case 'running':
-        return 'from-purple-700 to-pink-500'
-      case 'on hold': return 'from-orange-500 to-yellow-400'
-      case 'maintenance': return 'from-slate-600 to-slate-300'
-      case 'critical': return 'from-red-600 to-rose-400'
-      
-      default: return 'from-slate-600 to-slate-300'
-    }
-  }
-
-  const getSeverityGradient = (severity) => {
-    switch (severity) {
-      case 'low': return 'from-blue-600 to-cyan-400'
-      case 'medium': return 'from-orange-500 to-yellow-400'
-      case 'high': return 'from-red-600 to-rose-400'
-      case 'critical': return 'from-red-900 to-slate-800'
-      default: return 'from-slate-600 to-slate-300'
-    }
-  }
-
-  const showToast = (message, type = 'info') => {
-    toast[type](message)
-  }
-
-  // Filter bugs
-  const filteredBugs = bugsList.filter(b => {
-    if (bugStatusFilter && b.status !== bugStatusFilter) return false
-    if (bugSeverityFilter && b.severity !== bugSeverityFilter) return false
-    if (bugAssigneeFilter && b.assignedDeveloperId !== bugAssigneeFilter) return false
-    return true
-  })
-
-  const getActivityDetails = (act) => {
+  /**
+   * Formats activity details with descriptive text and icons
+   */
+  const getActivityDetails = React.useCallback((act) => {
     const { entityType, action, changes } = act;
     let description = '';
     let icon = <Clock size={14} />;
@@ -578,37 +572,24 @@ export default function ProjectPage() {
       case 'bug':
         icon = <Bug size={14} />;
         gradient = 'from-red-600 to-rose-400';
-        const bugRef = changes.bugNumber ? `Bug #${changes.bugNumber}` : 'a bug';
-        const bugDesc = changes.description ? `: "${changes.description}"` : '';
+        const bugRef = changes?.bugNumber ? `Bug #${changes.bugNumber}` : 'a bug';
+        const bugDesc = changes?.description ? `: "${changes.description}"` : '';
         
-        if (action === 'created') {
-          description = `Reported ${bugRef}${bugDesc}`;
-        } else if (action === 'status_change') {
-          const status = changes.status || changes.newStatus;
-          description = `Changed status of ${bugRef} to "${status}"`;
-        } else if (action === 'deadline_updated') {
-          description = `Updated deadline for ${bugRef} to ${formatDateDisplay(changes.deadline)}`;
-        } else if (action === 'updated') {
-          description = `Updated details for ${bugRef}${bugDesc}`;
-        } else if (action === 'deleted') {
-          description = `Deleted ${bugRef}${bugDesc}`;
-        }
+        if (action === 'created') description = `Reported ${bugRef}${bugDesc}`;
+        else if (action === 'status_change') description = `Changed status of ${bugRef} to "${changes.status || changes.newStatus}"`;
+        else if (action === 'deadline_updated') description = `Updated deadline for ${bugRef} to ${formatDateDisplay(changes.deadline)}`;
+        else if (action === 'updated') description = `Updated details for ${bugRef}${bugDesc}`;
+        else if (action === 'deleted') description = `Deleted ${bugRef}${bugDesc}`;
         break;
       case 'screen':
         icon = <Layout size={14} />;
         gradient = 'from-blue-600 to-cyan-400';
-        if (action === 'created') {
-          description = `Added a new screen: "${changes.title || 'Untitled'}"`;
-        } else if (action === 'status_change') {
-          const status = changes.status || changes.newStatus;
-          description = `Updated screen status to "${status}"`;
-        } else if (action === 'deadline_updated') {
-          description = `Updated screen deadline to ${formatDateDisplay(changes.plannedDeadline)}`;
-        } else if (action === 'updated') {
-          description = `Updated screen details for "${changes.title || 'Untitled'}"`;
-        } else if (action === 'deleted') {
-          description = `Deleted screen: "${changes.title || 'Untitled'}"`;
-        }
+        const screenTitle = changes?.title || 'Untitled';
+        if (action === 'created') description = `Added a new screen: "${screenTitle}"`;
+        else if (action === 'status_change') description = `Updated screen status to "${changes.status || changes.newStatus}"`;
+        else if (action === 'deadline_updated') description = `Updated screen deadline to ${formatDateDisplay(changes.plannedDeadline)}`;
+        else if (action === 'updated') description = `Updated screen details for "${screenTitle}"`;
+        else if (action === 'deleted') description = `Deleted screen: "${screenTitle}"`;
         break;
       case 'project':
         icon = <Settings size={14} />;
@@ -619,43 +600,17 @@ export default function ProjectPage() {
       case 'milestone':
         icon = <Activity size={14} />;
         gradient = 'from-indigo-600 to-purple-500';
-        if (action === 'created') description = `Created milestone #${changes.milestoneNumber}`;
-        else if (action === 'updated') description = `Updated milestone #${changes.milestoneNumber}`;
-        else if (action === 'deleted') description = `Deleted milestone #${changes.milestoneNumber}`;
+        const mNum = changes?.milestoneNumber || '';
+        if (action === 'created') description = `Created milestone #${mNum}`;
+        else if (action === 'updated') description = `Updated milestone #${mNum}`;
+        else if (action === 'deleted') description = `Deleted milestone #${mNum}`;
         break;
       default:
         description = act.description || 'Performed an action';
     }
 
     return { description, icon, gradient };
-  };
-
-  if (loading) return <Loader message="Loading project details..." />
-
-  if (!project) return (
-    <div className="p-8 text-center">
-      <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-red-100 text-red-600 mb-4">
-        <AlertCircle size={32} />
-      </div>
-      <h3 className="text-xl font-bold text-slate-800">Project not found</h3>
-      <p className="text-slate-500 mb-6">The project you are looking for does not exist or has been deleted.</p>
-      <Link to="/" className="text-fuchsia-600 font-bold hover:underline inline-flex items-center">
-        <ArrowLeft size={16} className="mr-2" /> Back to Dashboard
-      </Link>
-    </div>
-  )
-
-  const formatDateDisplay = (dateStr) => {
-    if (!dateStr) return '—'
-    const cleanDateStr = typeof dateStr === 'string' && dateStr.includes('T') ? dateStr.split('T')[0] : (typeof dateStr === 'string' ? dateStr : new Date(dateStr).toISOString().split('T')[0])
-    const parts = cleanDateStr.split('-')
-    if (parts.length !== 3) return cleanDateStr
-
-    const [year, month, day] = parts
-    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
-    const monthIndex = parseInt(month, 10) - 1
-    return `${day}-${months[monthIndex]}-${year}`
-  }
+  }, [])
 
   const screenColumns = [
     { key: 'title', label: 'Title' },
@@ -852,7 +807,7 @@ export default function ProjectPage() {
         <div className="w-full max-w-full px-3 mb-6 lg:w-3/12">
           <StatCard
             title="Bugs"
-            value={`${project.openBugsCount || 0} Open Bugs`}
+            value={`${project?.openBugsCount || 0} Open Bugs`}
             icon={AlertCircle}
             gradient="from-red-600 to-rose-400"
           />
@@ -861,12 +816,12 @@ export default function ProjectPage() {
         <div className="w-full max-w-full px-3 mb-6 lg:w-3/12">
           <StatCard
             title="Progress"
-            value={`${project.completedScreensCount || 0} / ${screensList.length} Done`}
+            value={`${project?.completedScreensCount || 0} / ${screensList.length} Done`}
             icon={CheckCircle}
             gradient="from-green-600 to-lime-400"
           >
             <ProgressBar
-              value={project.completedScreensCount || 0}
+              value={project?.completedScreensCount || 0}
               max={screensList.length || 1}
               showLabel={false}
               gradient="from-green-600 to-lime-400"
@@ -877,7 +832,7 @@ export default function ProjectPage() {
         <div className="w-full max-w-full px-3 mb-6 lg:w-3/12">
           <StatCard
             title="Deadlines"
-            value={`${project.upcomingDeadlines || 0} Upcoming`}
+            value={`${project?.upcomingDeadlines || 0} Upcoming`}
             icon={Clock}
             gradient="from-orange-500 to-yellow-400"
           />
@@ -926,7 +881,7 @@ export default function ProjectPage() {
 
                     <h6 className="mb-4 font-bold text-slate-700">Project Description</h6>
                     <p className="text-sm leading-normal text-slate-600 bg-gray-50 p-4 rounded-xl">
-                      {project.description || 'No description provided.'}
+                      {project?.description || 'No description provided.'}
                     </p>
 
                     <div className="mt-8">
@@ -934,11 +889,11 @@ export default function ProjectPage() {
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="p-4 bg-gray-50 rounded-xl border border-gray-100">
                           <p className="text-xs font-bold uppercase text-slate-400 mb-2">Start Date</p>
-                          <p className="font-bold text-slate-700">{formatDateDisplay(project.startDate)}</p>
+                          <p className="font-bold text-slate-700">{formatDateDisplay(project?.startDate)}</p>
                         </div>
                         <div className="p-4 bg-gray-50 rounded-xl border border-gray-100">
                           <p className="text-xs font-bold uppercase text-slate-400 mb-2">Target End Date</p>
-                          <p className="font-bold text-slate-700">{formatDateDisplay(project.endDate)}</p>
+                          <p className="font-bold text-slate-700">{formatDateDisplay(project?.endDate)}</p>
                         </div>
                       </div>
 
@@ -1003,10 +958,10 @@ export default function ProjectPage() {
                       <div className="flex items-center justify-between p-4 bg-white border-l-4 border-fuchsia-500 rounded-2xl shadow-soft-md">
                         <div className="flex items-center">
                           <div className="w-12 h-12 rounded-xl bg-gradient-to-tl from-purple-700 to-pink-500 flex items-center justify-center text-white font-bold mr-4 shadow-soft-lg">
-                            {project.testerName?.split(' ').map(n => n[0]).slice(0, 2).join('')}
+                            {project?.testerName?.split(' ').map(n => n[0]).slice(0, 2).join('')}
                           </div>
                           <div>
-                            <p className="text-sm font-bold mb-0 text-slate-700">{project.testerName}</p>
+                            <p className="text-sm font-bold mb-0 text-slate-700">{project?.testerName || 'Unassigned'}</p>
                             <p className="text-xs text-slate-500 mb-0">QA Tester</p>
                           </div>
                         </div>
@@ -1110,40 +1065,40 @@ export default function ProjectPage() {
                           { value: 'Open', label: 'Open' },
                           { value: 'In Progress', label: 'In Progress' },
                           { value: 'Resolved', label: 'Resolved' },
-                          { value: 'Closed', label: 'Closed' }
-                        ]}
-                        value={bugStatusFilter}
-                        onChange={(e) => setBugStatusFilter(e.target.value)}
-                        className="mb-0"
-                      />
-                    </div>
-                    <div className="w-full md:w-auto min-w-[150px]">
-                      <Select
-                        label="Severity"
-                        options={[
-                          { value: '', label: 'All Severities' },
-                          { value: 'low', label: 'Low' },
-                          { value: 'medium', label: 'Medium' },
-                          { value: 'high', label: 'High' },
-                          { value: 'critical', label: 'Critical' }
-                        ]}
-                        value={bugSeverityFilter}
-                        onChange={(e) => setBugSeverityFilter(e.target.value)}
-                        className="mb-0"
-                      />
-                    </div>
-                    <div className="w-full md:w-auto min-w-[150px]">
-                      <Select
-                        label="Assignee"
-                        options={[
-                          { value: '', label: 'All Developers' },
-                          ...(project?.developerNames?.map(d => ({ value: d.id, label: d.name })) || [])
-                        ]}
-                        value={bugAssigneeFilter}
-                        onChange={(e) => setBugAssigneeFilter(e.target.value)}
-                        className="mb-0"
-                      />
-                    </div>
+                        { value: 'Closed', label: 'Closed' }
+                      ]}
+                      value={bugFilters.status}
+                      onChange={(e) => setBugFilters(prev => ({ ...prev, status: e.target.value }))}
+                      className="mb-0"
+                    />
+                  </div>
+                  <div className="w-full md:w-auto min-w-[150px]">
+                    <Select
+                      label="Severity"
+                      options={[
+                        { value: '', label: 'All Severities' },
+                        { value: 'low', label: 'Low' },
+                        { value: 'medium', label: 'Medium' },
+                        { value: 'high', label: 'High' },
+                        { value: 'critical', label: 'Critical' }
+                      ]}
+                      value={bugFilters.severity}
+                      onChange={(e) => setBugFilters(prev => ({ ...prev, severity: e.target.value }))}
+                      className="mb-0"
+                    />
+                  </div>
+                  <div className="w-full md:w-auto min-w-[150px]">
+                    <Select
+                      label="Assignee"
+                      options={[
+                        { value: '', label: 'All Developers' },
+                        ...(project?.developerNames?.map(d => ({ value: d.id, label: d.name })) || [])
+                      ]}
+                      value={bugFilters.assignee}
+                      onChange={(e) => setBugFilters(prev => ({ ...prev, assignee: e.target.value }))}
+                      className="mb-0"
+                    />
+                  </div>
                   </div>
 
                   <Table columns={bugColumns} data={filteredBugs} pagination={true} pageSize={10} />

@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { authenticate, requireRole } = require('../middleware/auth');
-const { getProfileUrl } = require('../middleware/helpers');
+const { getProfileUrl, getJobs, getApplications } = require('../middleware/helpers');
 const { USE_LIVE_DB } = require('../config');
 const dbApi = USE_LIVE_DB ? require('../api') : null;
 const localData = !USE_LIVE_DB ? require('../data') : null;
@@ -65,7 +65,7 @@ if (USE_LIVE_DB) {
 // GET /api/public-jobs - available to everyone without token
 router.get('/public-jobs', async (req, res) => {
   try {
-    const jobs = await jobsSource();
+    const jobs = await getJobs(req);
     // Only return active jobs for the public API
     const activeJobs = jobs.filter(job => 
       job.status && job.status.toLowerCase() === 'active'
@@ -131,7 +131,7 @@ router.post('/public-apply', async (req, res) => {
 // GET /api/jobs - available to authenticated users
 router.get('/jobs', authenticate, async (req, res) => {
   try {
-    const jobs = await jobsSource();
+    const jobs = await getJobs(req);
     res.json(jobs);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -180,7 +180,7 @@ router.delete('/jobs/:id', authenticate, requireRole('admin', 'hr'), async (req,
 // GET /api/applications - admin/hr only
 router.get('/applications', authenticate, requireRole('admin', 'hr'), async (req, res) => {
   try {
-    const apps = await applicationsSource();
+    const apps = await getApplications(req);
     res.json(
       (apps || []).map(a => ({
         ...a,

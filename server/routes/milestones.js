@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { authenticate } = require('../middleware/auth');
-const { logActivity } = require('../middleware/helpers');
+const { logActivity, getMilestones } = require('../middleware/helpers');
 const { USE_LIVE_DB } = require('../config');
 const dbApi = USE_LIVE_DB ? require('../api') : null;
 const localData = !USE_LIVE_DB ? require('../data') : null;
@@ -38,8 +38,8 @@ if (USE_LIVE_DB) {
 // GET /api/projects/:id/milestones
 router.get('/projects/:id/milestones', authenticate, async (req, res) => {
   try {
-    const allMilestones = await milestonesSource();
-    const projectMilestones = allMilestones.filter(m => m.projectId === req.params.id);
+    const projectId = req.params.id;
+    const projectMilestones = await getMilestones(req, projectId);
     res.json(projectMilestones);
   } catch (error) {
     res.status(500).json({ error: error.message });

@@ -16,10 +16,8 @@
 
 */
 var page = window.location.pathname.split("/").pop().split(".")[0];
-var aux = window.location.pathname.split("/");
-var to_build = (aux.includes('pages')?'../':'./');
-var root = window.location.pathname.split("/")
-if (!aux.includes("pages")) {
+var to_build = "/Project_Tracker_Tool/";
+if (!window.location.pathname.includes("pages") && !window.location.pathname.includes("projects")) {
   page = "dashboard";
 }
 

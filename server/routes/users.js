@@ -3,7 +3,7 @@ const router = express.Router();
 const fs = require('fs');
 const path = require('path');
 const { authenticate, requireRole } = require('../middleware/auth');
-const { getUserName, getProfileUrl } = require('../middleware/helpers');
+const { getUserName, getProfileUrl, getUsers } = require('../middleware/helpers');
 const { USE_LIVE_DB } = require('../config');
 const dbApi = USE_LIVE_DB ? require('../api') : null;
 const localData = !USE_LIVE_DB ? require('../data') : null;
@@ -43,10 +43,10 @@ if (USE_LIVE_DB) {
 // GET /api/users - admin only
 router.get(`/users`, authenticate, requireRole('admin'), async (req, res) => {
   try {
-    const users = await usersSource();
+    const users = await getUsers(req);
     const usersWithNames = await Promise.all(users.map(async u => ({
       ...u,
-      name: await getUserName(u.id),
+      name: await getUserName(u.id, req),
       profilePicture: getProfileUrl(req, u.profilePicture)
     })));
     res.json(usersWithNames);
@@ -58,7 +58,7 @@ router.get(`/users`, authenticate, requireRole('admin'), async (req, res) => {
 // GET /api/users/me - get current user profile
 router.get(`/me`, authenticate, async (req, res) => {
   try {
-    const users = await usersSource();
+    const users = await getUsers(req);
     const user = users.find(u => u.id === req.user.userId);
     if (!user) return res.status(404).json({ error: 'User not found' });
 
@@ -66,7 +66,7 @@ router.get(`/me`, authenticate, async (req, res) => {
     const { password, ...userProfile } = user;
     res.json({
       ...userProfile,
-      name: await getUserName(user.id),
+      name: await getUserName(user.id, req),
       profilePicture: getProfileUrl(req, user.profilePicture)
     });
   } catch (err) {

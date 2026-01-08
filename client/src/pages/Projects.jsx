@@ -7,6 +7,24 @@ import { Table, Select, Modal, InputGroup, Alert } from '../components/FormCompo
 import { Eye, Plus, Edit, FolderPlus, Briefcase, User, FileText } from 'lucide-react'
 import { Loader } from '../components/Loader'
 
+/**
+ * Helper to get status gradient based on project status
+ */
+const getStatusGradient = (status) => {
+  switch(status) {
+    case 'Under Planning': return 'from-slate-600 to-slate-300';
+    case 'Running': return 'from-green-600 to-lime-400';
+    case 'On Hold': return 'from-orange-500 to-yellow-400';
+    case 'Completed': return 'from-blue-600 to-cyan-400';
+    case 'Critical': return 'from-red-600 to-rose-400';
+    default: return 'from-slate-600 to-slate-300';
+  }
+}
+
+/**
+ * Projects Management Page
+ * Displays a list of all projects and allows admins to create/edit them
+ */
 export default function Projects() {
   const [projects, setProjects] = useState([])
   const [users, setUsers] = useState([])
@@ -14,11 +32,11 @@ export default function Projects() {
   const [loading, setLoading] = useState(true)
   const [statusFilter, setStatusFilter] = useState('')
   
-  // Project form
+  // Project form states
   const [projectForm, setProjectForm] = useState({ name: '', client: '', description: '', testerId: '', developerIds: [] })
   const [projectDialog, setProjectDialog] = useState(false)
 
-  // Edit Project form
+  // Edit Project form states
   const [editProjectForm, setEditProjectForm] = useState({ id: '', name: '', client: '', description: '', testerId: '', developerIds: [] })
   const [editProjectDialog, setEditProjectDialog] = useState(false)
 
@@ -29,7 +47,10 @@ export default function Projects() {
     load()
   }, [])
 
-  const load = async () => {
+  /**
+   * Fetch projects and users data
+   */
+  const load = React.useCallback(async () => {
     setLoading(true)
     setError('')
     try {
@@ -39,8 +60,14 @@ export default function Projects() {
       ])
       
       if (!projectsRes.ok) throw new Error('Failed to fetch projects')
-      if (projectsRes.ok) setProjects(await projectsRes.json())
-      if (usersRes.ok) setUsers(await usersRes.json())
+      
+      const projectsData = await projectsRes.json()
+      setProjects(projectsData)
+      
+      if (usersRes.ok) {
+        const usersData = await usersRes.json()
+        setUsers(usersData)
+      }
     } catch (e) {
       if (e.message === 'Unauthorized: Token expired or invalid') {
         clearToken()
@@ -52,8 +79,11 @@ export default function Projects() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [nav])
 
+  /**
+   * Handle new project creation
+   */
   const handleCreateProject = async () => {
     if (!projectForm.name) {
       setError('Please enter project name')
@@ -66,6 +96,7 @@ export default function Projects() {
         body: JSON.stringify(projectForm)
       })
       if (!res.ok) throw new Error('Failed to create project')
+      
       await load()
       setProjectForm({ name: '', client: '', description: '', testerId: '', developerIds: [] })
       setProjectDialog(false)
@@ -74,6 +105,9 @@ export default function Projects() {
     }
   }
 
+  /**
+   * Open edit dialog with project data
+   */
   const handleEditProject = (project) => {
     setEditProjectForm({
       id: project.id,
@@ -86,6 +120,9 @@ export default function Projects() {
     setEditProjectDialog(true)
   }
 
+  /**
+   * Handle project update
+   */
   const handleUpdateProject = async () => {
     if (!editProjectForm.name) {
       setError('Please enter project name')
@@ -111,37 +148,30 @@ export default function Projects() {
     }
   }
 
-  const getStatusGradient = (status) => {
-    switch(status) {
-      case 'Under Planning': return 'from-slate-600 to-slate-300';
-      case 'Running': return 'from-green-600 to-lime-400';
-      case 'On Hold': return 'from-orange-500 to-yellow-400';
-      case 'Completed': return 'from-blue-600 to-cyan-400';
-      case 'Critical': return 'from-red-600 to-rose-400';
-      default: return 'from-slate-600 to-slate-300';
-    }
-  }
+  const filteredProjects = React.useMemo(() => {
+    return projects.filter(p => {
+      if (statusFilter && p.status !== statusFilter) return false
+      return true
+    })
+  }, [projects, statusFilter])
 
-  const filteredProjects = projects.filter(p => {
-    if (statusFilter && p.status !== statusFilter) return false
-    return true
-  })
-
-  const columns = [
+  const columns = React.useMemo(() => [
     {
       key: 'name',
       label: 'Project',
+      sortable: true,
       render: (val, p) => (
         <div className="flex flex-col">
-          <h6 className="mb-0 text-sm leading-normal">{val}</h6>
+          <h6 className="mb-0 text-sm font-bold text-slate-700">{val}</h6>
           <p className="mb-0 text-xs leading-tight text-slate-400 truncate max-w-xs">{p.description}</p>
         </div>
       )
     },
-    { key: 'client', label: 'Client' },
+    { key: 'client', label: 'Client', sortable: true },
     {
       key: 'status',
       label: 'Status',
+      sortable: true,
       render: (status) => <Badge gradient={getStatusGradient(status)} size="sm">{status}</Badge>
     },
     {
@@ -149,50 +179,67 @@ export default function Projects() {
       label: 'Team',
       render: (_, p) => (
         <div className="text-xs">
-          <span className="text-slate-400">Tester:</span> {p.testerName || '—'}<br/>
-          <span className="text-slate-400">Devs:</span> {p.developerNames?.length || 0}
+          <div className="flex items-center gap-1 mb-1">
+            <span className="text-slate-400 font-medium">Tester:</span> 
+            <span className="text-slate-600">{p.testerName || '—'}</span>
+          </div>
+          <div className="flex items-center gap-1">
+            <span className="text-slate-400 font-medium">Devs:</span> 
+            <span className="text-slate-600">{p.developerNames?.length || 0} assigned</span>
+          </div>
         </div>
       )
     },
     {
       key: 'openBugsCount',
       label: 'Bugs',
-      render: (val) => <span className="text-xs font-bold text-slate-400">{val || 0}</span>
+      sortable: true,
+      render: (val) => (
+        <div className="flex items-center gap-1.5">
+          <span className={`text-xs font-bold ${val > 0 ? 'text-red-500' : 'text-slate-400'}`}>{val || 0}</span>
+          <span className="text-[10px] text-slate-400 uppercase font-bold">Open</span>
+        </div>
+      )
     },
     {
       key: 'completion',
-      label: 'Completion',
-      render: (_, p) => (
-        <div className="w-full max-w-[120px]">
-          <div className="flex justify-between items-center mb-1">
-            <span className="text-xxs font-bold">{(p.completedScreensCount || 0)} / {(p.totalScreensCount || 0)}</span>
+      label: 'Progress',
+      sortable: true,
+      render: (_, p) => {
+        const percentage = p.totalScreensCount > 0 ? (p.completedScreensCount / p.totalScreensCount) * 100 : 0;
+        return (
+          <div className="w-full max-w-[140px]">
+            <div className="flex justify-between items-center mb-1.5 px-0.5">
+              <span className="text-[10px] font-bold text-slate-500">{p.completedScreensCount || 0} / {p.totalScreensCount || 0} Screens</span>
+              <span className="text-[10px] font-bold text-slate-700">{percentage.toFixed(0)}%</span>
+            </div>
+            <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden shadow-inner">
+              <div 
+                className="h-full bg-gradient-to-r from-indigo-500 to-purple-600 rounded-full transition-all duration-700 ease-out"
+                style={{ width: `${percentage}%` }}
+              ></div>
+            </div>
           </div>
-          <div className="text-xs h-1 w-full bg-gray-100 rounded-lg overflow-hidden">
-            <div 
-              className="h-full bg-gradient-to-tl from-blue-600 to-cyan-400 rounded-lg transition-all duration-500"
-              style={{ width: `${(p.totalScreensCount > 0 ? (p.completedScreensCount / p.totalScreensCount) * 100 : 0)}%` }}
-            ></div>
-          </div>
-        </div>
-      )
+        )
+      }
     },
     {
       key: 'actions',
       label: 'Actions',
       render: (_, p) => (
-        <div className="flex gap-3">
-          <Link to={`/projects/${p.id}`} className="text-slate-400 hover:text-fuchsia-500 transition-colors" title="View Project">
+        <div className="flex gap-2">
+          <Link to={`/projects/${p.id}`} className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all" title="View Project">
             <Eye size={18} />
           </Link>
           {user?.role === 'admin' && (
-            <button onClick={() => handleEditProject(p)} className="text-slate-400 hover:text-blue-500 transition-colors" title="Edit Project">
+            <button onClick={() => handleEditProject(p)} className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all" title="Edit Project">
               <Edit size={18} />
             </button>
           )}
         </div>
       )
     }
-  ]
+  ], [user?.role])
 
   return (
     <div className="flex flex-col gap-6">

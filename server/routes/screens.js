@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { authenticate, requireRole } = require('../middleware/auth');
-const { hasProjectAccess, enrichScreen, normalizeProjectObj, logActivity } = require('../middleware/helpers');
+const { hasProjectAccess, enrichScreen, normalizeProjectObj, logActivity, getScreens, getProjects } = require('../middleware/helpers');
 const { USE_LIVE_DB } = require('../config');
 const dbApi = USE_LIVE_DB ? require('../api') : null;
 const localData = !USE_LIVE_DB ? require('../data') : null;
@@ -50,15 +50,16 @@ if (USE_LIVE_DB) {
 // GET /api/screens - list all screens
 router.get(`/screens`, authenticate, async (req, res) => {
   try {
-    const allScreens = await screensSource();
+    const allScreens = await getScreens(req);
     let result = [];
     if (req.user.role === 'admin') {
       result = allScreens;
     } else {
-      const projects = await projectsSource();
+      const projects = await getProjects(req);
       const userProjects = projects.filter(p => {
-        if (req.user.role === 'tester' && p.testerId === req.user.userId) return true;
-        if (req.user.role === 'developer' && p.developerIds && p.developerIds.includes(req.user.userId)) return true;
+        const project = normalizeProjectObj(p);
+        if (req.user.role === 'tester' && project.testerId === req.user.userId) return true;
+        if ((req.user.role === 'developer' || req.user.role === 'ecommerce') && project.developerIds && project.developerIds.includes(req.user.userId)) return true;
         return false;
       }).map(p => p.id);
       result = allScreens.filter(s => userProjects.includes(s.projectId));
@@ -72,12 +73,12 @@ router.get(`/screens`, authenticate, async (req, res) => {
 // GET /api/projects/:id/screens - list screens for a project
 router.get(`/projects/:id/screens`, authenticate, async (req, res) => {
   try {
-    if (!await hasProjectAccess(req.user.userId, req.params.id)) {
+    const projectId = req.params.id;
+    if (!await hasProjectAccess(req.user.userId, projectId)) {
       return res.status(403).json({ error: 'Forbidden' });
     }
-    const screens = await screensSource();
-    const projectScreens = await Promise.all(screens.filter(s => s.projectId === req.params.id).map(s => enrichScreen(req, s)));
-    res.json(projectScreens);
+    const projectScreens = await getScreens(req, projectId);
+    res.json(await Promise.all(projectScreens.map(s => enrichScreen(req, s))));
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

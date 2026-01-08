@@ -2,19 +2,9 @@ const express = require('express');
 const router = express.Router();
 const jwt = require('jsonwebtoken');
 const { authenticate, tokenBlacklist } = require('../middleware/auth');
-const { getProfileUrl } = require('../middleware/helpers');
+const { getProfileUrl, getUsers } = require('../middleware/helpers');
 const { USE_LIVE_DB, USE_ENCRYPTION } = require('../config');
 const { comparePassword } = require('../utils/encryption');
-
-let usersSource;
-
-if (USE_LIVE_DB) {
-  const dbApi = require('../api');
-  usersSource = async () => await dbApi.getUsersFromMySQL();
-} else {
-  const localData = require('../data');
-  usersSource = async () => localData.users;
-}
 
 const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret';
 // Login - accepts { email, password } - returns JWT with userId, email, role
@@ -24,7 +14,7 @@ router.post(`/login`, async (req, res) => {
 
   if (!email || !password) return res.status(400).json({ error: 'Missing email or password' });
   
-  const users = await usersSource();
+  const users = await getUsers(req);
   console.log(`[LOGIN] User source type: ${USE_LIVE_DB ? 'MySQL' : 'Local Data'}`);
   console.log(`[LOGIN] Found ${users.length} users in source.`);
   
@@ -81,7 +71,7 @@ router.get(`/me`, async (req, res) => {
   if (tokenBlacklist.has(token)) return res.status(401).json({ error: 'Token revoked' });
   try {
     const payload = jwt.verify(token, JWT_SECRET);
-    const users = await usersSource();
+    const users = await getUsers(req);
     const user = users.find(u => u.id === payload.userId);
     if (!user) return res.status(401).json({ error: 'User not found' });
     return res.json({ 

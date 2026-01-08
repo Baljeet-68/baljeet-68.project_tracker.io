@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useMemo, useCallback } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { authFetch, getUser, clearToken, clearUser } from '../auth'
 import { LineChart, BarChart, PieChart, AreaChart, ParetoChart } from '../components/ChartComponents'
@@ -7,31 +7,46 @@ import { TrendingUp, AlertCircle, CheckCircle, Users, Activity, ChevronDown } fr
 import { API_BASE_URL } from '../apiConfig'
 import { Loader } from '../components/Loader'
 
+/**
+ * Dashboard Component
+ * @description Provides a high-level overview of projects, bugs, and performance metrics.
+ */
 export default function Dashboard() {
   const [projects, setProjects] = useState([])
-  const [projectIssuesData, setProjectIssuesData] = useState([])
+  const [allBugs, setAllBugs] = useState([])
+  const [allScreens, setAllScreens] = useState([])
   const [bugTrend, setBugTrend] = useState([])
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear())
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(true)
   const [trendLoading, setTrendLoading] = useState(false)
+  
   const user = getUser()
   const nav = useNavigate()
 
-  // Generate last 5 years
-  const currentYear = new Date().getFullYear()
-  const availableYears = Array.from({ length: 5 }, (_, i) => currentYear - i)
+  // Generate the last 5 years for the filter dropdown
+  const availableYears = useMemo(() => {
+    const currentYear = new Date().getFullYear()
+    return Array.from({ length: 5 }, (_, i) => currentYear - i)
+  }, [])
 
-  useEffect(() => {
-    if (user?.role?.toLowerCase() === 'hr') {
-      nav('/notifications', { replace: true })
-      return
+  /**
+   * Error handler for authentication failures
+   */
+  const handleAuthError = useCallback((e) => {
+    if (e.message?.includes('Unauthorized') || e.message?.includes('Token expired')) {
+      clearToken()
+      clearUser()
+      nav('/login', { replace: true })
+    } else {
+      setError(e.message)
     }
-    loadInitialData()
-    loadBugTrend(selectedYear)
-  }, [selectedYear])
+  }, [nav])
 
-  const loadInitialData = async () => {
+  /**
+   * Fetches initial data including projects, bugs, and screens
+   */
+  const loadInitialData = useCallback(async () => {
     setLoading(true)
     try {
       const [projRes, bugsRes, screensRes] = await Promise.all([
@@ -41,69 +56,25 @@ export default function Dashboard() {
       ])
 
       if (!projRes.ok) throw new Error('Failed to fetch projects')
-      let projData = await projRes.json()
+      
+      const projData = await projRes.json()
+      const bugsData = bugsRes.ok ? await bugsRes.json() : []
+      const screensData = screensRes.ok ? await screensRes.json() : []
 
-      // Filter projects by year
-      projData = projData.filter(p => {
-        const createdAt = new Date(p.createdAt)
-        return createdAt.getFullYear() === selectedYear
-      })
       setProjects(projData)
-
-      // Calculate Pareto Chart Data (Module-wise Issues)
-      let allBugs = []
-      let allScreens = []
-
-      if (bugsRes.ok) {
-        allBugs = await bugsRes.json()
-        // Filter bugs by year
-        allBugs = allBugs.filter(b => {
-          const createdAt = new Date(b.createdAt)
-          return createdAt.getFullYear() === selectedYear
-        })
-      }
-
-      if (screensRes.ok) {
-        allScreens = await screensRes.json()
-        // Filter screens by year
-        allScreens = allScreens.filter(s => {
-          const createdAt = new Date(s.createdAt)
-          return createdAt.getFullYear() === selectedYear
-        })
-      }
-
-      const moduleMap = {}
-
-      // Count open/in-progress bugs per module
-      allBugs.forEach(bug => {
-        if (bug.status === 'Open' || bug.status === 'In Progress') {
-          const moduleName = bug.module || 'General'
-          moduleMap[moduleName] = (moduleMap[moduleName] || 0) + 1
-        }
-      })
-
-      // Count blocked/overdue screens per module
-      allScreens.forEach(screen => {
-        if (screen.status === 'Blocked' || (screen.plannedDeadline && new Date(screen.plannedDeadline) < new Date() && screen.status !== 'Done')) {
-          const moduleName = screen.module || 'General'
-          moduleMap[moduleName] = (moduleMap[moduleName] || 0) + 1
-        }
-      })
-
-      const paretoData = Object.entries(moduleMap).map(([label, value]) => ({
-        label,
-        value
-      }))
-
-      setProjectIssuesData(paretoData)
+      setAllBugs(bugsData)
+      setAllScreens(screensData)
     } catch (e) {
       handleAuthError(e)
     } finally {
       setLoading(false)
     }
-  }
+  }, [handleAuthError])
 
-  const loadBugTrend = async (year) => {
+  /**
+   * Fetches monthly bug trend data for the selected year
+   */
+  const loadBugTrend = useCallback(async (year) => {
     setTrendLoading(true)
     try {
       const res = await authFetch(`${API_BASE_URL}/bugs/stats/${year}`)
@@ -115,100 +86,139 @@ export default function Dashboard() {
     } finally {
       setTrendLoading(false)
     }
-  }
+  }, [handleAuthError])
 
-  const handleAuthError = (e) => {
-    if (e.message === 'Unauthorized: Token expired or invalid') {
-      clearToken()
-      clearUser()
-      nav('/login', { replace: true })
-    } else {
-      setError(e.message)
+  // Load data on mount and when selectedYear changes
+  useEffect(() => {
+    if (user?.role?.toLowerCase() === 'hr') {
+      nav('/notifications', { replace: true })
+      return
     }
-  }
-
-  const loadProjects = async () => {
-    // This function is now part of loadInitialData but kept for compatibility if needed elsewhere
     loadInitialData()
-  }
+    loadBugTrend(selectedYear)
+  }, [selectedYear, loadInitialData, loadBugTrend, nav, user?.role])
 
-  const summary = {
-    total: projects.length,
-    running: projects.filter(p => p.status === 'Active' || p.status === 'Running').length,
-    completed: projects.filter(p => p.status === 'Completed' || p.status === 'Done').length,
-    onHold: projects.filter(p => p.status === 'On Hold').length,
-    maintenance: projects.filter(p => p.status === 'Maintenance').length,
-    openBugs: projects.reduce((acc, p) => {
-      // If user is admin, show all bugs for the project
-      // If user is developer, show only bugs assigned to them or bugs in their projects?
-      // User request: "as an users developer or tester show only logged in user data"
-      // So for bugs, we should only count bugs assigned to this developer or created by this tester
-      if (user.role === 'admin') {
-        return acc + (p.openBugsCount || 0)
-      } else if (user.role === 'developer') {
-        // We need to ensure openBugsCount on project object reflects the user's role if filtered by API
-        // But for dashboard summary, let's be explicit if the project object has this info
-        return acc + (p.userOpenBugsCount !== undefined ? p.userOpenBugsCount : (p.openBugsCount || 0))
-      } else if (user.role === 'tester') {
-        return acc + (p.userCreatedBugsCount !== undefined ? p.userCreatedBugsCount : (p.openBugsCount || 0))
+  // --- Memoized Derived Data ---
+
+  // Filtered projects for the selected year
+  const filteredProjects = useMemo(() => {
+    return projects.filter(p => new Date(p.createdAt).getFullYear() === selectedYear)
+  }, [projects, selectedYear])
+
+  // Filtered bugs for the selected year
+  const filteredBugs = useMemo(() => {
+    return allBugs.filter(b => new Date(b.createdAt).getFullYear() === selectedYear)
+  }, [allBugs, selectedYear])
+
+  // Filtered screens for the selected year
+  const filteredScreens = useMemo(() => {
+    return allScreens.filter(s => new Date(s.createdAt).getFullYear() === selectedYear)
+  }, [allScreens, selectedYear])
+
+  // Pareto Chart Data (Module-wise Issues)
+  const projectIssuesData = useMemo(() => {
+    const moduleMap = {}
+    const now = new Date()
+
+    // Count open/in-progress bugs per module
+    filteredBugs.forEach(bug => {
+      if (bug.status === 'Open' || bug.status === 'In Progress') {
+        const moduleName = bug.module || 'General'
+        moduleMap[moduleName] = (moduleMap[moduleName] || 0) + 1
       }
+    })
+
+    // Count blocked/overdue screens per module
+    filteredScreens.forEach(screen => {
+      const isOverdue = screen.plannedDeadline && new Date(screen.plannedDeadline) < now && screen.status !== 'Done'
+      if (screen.status === 'Blocked' || isOverdue) {
+        const moduleName = screen.module || 'General'
+        moduleMap[moduleName] = (moduleMap[moduleName] || 0) + 1
+      }
+    })
+
+    return Object.entries(moduleMap)
+      .map(([label, value]) => ({ label, value }))
+      .sort((a, b) => b.value - a.value) // Sort for Pareto
+  }, [filteredBugs, filteredScreens])
+
+  // Dashboard summary metrics
+  const summary = useMemo(() => ({
+    total: filteredProjects.length,
+    running: filteredProjects.filter(p => ['Active', 'Running'].includes(p.status)).length,
+    completed: filteredProjects.filter(p => ['Completed', 'Done'].includes(p.status)).length,
+    onHold: filteredProjects.filter(p => p.status === 'On Hold').length,
+    maintenance: filteredProjects.filter(p => p.status === 'Maintenance').length,
+    openBugs: filteredProjects.reduce((acc, p) => {
+      if (user.role === 'admin') return acc + (p.openBugsCount || 0)
+      if (user.role === 'developer') return acc + (p.userOpenBugsCount ?? (p.openBugsCount || 0))
+      if (user.role === 'tester') return acc + (p.userCreatedBugsCount ?? (p.openBugsCount || 0))
       return acc + (p.openBugsCount || 0)
     }, 0),
-    upcomingDeadlines: projects.reduce((acc, p) => acc + (p.upcomingDeadlines || 0), 0)
-  }
+    upcomingDeadlines: filteredProjects.reduce((acc, p) => acc + (p.upcomingDeadlines || 0), 0)
+  }), [filteredProjects, user.role])
 
-  // Prepare chart data - group similar statuses together
-  const statusMap = {}
-  projects.forEach(p => {
-    let mappedStatus = p.status || 'Unknown'
-    if (p.status === 'Active' || p.status === 'Running') mappedStatus = 'Running'
-    if (p.status === 'Planning' || p.status === 'Under Planning') mappedStatus = 'Planning'
-    statusMap[mappedStatus] = (statusMap[mappedStatus] || 0) + 1
-  })
-  const statusData = Object.entries(statusMap)
+  // Status Chart Data
+  const statusChartData = useMemo(() => {
+    const statusMap = {}
+    filteredProjects.forEach(p => {
+      let mappedStatus = p.status || 'Unknown'
+      if (['Active', 'Running'].includes(p.status)) mappedStatus = 'Running'
+      if (['Planning', 'Under Planning'].includes(p.status)) mappedStatus = 'Planning'
+      statusMap[mappedStatus] = (statusMap[mappedStatus] || 0) + 1
+    })
+    
+    const entries = Object.entries(statusMap)
+    return {
+      labels: entries.map(([status]) => status),
+      values: entries.map(([, count]) => count),
+      hasData: entries.length > 0 && entries.some(([, count]) => count > 0)
+    }
+  }, [filteredProjects])
 
-  const statusLabels = statusData.map(([status]) => status)
-  const statusValues = statusData.map(([, count]) => count)
-  const hasStatusData = statusValues.length > 0 && statusValues.some(v => v > 0)
-
-  // Format bug trend data for chart
-  const bugTrendCategories = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
-  const bugTrendSeries = [
-    {
+  // Bug Trend Chart Formatting
+  const bugTrendData = useMemo(() => {
+    const categories = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+    const series = [{
       name: 'Open Bugs',
-      data: bugTrendCategories.map((_, index) => {
+      data: categories.map((_, index) => {
         const monthData = bugTrend.find(d => d.month === index + 1)
         return monthData ? monthData.count : 0
       })
+    }]
+    const hasData = series[0].data.some(val => val > 0);
+    const totalBugs = series[0].data.reduce((a, b) => a + b, 0);
+    return { categories, series, hasData, totalBugs }
+  }, [bugTrend])
+
+  // Project Progress Data for charts
+  const projectProgressData = useMemo(() => {
+    const counts = {
+      Planning: filteredProjects.filter(p => ['Planning', 'Under Planning'].includes(p.status)).length,
+      Running: filteredProjects.filter(p => ['Active', 'Running'].includes(p.status)).length,
+      OnHold: filteredProjects.filter(p => p.status === 'On Hold').length,
+      Critical: filteredProjects.filter(p => p.status === 'Critical').length
     }
-  ]
 
-  const hasTrendData = bugTrendSeries[0].data.some(val => val > 0)
-
-  // Calculate year-over-year comparison (mock for now as we only fetch one year)
-  const currentTotalBugs = bugTrendSeries[0].data.reduce((a, b) => a + b, 0)
-  const displayYear = selectedYear
-
-  // Dynamic project progress data - handle both old and new status names
-  const planningCount = projects.filter(p => p.status === 'Planning' || p.status === 'Under Planning').length
-  const runningCount = projects.filter(p => p.status === 'Active' || p.status === 'Running').length
-  const onHoldCount = projects.filter(p => p.status === 'On Hold').length
-  const criticalCount = projects.filter(p => p.status === 'Critical').length
-
-  const projectProgressData = [
-    { name: 'Planning', data: [planningCount, planningCount, planningCount, planningCount] },
-    { name: 'Running', data: [runningCount, runningCount, runningCount, runningCount] },
-    { name: 'On Hold', data: [onHoldCount, onHoldCount, onHoldCount, onHoldCount] },
-    { name: 'Critical', data: [criticalCount, criticalCount, criticalCount, criticalCount] }
-  ]
+    return Object.entries(counts).map(([name, count]) => ({
+      name,
+      data: [count, count, count, count] // Dummy data for visualization if needed
+    }))
+  }, [filteredProjects])
   const projectProgressCategories = ['Q1', 'Q2', 'Q3', 'Q4']
   const hasProgressData = projects.length > 0
 
   const hasIssuesData = projectIssuesData.length > 0 && projectIssuesData.some(d => d.value > 0)
 
+  const currentYear = new Date().getFullYear();
+
   if (loading) {
     return <Loader message="Loading dashboard data..." />
   }
+
+  const { categories: bugTrendCategories, series: bugTrendSeries, hasData: hasTrendData, totalBugs: currentTotalBugs } = bugTrendData;
+  const { labels: statusLabels, values: statusValues, hasData: hasStatusData } = statusChartData;
+  const displayYear = selectedYear;
 
   return (
     <div className="flex flex-col gap-6">

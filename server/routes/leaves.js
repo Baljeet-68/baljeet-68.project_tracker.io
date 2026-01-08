@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { pool } = require('../db');
 const { authenticate } = require('../middleware/auth');
+const { getLeaves } = require('../middleware/helpers');
 
 // Helper to check if a user is Admin or HR
 const isAdminOrHR = (req, res, next) => {
@@ -16,26 +17,21 @@ const isAdminOrHR = (req, res, next) => {
 router.get(`/leaves`, authenticate, async (req, res) => {
   try {
     const { role, userId } = req.user;
-    let query = 'SELECT l.*, u.name as userName, u.role as userRole FROM leaves l JOIN users u ON l.user_id = u.id';
-    let params = [];
+    const allLeaves = await getLeaves(req);
+    let result = [];
 
     if (role === 'admin') {
-      // Admin sees everything, but specifically needs to see what's pending for them
-      // According to matrix: HR, Management, Accountant requests go to Admin
-      // However, requirement says "Admin sees leaves pending Admin approval"
-      // We'll return all for admin but UI can filter
+      result = allLeaves;
     } else if (role === 'hr') {
       // HR sees their own + what's pending for them (Tester, Developer, E-commerce)
-      // query += ' WHERE l.user_id = ? OR l.approver_id = ?';
-      // params = [userId, userId];
+      // For now, returning all for HR too as per original code's commented intent or UI filtering
+      result = allLeaves;
     } else {
       // Regular users only see their own
-      query += ' WHERE l.user_id = ?';
-      params = [userId];
+      result = allLeaves.filter(l => l.user_id === userId);
     }
 
-    const [rows] = await pool.query(query, params);
-    res.json(rows);
+    res.json(result);
   } catch (error) {
     console.error('Error fetching leaves:', error);
     res.status(500).json({ error: 'Failed to fetch leaves' });
@@ -322,101 +318,76 @@ router.patch(`/leaves/:id/cancel`, authenticate, async (req, res) => {
 // Stats for dashboard
 router.get(`/leaves/stats/summary`, authenticate, async (req, res) => {
   try {
-    const today = new Date().toISOString().split('T')[0];
+    const todayStr = new Date().toISOString().split('T')[0];
     const { role, userId } = req.user;
+    const allLeaves = await getLeaves(req);
+    const monthPrefix = new Date().toISOString().substring(0, 7); // YYYY-MM
 
     // 1. On leave today (Full Day / Paid Leave / Compensation)
-    const [onLeaveToday] = await pool.query(
-      `SELECT COUNT(*) as count FROM leaves 
-       WHERE ? BETWEEN start_date AND end_date 
-       AND status = "Approved" 
-       AND type IN ("Full Day", "Paid Leave", "Compensation")`,
-      [today]
-    );
+    const onLeaveToday = allLeaves.filter(l => 
+      l.status === 'Approved' && 
+      todayStr >= l.start_date.toISOString().split('T')[0] && 
+      todayStr <= l.end_date.toISOString().split('T')[0] &&
+      ["Full Day", "Paid Leave", "Compensation"].includes(l.type)
+    ).length;
 
     // 2. On halfday today
-    const [onHalfDayToday] = await pool.query(
-      `SELECT COUNT(*) as count FROM leaves 
-       WHERE ? BETWEEN start_date AND end_date 
-       AND status = "Approved" 
-       AND type = "Half Day"`,
-      [today]
-    );
+    const onHalfDayToday = allLeaves.filter(l => 
+      l.status === 'Approved' && 
+      todayStr >= l.start_date.toISOString().split('T')[0] && 
+      todayStr <= l.end_date.toISOString().split('T')[0] &&
+      l.type === "Half Day"
+    ).length;
 
     // 3. Pending requests (for HR or Admin based on matrix)
-    let pendingCount = 0;
-    if (role === 'admin' || role === 'hr') {
-      const [pending] = await pool.query(
-        `SELECT COUNT(l.id) as count FROM leaves l 
-         JOIN users u ON l.user_id = u.id 
-         WHERE l.status = 'Submitted'`
-      );
-      // We'll filter this in the frontend or we can do more complex role-based count here
-      // For now, let's get the total submitted
-      pendingCount = pending[0].count;
-    }
+    const pendingRequests = (role === 'admin' || role === 'hr') 
+      ? allLeaves.filter(l => l.status === 'Submitted').length 
+      : 0;
 
     // 4. Specifically for Admin: Pending from HR/Management/Accountant
-    let adminPendingCount = 0;
-    if (role === 'admin') {
-      const [adminPending] = await pool.query(
-        `SELECT COUNT(l.id) as count FROM leaves l 
-         JOIN users u ON l.user_id = u.id 
-         WHERE l.status = 'Submitted' 
-         AND u.role IN ('hr', 'management', 'accountant')`
-      );
-      adminPendingCount = adminPending[0].count;
-    }
+    const adminPendingRequests = (role === 'admin')
+      ? allLeaves.filter(l => l.status === 'Submitted' && ['hr', 'management', 'accountant'].includes(l.userRole?.toLowerCase())).length
+      : 0;
 
     // 5. User's own pending requests
-    const [myPending] = await pool.query(
-      `SELECT COUNT(*) as count FROM leaves WHERE user_id = ? AND status = 'Submitted'`,
-      [userId]
-    );
+    const myPendingRequests = allLeaves.filter(l => l.user_id === userId && l.status === 'Submitted').length;
 
-    // 6. This month leaves (Taken only) - Approved non-half-day leaves for current user in current month before today
-    const monthPrefix = new Date().toISOString().substring(0, 7); // YYYY-MM
-    const [thisMonthLeaves] = await pool.query(
-      `SELECT COUNT(*) as count FROM leaves 
-       WHERE user_id = ? 
-       AND status = "Approved" 
-       AND type NOT IN ("Half Day", "Short Leave", "Early Leave") 
-       AND start_date LIKE ?
-       AND start_date < ?`,
-      [userId, `${monthPrefix}%`, today]
-    );
+    // 6. This month leaves (Taken only)
+    const thisMonthLeaves = allLeaves.filter(l => 
+      l.user_id === userId && 
+      l.status === "Approved" && 
+      !["Half Day", "Short Leave", "Early Leave"].includes(l.type) &&
+      l.start_date.toISOString().startsWith(monthPrefix) &&
+      l.start_date.toISOString().split('T')[0] < todayStr
+    ).length;
 
-    // 7. This month halfday (Taken only) - Approved half-day leaves for current user in current month before today
-    const [thisMonthHalfDays] = await pool.query(
-      `SELECT COUNT(*) as count FROM leaves 
-       WHERE user_id = ? 
-       AND status = "Approved" 
-       AND type = "Half Day" 
-       AND start_date LIKE ?
-       AND start_date < ?`,
-      [userId, `${monthPrefix}%`, today]
-    );
+    // 7. This month halfday (Taken only)
+    const thisMonthHalfDays = allLeaves.filter(l => 
+      l.user_id === userId && 
+      l.status === "Approved" && 
+      l.type === "Half Day" && 
+      l.start_date.toISOString().startsWith(monthPrefix) &&
+      l.start_date.toISOString().split('T')[0] < todayStr
+    ).length;
 
-    // 8. Paid leave taken this month (User asked for Paid leave pending but logic is taken before today)
-    const [paidLeaveTaken] = await pool.query(
-      `SELECT COUNT(*) as count FROM leaves 
-       WHERE user_id = ? 
-       AND status = "Approved" 
-       AND type = "Paid Leave"
-       AND start_date LIKE ?
-       AND start_date < ?`,
-      [userId, `${monthPrefix}%`, today]
-    );
+    // 8. Paid leave taken this month
+    const paidLeaveTaken = allLeaves.filter(l => 
+      l.user_id === userId && 
+      l.status === "Approved" && 
+      l.type === "Paid Leave" &&
+      l.start_date.toISOString().startsWith(monthPrefix) &&
+      l.start_date.toISOString().split('T')[0] < todayStr
+    ).length;
 
     res.json({
-      onLeaveToday: onLeaveToday[0].count,
-      onHalfDayToday: onHalfDayToday[0].count,
-      pendingRequests: pendingCount,
-      adminPendingRequests: adminPendingCount,
-      myPendingRequests: myPending[0].count,
-      thisMonthLeaves: thisMonthLeaves[0].count,
-      thisMonthHalfDays: thisMonthHalfDays[0].count,
-      paidLeaveTaken: paidLeaveTaken[0].count
+      onLeaveToday,
+      onHalfDayToday,
+      pendingRequests,
+      adminPendingRequests,
+      myPendingRequests,
+      thisMonthLeaves,
+      thisMonthHalfDays,
+      paidLeaveTaken
     });
   } catch (error) {
     console.error('Error fetching leave stats:', error);

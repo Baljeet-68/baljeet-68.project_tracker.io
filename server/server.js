@@ -4,8 +4,27 @@ require("dotenv").config({ path: path.join(__dirname, ".env") });
 
 const express = require("express");
 const cors = require("cors");
+const { clearCache } = require("./middleware/helpers");
 
 const app = express();
+
+/**
+ * Middleware to initialize request-level cache.
+ * This ensures that subsequent calls within the same request flow
+ * get fresh data if needed, while allowing memoization within that single request.
+ * It avoids race conditions between concurrent requests.
+ */
+app.use((req, res, next) => {
+  req.cache = {
+    users: null,
+    bugs: null,
+    screens: null,
+    projects: null,
+    projectBugs: {},    // Map of projectId -> bugs
+    projectScreens: {}, // Map of projectId -> screens
+  };
+  next();
+});
 
 /* ===============================
    MODE + BASE_URL

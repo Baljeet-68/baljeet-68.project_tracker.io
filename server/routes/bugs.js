@@ -1,34 +1,27 @@
+/**
+ * @file routes/bugs.js
+ * @description API routes for bug tracking and reporting.
+ */
+
 const express = require('express');
 const router = express.Router();
 const { authenticate, requireRole } = require('../middleware/auth');
-const { hasProjectAccess, enrichBug, logActivity } = require('../middleware/helpers');
+const { hasProjectAccess, enrichBug, logActivity, getBugs, getProjects, normalizeProjectObj } = require('../middleware/helpers');
 const { USE_LIVE_DB } = require('../config');
 const dbApi = USE_LIVE_DB ? require('../api') : null;
 const localData = !USE_LIVE_DB ? require('../data') : null;
 const { pool } = require('../db');
 
-var bugsSource;
-var bugCountersSource;
-var usersSource;
-var projectsSource;
-var bugByIdSource;
-var updateBugInDbSource;
-var deleteBugFromDbSource;
+// Define data source functions
+let bugsSource;
+let usersSource;
+let projectsSource;
+let bugByIdSource;
+let updateBugInDbSource;
+let deleteBugFromDbSource;
 
 if (USE_LIVE_DB) {
   bugsSource = async () => await dbApi.getBugsFromMySQL();
-  bugCountersSource = async () => {
-    // For live DB, we might need a better way to handle bug counters per project.
-    // For now, let's just fetch all bugs and find the max bugNumber for each project.
-    const allBugs = await dbApi.getBugsFromMySQL();
-    const counters = {};
-    allBugs.forEach(b => {
-      if (!counters[b.projectId] || b.bugNumber > counters[b.projectId]) {
-        counters[b.projectId] = b.bugNumber;
-      }
-    });
-    return counters;
-  };
   usersSource = async () => await dbApi.getUsersFromMySQL();
   projectsSource = async () => await dbApi.getProjectsFromMySQL();
   bugByIdSource = dbApi.getBugById;
@@ -36,7 +29,6 @@ if (USE_LIVE_DB) {
   deleteBugFromDbSource = dbApi.deleteBugFromDb;
 } else {
   bugsSource = async () => localData.bugs;
-  bugCountersSource = async () => localData.bugCounters;
   usersSource = async () => localData.users;
   projectsSource = async () => localData.projects;
   bugByIdSource = async (id) => localData.bugs.find(b => b.id === id);
@@ -49,26 +41,40 @@ if (USE_LIVE_DB) {
   };
 }
 
-// GET /api/bugs - list all bugs (admin only for now)
+/**
+ * GET /bugs
+ * @description List all bugs accessible to the user.
+ */
 router.get(`/bugs`, authenticate, async (req, res) => {
   try {
-    const allBugs = await bugsSource();
+    // Use the request-scoped cache helper
+    const allBugs = await getBugs(req);
     let result = [];
+    
     if (req.user.role === 'admin') {
       result = allBugs;
     } else {
-      // Filter bugs where user has project access
-      const projects = await projectsSource();
-      const userProjects = projects.filter(p => {
-        const isTester = (req.user.role === 'tester' || req.user.role === 'admin') && p.testerId === req.user.userId;
-        const isDeveloper = (req.user.role === 'developer' || req.user.role === 'admin' || req.user.role === 'ecommerce') && p.developerIds && p.developerIds.includes(req.user.userId);
+      // For non-admins, we still need to filter based on project access.
+      // However, getUsers and getProjects will now also be cached per-request.
+      const projects = await getProjects(req);
+      
+      const userProjectIds = projects.filter(p => {
+        const project = normalizeProjectObj(p);
+        const isTester = (req.user.role === 'tester') && project.testerId === req.user.userId;
+        const isDeveloper = (req.user.role === 'developer' || req.user.role === 'ecommerce') && 
+                            project.developerIds && project.developerIds.includes(req.user.userId);
         return isTester || isDeveloper;
       }).map(p => p.id);
-      result = allBugs.filter(b => userProjects.includes(b.projectId));
+      
+      result = allBugs.filter(b => userProjectIds.includes(b.projectId));
     }
-    res.json(await Promise.all(result.map(b => enrichBug(req, b))));
+    
+    // Enrich results in parallel
+    const enrichedBugs = await Promise.all(result.map(b => enrichBug(req, b)));
+    res.json(enrichedBugs);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error('Error in GET /bugs:', error);
+    res.status(500).json({ error: 'Internal Server Error' });
   }
 });
 
@@ -179,12 +185,16 @@ router.get(`/bugs/years`, authenticate, async (req, res) => {
 // GET /api/projects/:id/bugs - list bugs with per-project numbering
 router.get(`/projects/:id/bugs`, authenticate, async (req, res) => {
   try {
-    if (!await hasProjectAccess(req.user.userId, req.params.id)) {
+    const projectId = req.params.id;
+    if (!await hasProjectAccess(req.user.userId, projectId)) {
       return res.status(403).json({ error: 'Forbidden' });
     }
-    const bugs = await bugsSource();
-    const projectBugs = await Promise.all(bugs.filter((b) => b.projectId === req.params.id).map(b => enrichBug(req, b)));
-    res.json(projectBugs);
+    
+    // Use the optimized helper that utilizes filtered database queries
+    const projectBugs = await getBugs(req, projectId);
+    const enrichedBugs = await Promise.all(projectBugs.map(b => enrichBug(req, b)));
+    
+    res.json(enrichedBugs);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

@@ -2,16 +2,14 @@ const express = require('express');
 const router = express.Router();
 const { pool } = require('../db');
 const { authenticate } = require('../middleware/auth');
+const { getNotifications } = require('../middleware/helpers');
 
 // Get notifications for the logged-in user
 router.get('/notifications', authenticate, async (req, res) => {
   try {
     const { userId } = req.user;
-    const [rows] = await pool.query(
-      'SELECT * FROM notifications WHERE user_id = ? ORDER BY created_at DESC LIMIT 50',
-      [userId]
-    );
-    res.json(rows);
+    const notifications = await getNotifications(req, userId);
+    res.json(notifications);
   } catch (error) {
     console.error('Error fetching notifications:', error);
     res.status(500).json({ error: 'Failed to fetch notifications' });

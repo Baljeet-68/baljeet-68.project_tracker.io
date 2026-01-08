@@ -1,35 +1,40 @@
+/**
+ * @file routes/projects.js
+ * @description API routes for project management.
+ */
+
 const express = require('express');
 const router = express.Router();
 const { authenticate, requireRole } = require('../middleware/auth');
-const { hasProjectAccess, enrichProject, normalizeProjectObj, logActivity, enrichBug, getUserName } = require('../middleware/helpers');
+const { hasProjectAccess, enrichProject, normalizeProjectObj, logActivity, enrichBug, getUserName, getBugs, getScreens, getProjects } = require('../middleware/helpers');
 const { USE_LIVE_DB } = require('../config');
 const dbApi = USE_LIVE_DB ? require('../api') : null;
 const localData = !USE_LIVE_DB ? require('../data') : null;
 const { pool } = require('../db');
 
-var getProjectsSource;
-var getProjectByIdSource;
-var updateProjectInDbSource;
-var usersSource;
-var projectsSource;
-var screensSource;
-var bugsSource;
+// Define data source functions based on configuration
+let getProjectsSource;
+let getProjectByIdSource;
+let updateProjectInDbSource;
+let usersSource;
+let projectsSource;
+let screensSource;
+let bugsSource;
 
 if (USE_LIVE_DB) {
   getProjectsSource = dbApi.getProjectsFromMySQL;
   getProjectByIdSource = dbApi.getProjectById;
   updateProjectInDbSource = dbApi.updateProjectInDb;
-  usersSource = async () => await dbApi.getUsersFromMySQL(); // Now fetches from DB
-  projectsSource = []; // Placeholder
-  screensSource = []; // Placeholder
-  bugsSource = []; // Placeholder
+  usersSource = async () => await dbApi.getUsersFromMySQL();
+  projectsSource = []; 
+  screensSource = []; 
+  bugsSource = []; 
 } else {
   projectsSource = localData.projects;
-  usersSource = localData.users;
+  usersSource = () => localData.users;
   screensSource = localData.screens;
   bugsSource = localData.bugs;
 
-  // Implement local data functions if not using live DB
   getProjectsSource = async () => projectsSource;
   getProjectByIdSource = async (id) => projectsSource.find(p => p.id === id);
   updateProjectInDbSource = async (projectId, changes) => {
@@ -40,53 +45,68 @@ if (USE_LIVE_DB) {
   };
 }
 
-// GET /api/projects - list only assigned projects per user
+/**
+ * GET /projects
+ * @description List assigned projects for the authenticated user.
+ * Admins see all projects.
+ */
 router.get(`/projects`, authenticate, async (req, res) => {
   try {
-    const allProjects = await getProjectsSource();
+    const allProjects = await getProjects(req);
     let result = [];
+    
     if (req.user.role === 'admin') {
-      console.log('Admin user, showing all projects');
-      
       result = allProjects;
     } else {
+      // Filter projects based on user's role and assignment
       result = allProjects.filter((p) => {
-        const isTester = (req.user.role === 'tester' || req.user.role === 'admin') && p.testerId === req.user.userId;
-        const isDeveloper = (req.user.role === 'developer' || req.user.role === 'admin' || req.user.role === 'ecommerce') && p.developerIds && p.developerIds.includes(req.user.userId);
+        const project = normalizeProjectObj(p);
+        const isTester = (req.user.role === 'tester') && project.testerId === req.user.userId;
+        const isDeveloper = (req.user.role === 'developer' || req.user.role === 'ecommerce') && 
+                            project.developerIds && project.developerIds.includes(req.user.userId);
         return isTester || isDeveloper;
       });
     }
-    res.json(await Promise.all(result.map(p => enrichProject(req, p))));
+    
+    // Enrich all projects in parallel
+    const enrichedProjects = await Promise.all(result.map(p => enrichProject(req, p)));
+    res.json(enrichedProjects);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error('Error in GET /projects:', error);
+    res.status(500).json({ error: 'Internal Server Error' });
   }
 });
 
-// GET /api/projects/:id - get single project with full details
+/**
+ * GET /projects/:id
+ * @description Get full details of a single project including screens and bugs.
+ */
 router.get(`/projects/:id`, authenticate, async (req, res) => {
   try {
-    const p = await getProjectByIdSource(req.params.id);
+    const { id } = req.params;
+    const p = await getProjectByIdSource(id);
     if (!p) return res.status(404).json({ error: 'Project not found' });
     
-    // Check access
-    const hasAccess = await hasProjectAccess(req.user.userId, req.params.id);
+    // Check access rights
+    const hasAccess = await hasProjectAccess(req.user.userId, id);
     if (!hasAccess) {
-      return res.status(403).json({ error: 'Forbidden' });
+      return res.status(403).json({ error: 'Access Forbidden' });
     }
-    // Add screens and bugs details
-    if (USE_LIVE_DB) {
-      const allScreens = await dbApi.getScreensFromMySQL();
-      const allBugs = await dbApi.getBugsFromMySQL();
-      p.screensList = allScreens.filter(s => s.projectId === p.id);
-      p.bugsList = await Promise.all(allBugs.filter(b => b.projectId === p.id).map(b => enrichBug(req, b)));
-    } else {
-      p.screensList = screensSource.filter(s => s.projectId === p.id);
-      p.bugsList = await Promise.all(bugsSource.filter(b => b.projectId === p.id).map(b => enrichBug(req, b)));
-    }
+
+    // Related details (screens and bugs) are now fetched efficiently inside enrichProject
+    // because we updated enrichProject to use getBugs(req, p.id) and getScreens(req, p.id)
+    // which use the new filtered database queries.
     const enriched = await enrichProject(req, p);
+    
+    // For the single project view, we might want to include the lists explicitly
+    // if the client expects them as screensList and bugsList.
+    enriched.screensList = await getScreens(req, id);
+    enriched.bugsList = await Promise.all((await getBugs(req, id)).map(b => enrichBug(req, b)));
+
     res.json(enriched);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error(`Error in GET /projects/${req.params.id}:`, error);
+    res.status(500).json({ error: 'Internal Server Error' });
   }
 });
 
@@ -106,7 +126,7 @@ router.get(`/projects/:id/activity`, authenticate, async (req, res) => {
     // Enrich activity with user names
     const enrichedActivity = await Promise.all(activity.map(async (a) => ({
       ...a,
-      createdByName: await getUserName(a.createdBy)
+      createdByName: await getUserName(a.createdBy, req)
     })));
 
     res.json(enrichedActivity);

@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { authenticate, requireRole } = require('../middleware/auth');
+const { getAnnouncements } = require('../middleware/helpers');
 const { USE_LIVE_DB } = require('../config');
 
 let announcementsSource;
@@ -38,7 +39,7 @@ if (USE_LIVE_DB) {
 // GET /api/announcements - Get all announcements for the user
 router.get('/announcements', authenticate, async (req, res) => {
   try {
-    const all = await announcementsSource();
+    const all = await getAnnouncements(req);
     const { userId, role } = req.user;
     const now = new Date();
 

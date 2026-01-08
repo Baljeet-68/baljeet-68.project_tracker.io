@@ -1,20 +1,38 @@
 const { pool } = require('./db');
 const { hashPassword, encrypt, decrypt } = require('./utils/encryption');
 
+/**
+ * Helper to parse developerIds from JSON string or array
+ */
+function parseDeveloperIds(devIds) {
+  try {
+    if (devIds == null) return [];
+    if (Array.isArray(devIds)) return devIds;
+    return JSON.parse(devIds);
+  } catch (e) {
+    return [];
+  }
+}
+
+/**
+ * Helper to parse attachments from JSON string or array
+ */
+function parseAttachments(attachments) {
+  try {
+    if (attachments == null) return [];
+    if (Array.isArray(attachments)) return attachments;
+    return JSON.parse(attachments);
+  } catch (e) {
+    return [];
+  }
+}
+
 async function getProjectsFromMySQL() {
   try {
     const [rows] = await pool.query('SELECT * FROM projects');
     return rows.map(r => ({
       ...r,
-      developerIds: (() => {
-        try {
-          if (r.developerIds == null) return [];
-          if (Array.isArray(r.developerIds)) return r.developerIds;
-          return JSON.parse(r.developerIds);
-        } catch (e) {
-          return [];
-        }
-      })()
+      developerIds: parseDeveloperIds(r.developerIds)
     }));
   } catch (error) {
     console.error('Database query failed in getProjectsFromMySQL:', error);
@@ -27,15 +45,6 @@ async function getProjectById(projectId) {
     const [rows] = await pool.query('SELECT * FROM projects WHERE id = ?', [projectId]);
     if (rows.length === 0) return null;
     const r = rows[0];
-    const developerIds = (() => {
-      try {
-        if (r.developerIds == null) return [];
-        if (Array.isArray(r.developerIds)) return r.developerIds;
-        return JSON.parse(r.developerIds);
-      } catch (e) {
-        return [];
-      }
-    })();
     return {
       id: r.id,
       name: r.name,
@@ -43,7 +52,7 @@ async function getProjectById(projectId) {
       description: r.description,
       status: r.status,
       testerId: r.testerId,
-      developerIds,
+      developerIds: parseDeveloperIds(r.developerIds),
       createdBy: r.createdBy,
       createdAt: r.createdAt,
       startDate: r.startDate,
@@ -60,15 +69,6 @@ async function getBugById(bugId) {
     const [rows] = await pool.query('SELECT * FROM bugs WHERE id = ?', [bugId]);
     if (rows.length === 0) return null;
     const r = rows[0];
-    const attachments = (() => {
-      try {
-        if (r.attachments == null) return [];
-        if (Array.isArray(r.attachments)) return r.attachments;
-        return JSON.parse(r.attachments);
-      } catch (e) {
-        return [];
-      }
-    })();
     return {
       id: r.id,
       projectId: r.projectId,
@@ -80,7 +80,7 @@ async function getBugById(bugId) {
       createdBy: r.createdBy,
       status: r.status,
       severity: r.severity,
-      attachments,
+      attachments: parseAttachments(r.attachments),
       deadline: r.deadline,
       createdAt: r.createdAt,
       updatedAt: r.updatedAt,
@@ -302,18 +302,45 @@ async function getBugsFromMySQL() {
       ...r,
       description: decrypt(r.description),
       module: decrypt(r.module),
-      attachments: (() => {
-        try {
-          if (r.attachments == null) return [];
-          if (Array.isArray(r.attachments)) return r.attachments;
-          return JSON.parse(r.attachments);
-        } catch (e) {
-          return [];
-        }
-      })()
+      attachments: parseAttachments(r.attachments)
     }));
   } catch (error) {
     console.error('Database query failed in getBugsFromMySQL:', error);
+    throw error;
+  }
+}
+
+async function getBugsByProjectId(projectId) {
+  try {
+    const [rows] = await pool.query('SELECT * FROM bugs WHERE projectId = ?', [projectId]);
+    return rows.map(r => ({
+      ...r,
+      description: decrypt(r.description),
+      module: decrypt(r.module),
+      attachments: parseAttachments(r.attachments)
+    }));
+  } catch (error) {
+    console.error('Database query failed in getBugsByProjectId:', error);
+    throw error;
+  }
+}
+
+async function getScreensByProjectId(projectId) {
+  try {
+    const [rows] = await pool.query('SELECT * FROM screens WHERE projectId = ?', [projectId]);
+    return rows;
+  } catch (error) {
+    console.error('Database query failed in getScreensByProjectId:', error);
+    throw error;
+  }
+}
+
+async function getMilestonesByProjectId(projectId) {
+  try {
+    const [rows] = await pool.query('SELECT * FROM milestones WHERE projectId = ?', [projectId]);
+    return rows;
+  } catch (error) {
+    console.error('Database query failed in getMilestonesByProjectId:', error);
     throw error;
   }
 }
@@ -482,15 +509,19 @@ module.exports = {
   updateUserInDb,
   deleteUserFromDb,
   getBugsFromMySQL,
+  getBugsByProjectId,
   getBugStatsByYear,
   getAnnouncementsFromMySQL,
   createAnnouncementInDb,
   updateAnnouncementInDb,
   deleteAnnouncementFromDb,
   getMilestonesFromMySQL,
+  getMilestonesByProjectId,
   createMilestoneInDb,
   updateMilestoneInDb,
   deleteMilestoneFromDb,
+  getScreensFromMySQL,
+  getScreensByProjectId,
   // Career Job Functions
   getJobsFromMySQL,
   createJobInDb,
@@ -499,8 +530,33 @@ module.exports = {
   // Career Application Functions
   getApplicationsFromMySQL,
   createApplicationInDb,
-  updateApplicationInDb
+  updateApplicationInDb,
+  getLeavesFromMySQL,
+  getNotificationsFromMySQL
 };
+
+async function getNotificationsFromMySQL(userId) {
+  try {
+    const [rows] = await pool.query(
+      'SELECT * FROM notifications WHERE user_id = ? ORDER BY created_at DESC LIMIT 50',
+      [userId]
+    );
+    return rows;
+  } catch (error) {
+    console.error('Database query failed in getNotificationsFromMySQL:', error);
+    throw error;
+  }
+}
+
+async function getLeavesFromMySQL() {
+  try {
+    const [rows] = await pool.query('SELECT l.*, u.name as userName, u.role as userRole FROM leaves l JOIN users u ON l.user_id = u.id');
+    return rows;
+  } catch (error) {
+    console.error('Database query failed in getLeavesFromMySQL:', error);
+    throw error;
+  }
+}
 
 async function getJobsFromMySQL() {
     try {
