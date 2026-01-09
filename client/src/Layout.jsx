@@ -7,7 +7,17 @@ import 'react-toastify/dist/ReactToastify.css';
 
 export default function Layout() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(window.innerWidth < 1200)
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
+    const saved = localStorage.getItem('sidebarCollapsed')
+    if (saved !== null) return JSON.parse(saved)
+    return window.innerWidth < 1200
+  })
+
+  // Save collapsed state to localStorage
+  React.useEffect(() => {
+    localStorage.setItem('sidebarCollapsed', JSON.stringify(sidebarCollapsed))
+  }, [sidebarCollapsed])
+
   const user = getUser()
   const nav = useNavigate()
   const location = useLocation()
@@ -61,17 +71,16 @@ export default function Layout() {
   return (
     <div className="m-0 font-sans text-base antialiased font-normal leading-default bg-gray-50 text-slate-500 min-h-screen">
       {/* Sidebar */}
-      <Sidebar 
-        open={sidebarOpen} 
-        onClose={() => setSidebarOpen(false)} 
+      <Sidebar
+        open={sidebarOpen}
+        onClose={() => setSidebarOpen(false)}
         collapsed={sidebarCollapsed}
         setCollapsed={setSidebarCollapsed}
       />
 
       {/* Main Content */}
-      <main className={`relative h-full max-h-screen transition-all duration-300 ease-in-out ${
-        sidebarCollapsed ? 'lg:ml-20' : 'lg:ml-72'
-      } rounded-xl`}>
+      <main className={`relative h-full max-h-screen transition-all duration-300 ease-in-out ${sidebarCollapsed ? 'lg:ml-20' : 'lg:ml-72'
+        } rounded-xl`}>
         {/* Page Content */}
         <div className="w-full px-0 sm:px-2 lg:px-4 py-6">
           <Outlet />

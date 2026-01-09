@@ -16,7 +16,15 @@ export default function Dashboard() {
   const [allBugs, setAllBugs] = useState([])
   const [allScreens, setAllScreens] = useState([])
   const [bugTrend, setBugTrend] = useState([])
-  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear())
+  const [selectedYear, setSelectedYear] = useState(() => {
+    const saved = localStorage.getItem('dashboardSelectedYear')
+    return saved ? parseInt(saved, 10) : new Date().getFullYear()
+  })
+
+  // Persist selected year
+  useEffect(() => {
+    localStorage.setItem('dashboardSelectedYear', selectedYear.toString())
+  }, [selectedYear])
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(true)
   const [trendLoading, setTrendLoading] = useState(false)

@@ -138,11 +138,15 @@ export default function ProjectPage() {
 
 
   // Filter states
-  const [bugFilters, setBugFilters] = useState({
-    status: '',
-    severity: '',
-    assignee: ''
+  const [bugFilters, setBugFilters] = useState(() => {
+    const saved = localStorage.getItem(`bugFilters_${id}`)
+    return saved ? JSON.parse(saved) : { status: '', severity: '', assignee: '' }
   })
+
+  // Persist bug filters for this specific project
+  useEffect(() => {
+    localStorage.setItem(`bugFilters_${id}`, JSON.stringify(bugFilters))
+  }, [bugFilters, id])
 
   // Attachment preview
   const [previewDialog, setPreviewDialog] = useState(false)
