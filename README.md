@@ -1,4 +1,4 @@
-# Project Tracker Tool
+# Project Tracker Tool by Baljeet Singh
 
 A comprehensive project management and bug tracking system built with the MERN stack (MySQL, Express, React, Node.js). This tool helps teams manage projects, track bugs, monitor milestones, and handle administrative tasks like attendance and recruitment.
 
