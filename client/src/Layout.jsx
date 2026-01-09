@@ -27,7 +27,7 @@ export default function Layout() {
 
   const getPageTitle = () => {
     const path = location.pathname
-    if (path === '/' || path === '/Project_Tracker_Tool' || path === '/Project_Tracker_Tool/') return 'Dashboard'
+    if (path === '/dashboard' || path === '/' || path === '/Project_Tracker_Tool' || path === '/Project_Tracker_Tool/') return 'Dashboard'
     if (path.includes('projects/')) return 'Project Details'
     if (path.includes('projects')) return 'Projects'
     if (path.includes('users')) return 'User Management'

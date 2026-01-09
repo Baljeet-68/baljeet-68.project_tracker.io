@@ -17,7 +17,7 @@ export default function Login() {
 
   useEffect(() => {
     const token = getToken()
-    if (token) nav('/', { replace: true })
+    if (token) nav('/dashboard', { replace: true })
   }, [nav])
 
   const submit = async (e) => {
@@ -41,7 +41,7 @@ export default function Login() {
       saveUser(data.user)
       
       const role = data.user.role?.toLowerCase()
-      const targetPath = role === 'hr' ? '/notifications' : '/'
+      const targetPath = role === 'hr' ? '/notifications' : '/dashboard'
       nav(targetPath, { replace: true })
     } catch (err) {
       setError(err.message || 'Login failed. Please try again.')

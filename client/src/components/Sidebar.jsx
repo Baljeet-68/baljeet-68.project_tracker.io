@@ -55,7 +55,7 @@ export default function Sidebar({ open, onClose, collapsed, setCollapsed }) {
   const isActuallyCollapsed = collapsed && !isHovered
 
   const mainMenuItems = [
-    { label: 'Dashboard', icon: LayoutDashboard, path: '/', roles: ['admin', 'tester', 'developer', 'ecommerce', 'management'] },
+    { label: 'Dashboard', icon: LayoutDashboard, path: '/dashboard', roles: ['admin', 'tester', 'developer', 'ecommerce', 'management'] },
     { label: 'IT Projects', icon: BarChart3, path: '/projects', roles: ['admin', 'tester', 'developer',] },
     { label: 'E-Commerce Projects', icon: BarChart3, path: '/ecommerce-projects', roles: ['admin', 'ecommerce', 'management'] },
     { label: 'Announcements', icon: Megaphone, path: '/announcements', roles: ['admin', 'tester', 'developer', 'ecommerce', 'management', 'hr', 'accountant'] },

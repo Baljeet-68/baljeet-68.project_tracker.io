@@ -772,7 +772,7 @@ export default function ProjectPage() {
       <nav className="mb-6 px-4">
         <ol className="flex flex-wrap pt-1 mr-12 bg-transparent rounded-lg sm:mr-16">
           <li className="leading-normal text-sm">
-            <Link className="opacity-50 text-slate-700 font-medium" to="/">Pages</Link>
+            <Link className="opacity-50 text-slate-700 font-medium" to="/dashboard">Pages</Link>
           </li>
           <li className="text-sm pl-2 capitalize leading-normal text-slate-700 font-bold before:float-left before:pr-2 before:text-gray-300 before:content-['/']">
             Project Details

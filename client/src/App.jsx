@@ -20,15 +20,17 @@ function PrivateRoute({ children, roles }) {
   
   if (!token) return <Navigate to="/login" replace />
   if (roles && !roles.includes(user?.role?.toLowerCase())) {
-    return <Navigate to="/" replace />
+    return <Navigate to="/dashboard" replace />
   }
   return children
 }
 
 export default function App() {
+  const basename = '/Project_Tracker_Tool';
+  
   return (
     <BrowserRouter 
-      basename={import.meta.env.VITE_BASE_URL || '/'}
+      basename={basename}
       future={{
         v7_startTransition: true,
         v7_relativeSplatPath: true,
@@ -38,7 +40,8 @@ export default function App() {
         <Route path="/login" element={<Login />} />
         
         <Route element={<Layout />}>
-          <Route path="/" element={<PrivateRoute><Dashboard /></PrivateRoute>} />
+          <Route path="/" element={<Navigate to="/dashboard" replace />} />
+          <Route path="/dashboard" element={<PrivateRoute><Dashboard /></PrivateRoute>} />
           <Route path="/projects" element={<PrivateRoute><Projects /></PrivateRoute>} />
           <Route path="/projects/:id" element={<PrivateRoute><ProjectPage /></PrivateRoute>} />
           <Route path="/users" element={<PrivateRoute roles={['admin']}><Users /></PrivateRoute>} />
@@ -50,7 +53,7 @@ export default function App() {
           <Route path="/careers" element={<PrivateRoute roles={['admin', 'hr']}><Careers /></PrivateRoute>} />
         </Route>
 
-        <Route path="*" element={<Navigate to="/" replace />} />
+        <Route path="*" element={<Navigate to="/dashboard" replace />} />
       </Routes>
     </BrowserRouter>
   )
