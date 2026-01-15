@@ -2,17 +2,19 @@ import React, { useEffect, useState } from 'react'
 import { authFetch, getUser } from '../auth'
 import { API_BASE_URL } from '../apiConfig'
 import { Card, CardHeader, CardBody, Badge, Button, PageHeader } from '../components/TailAdminComponents'
-import { Modal, InputGroup, Select, Table, Alert, ConfirmDialog } from '../components/FormComponents'
+import { Modal, InputGroup, Select, Table, ConfirmDialog } from '../components/FormComponents'
 import { Megaphone, Plus, Edit, Trash2, Calendar, Target, User, Users as UsersIcon } from 'lucide-react'
 import { Loader } from '../components/Loader'
+import { handleError, handleApiResponse } from '../utils/errorHandler'
+import { toast } from 'react-hot-toast'
 
 export default function Announcements() {
   const [announcements, setAnnouncements] = useState([])
   const [users, setUsers] = useState([])
   const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
   const [announcementDialog, setAnnouncementDialog] = useState(false)
   const [isEditing, setIsEditing] = useState(false)
+  const [originalAnnouncement, setOriginalAnnouncement] = useState(null)
   const [confirmConfig, setConfirmConfig] = useState({ isOpen: false, title: '', message: '', onConfirm: () => {}, type: 'primary' })
 
   const [form, setForm] = useState({
@@ -36,12 +38,12 @@ export default function Announcements() {
 
   const load = async () => {
     setLoading(true)
-    setError('')
     try {
       const res = await authFetch(`${API_BASE_URL}/announcements`)
-      if (res.ok) setAnnouncements(await res.json())
+      const data = await handleApiResponse(res)
+      setAnnouncements(data)
     } catch (e) {
-      setError(e.message)
+      handleError(e)
     } finally {
       setLoading(false)
     }
@@ -50,19 +52,47 @@ export default function Announcements() {
   const loadUsers = async () => {
     try {
       const res = await authFetch(`${API_BASE_URL}/users`)
-      if (res.ok) setUsers(await res.json())
+      const data = await handleApiResponse(res)
+      setUsers(data)
     } catch (e) {
-      console.error('Failed to load users', e)
+      handleError(e)
     }
   }
 
   const handleSave = async () => {
     if (!form.title || !form.content || !form.startDate || !form.endDate) {
-      setError('Please fill all required fields')
+      toast.error('Please fill all required fields')
       return
     }
 
     try {
+      if (isEditing) {
+        // Check for changes
+        const hasChanges = 
+          form.title !== originalAnnouncement.title ||
+          form.content !== originalAnnouncement.content ||
+          form.targetType !== originalAnnouncement.targetType ||
+          form.targetValue !== originalAnnouncement.targetValue ||
+          form.startDate !== originalAnnouncement.startDate ||
+          form.endDate !== originalAnnouncement.endDate ||
+          form.active !== originalAnnouncement.active;
+
+        if (!hasChanges) {
+          console.info('[Announcements] No changes detected for announcement:', form.id);
+          toast('No changes detected', {
+            icon: 'ℹ️',
+            style: {
+              background: '#f0f9ff',
+              color: '#0369a1',
+              border: '1px solid #bae6fd',
+            }
+          })
+          setAnnouncementDialog(false)
+          resetForm()
+          return
+        }
+      }
+
       const method = isEditing ? 'PATCH' : 'POST'
       const url = isEditing ? `${API_BASE_URL}/announcements/${form.id}` : `${API_BASE_URL}/announcements`
       
@@ -72,13 +102,14 @@ export default function Announcements() {
         body: JSON.stringify(form)
       })
 
-      if (!res.ok) throw new Error('Failed to save announcement')
+      await handleApiResponse(res)
+      toast.success(isEditing ? 'Announcement updated successfully' : 'Announcement created successfully')
       
       await load()
       setAnnouncementDialog(false)
       resetForm()
     } catch (e) {
-      setError(e.message)
+      handleError(e)
     }
   }
 
@@ -91,11 +122,12 @@ export default function Announcements() {
       onConfirm: async () => {
         try {
           const res = await authFetch(`${API_BASE_URL}/announcements/${id}`, { method: 'DELETE' })
-          if (!res.ok) throw new Error('Failed to delete')
+          await handleApiResponse(res)
+          toast.success('Announcement deleted successfully')
           await load()
           setConfirmConfig(prev => ({ ...prev, isOpen: false }))
         } catch (e) {
-          setError(e.message)
+          handleError(e)
           setConfirmConfig(prev => ({ ...prev, isOpen: false }))
         }
       }
@@ -117,7 +149,7 @@ export default function Announcements() {
   }
 
   const openEdit = (a) => {
-    setForm({
+    const data = {
       id: a.id,
       title: a.title,
       content: a.content,
@@ -126,7 +158,9 @@ export default function Announcements() {
       startDate: a.startDate.split('T')[0],
       endDate: a.endDate.split('T')[0],
       active: !!a.active
-    })
+    }
+    setForm(data)
+    setOriginalAnnouncement(data)
     setIsEditing(true)
     setAnnouncementDialog(true)
   }
@@ -194,8 +228,6 @@ export default function Announcements() {
           </Button>
         ) : null}
       />
-
-      {error && <Alert variant="danger">{error}</Alert>}
 
       <div className="grid grid-cols-1 gap-6">
         {loading ? (

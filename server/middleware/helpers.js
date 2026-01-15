@@ -71,7 +71,13 @@ function normalizeProjectObj(p) {
  * @returns {Promise<boolean>}
  */
 async function hasProjectAccess(userId, projectId) {
-  const project = await getProjectById(projectId);
+  let project;
+  if (USE_LIVE_DB) {
+    project = await getProjectById(projectId);
+  } else {
+    project = localData.projects.find(p => p.id === projectId);
+  }
+  
   const normalizedProject = normalizeProjectObj(project);
   if (!normalizedProject) return false;
 
@@ -141,10 +147,10 @@ async function getBugs(req, projectId) {
     return bugs;
   }
 
-  if (req?.cache?.projectBugs[projectId]) return req.cache.projectBugs[projectId];
+  if (req?.cache?.projectBugs?.[projectId]) return req.cache.projectBugs[projectId];
   
   const bugs = USE_LIVE_DB ? await getBugsByProjectId(projectId) : localData.bugs.filter(b => b.projectId === projectId);
-  if (req?.cache) req.cache.projectBugs[projectId] = bugs;
+  if (req?.cache?.projectBugs) req.cache.projectBugs[projectId] = bugs;
   return bugs;
 }
 
@@ -162,10 +168,10 @@ async function getScreens(req, projectId) {
     return screens;
   }
 
-  if (req?.cache?.projectScreens[projectId]) return req.cache.projectScreens[projectId];
+  if (req?.cache?.projectScreens?.[projectId]) return req.cache.projectScreens[projectId];
   
   const screens = USE_LIVE_DB ? await getScreensByProjectId(projectId) : localData.screens.filter(s => s.projectId === projectId);
-  if (req?.cache) req.cache.projectScreens[projectId] = screens;
+  if (req?.cache?.projectScreens) req.cache.projectScreens[projectId] = screens;
   return screens;
 }
 
@@ -183,10 +189,10 @@ async function getMilestones(req, projectId) {
     return milestones;
   }
 
-  if (req?.cache?.projectMilestones[projectId]) return req.cache.projectMilestones[projectId];
+  if (req?.cache?.projectMilestones?.[projectId]) return req.cache.projectMilestones[projectId];
   
   const milestones = USE_LIVE_DB ? await getMilestonesByProjectId(projectId) : (localData.milestones || []).filter(m => m.projectId === projectId);
-  if (req?.cache) req.cache.projectMilestones[projectId] = milestones;
+  if (req?.cache?.projectMilestones) req.cache.projectMilestones[projectId] = milestones;
   return milestones;
 }
 
@@ -280,7 +286,7 @@ async function getLeaves(req) {
  */
 async function getNotifications(req, userId) {
   if (!userId) return [];
-  if (req?.cache?.notifications && req.cache.notifications[userId]) {
+  if (req?.cache?.notifications?.[userId]) {
     return req.cache.notifications[userId];
   }
   

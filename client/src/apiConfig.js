@@ -11,5 +11,3 @@ const LIVE_API_URL =
 
 // FINAL BASE URL
 export const API_BASE_URL = USE_LIVE_API ? LIVE_API_URL : LOCAL_API_URL;
-
-console.log("API_BASE_URL:", API_BASE_URL, "| Mode:", USE_LIVE_API ? "LIVE" : "LOCAL");

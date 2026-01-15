@@ -2,13 +2,14 @@ import React, { useEffect, useState } from 'react'
 import { authFetch, getUser } from '../auth'
 import { API_BASE_URL } from '../apiConfig'
 import { Card, CardHeader, CardBody, Badge, Button, PageHeader } from '../components/TailAdminComponents'
-import { Modal, InputGroup, Select, Table, Alert, ConfirmDialog } from '../components/FormComponents'
+import { Modal, InputGroup, Select, Table, ConfirmDialog } from '../components/FormComponents'
 import { Users as UsersIcon, UserPlus, RefreshCw, Edit, Trash2, Eye, EyeOff, Wand2, Mail, User, Lock, Shield, Code, Briefcase, UserCheck, Calculator } from 'lucide-react'
+import { handleError, handleApiResponse } from '../utils/errorHandler'
+import { toast } from 'react-hot-toast'
 
 export default function Users() {
   const [users, setUsers] = useState([])
   const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
 
   // User form
   const [userForm, setUserForm] = useState({ name: '', email: '', password: '', role: 'developer' })
@@ -18,6 +19,7 @@ export default function Users() {
 
   // Edit User form
   const [editUserForm, setEditUserForm] = useState({ id: '', name: '', email: '', role: '', status: '', password: '' })
+  const [originalUser, setOriginalUser] = useState(null)
   const [editUserDialog, setEditUserDialog] = useState(false)
   const [editShowPassword, setEditShowPassword] = useState(false)
 
@@ -59,12 +61,12 @@ export default function Users() {
 
   const load = async () => {
     setLoading(true)
-    setError('')
     try {
       const res = await authFetch(`${API_BASE_URL}/users`)
-      if (res.ok) setUsers(await res.json())
+      const data = await handleApiResponse(res)
+      setUsers(data)
     } catch (e) {
-      setError(e.message)
+      handleError(e)
     } finally {
       setLoading(false)
     }
@@ -72,7 +74,7 @@ export default function Users() {
 
   const handleCreateUser = async () => {
     if (!userForm.name || !userForm.email || !userForm.password) {
-      setError('Please fill all fields')
+      toast.error('Please fill all fields')
       return
     }
     try {
@@ -81,40 +83,66 @@ export default function Users() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(userForm)
       })
-      if (!res.ok) throw new Error('Failed to create user')
+      await handleApiResponse(res)
+      toast.success('User created successfully')
       await load()
       setUserForm({ name: '', email: '', password: '', role: 'developer' })
       setUserDialog(false)
       setShowPassword(false)
     } catch (e) {
-      setError(e.message)
+      handleError(e)
     }
   }
 
   const handleEditUser = (user) => {
+    setOriginalUser(user)
     setEditUserForm({
       id: user.id,
       name: user.name,
       email: user.email,
       role: user.role,
       status: user.active ? 'active' : 'inactive',
-      password: user.password || ''
+      password: ''
     })
     setEditUserDialog(true)
   }
 
   const handleUpdateUser = async () => {
     if (!editUserForm.name || !editUserForm.email || !editUserForm.role) {
-      setError('Please fill all fields')
+      toast.error('Please fill all fields')
       return
     }
     try {
       const { id, name, email, role, status, password } = editUserForm;
+      
+      // Check for changes
+      const activeStatus = status === 'active' ? 1 : 0;
+      const hasChanges = 
+        name !== originalUser.name ||
+        email !== originalUser.email ||
+        role !== originalUser.role ||
+        activeStatus !== (originalUser.active ? 1 : 0) ||
+        !!password;
+
+      if (!hasChanges) {
+        console.info('[Users] No changes detected for user:', id);
+        toast('No changes detected', {
+          icon: 'ℹ️',
+          style: {
+            background: '#f0f9ff',
+            color: '#0369a1',
+            border: '1px solid #bae6fd',
+          }
+        })
+        setEditUserDialog(false)
+        return
+      }
+
       if (!id) {
-        setError('User ID is missing. Please refresh and try again.');
+        toast.error('User ID is missing. Please refresh and try again.');
         return;
       }
-      const activeStatus = status === 'active' ? 1 : 0;
+    
       const payload = { name, email, role, active: activeStatus };
       if (password) {
         payload.password = password;
@@ -125,12 +153,13 @@ export default function Users() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       })
-      if (!res.ok) throw new Error('Failed to update user')
+      await handleApiResponse(res)
+      toast.success('User updated successfully')
       await load()
       setEditUserDialog(false)
       setEditShowPassword(false)
     } catch (e) {
-      setError(e.message)
+      handleError(e)
     }
   }
 
@@ -146,14 +175,12 @@ export default function Users() {
           const res = await authFetch(`${API_BASE_URL}/users/${user.id}`, {
             method: 'DELETE'
           })
-          if (!res.ok) {
-            const data = await res.json()
-            throw new Error(data.error || 'Failed to delete user')
-          }
+          await handleApiResponse(res)
+          toast.success('User deleted successfully')
           await load()
           setConfirmConfig(prev => ({ ...prev, isOpen: false }))
         } catch (e) {
-          setError(e.message)
+          handleError(e)
           setConfirmConfig(prev => ({ ...prev, isOpen: false }))
         }
       }
@@ -241,13 +268,6 @@ export default function Users() {
       <div className="flex flex-wrap -mx-3">
         <div className="w-full max-w-full px-3 mb-6">
           <Card>
-            {error && (
-              <CardHeader className="pb-0">
-                <Alert variant="danger">
-                  {error}
-                </Alert>
-              </CardHeader>
-            )}
             <CardBody>
               <Table columns={userColumns} data={users} loading={loading} pagination={true} pageSize={10} />
             </CardBody>

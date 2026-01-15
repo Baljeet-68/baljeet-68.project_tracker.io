@@ -13,6 +13,8 @@ import Announcements from './pages/Announcements'
 import Careers from './pages/Careers'
 import { getToken, getUser } from './auth'
 import Layout from './Layout'
+import { Toaster, ToastBar, toast } from 'react-hot-toast'
+import { X } from 'lucide-react'
 
 function PrivateRoute({ children, roles }) {
   const token = getToken()
@@ -36,6 +38,49 @@ export default function App() {
         v7_relativeSplatPath: true,
       }}
     >
+      <Toaster position="top-right" reverseOrder={false}>
+        {(t) => (
+          <ToastBar 
+            toast={t}
+            style={{
+              ...t.style,
+              position: 'relative',
+              overflow: 'hidden',
+              paddingBottom: '8px', // Make space for the progress bar
+            }}
+          >
+            {({ icon, message }) => (
+              <>
+                {icon}
+                {message}
+                {t.type !== 'loading' && (
+                  <button
+                    onClick={() => toast.dismiss(t.id)}
+                    className="ml-2 p-1 rounded-full hover:bg-black/5 transition-colors flex items-center justify-center"
+                    aria-label="Close"
+                  >
+                    <X size={14} />
+                  </button>
+                )}
+                {/* Timer Slider / Progress Bar */}
+                {t.visible && t.type !== 'loading' && (
+                  <div
+                    style={{
+                      position: 'absolute',
+                      bottom: 0,
+                      left: 0,
+                      height: '4px',
+                      width: '0%',
+                      backgroundColor: t.type === 'error' ? '#ef4444' : '#10b981',
+                      animation: `toast-progress ${t.duration || 4000}ms linear forwards`,
+                    }}
+                  />
+                )}
+              </>
+            )}
+          </ToastBar>
+        )}
+      </Toaster>
       <Routes>
         <Route path="/login" element={<Login />} />
         

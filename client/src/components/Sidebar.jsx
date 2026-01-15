@@ -175,18 +175,15 @@ export default function Sidebar({ open, onClose, collapsed, setCollapsed }) {
           </div>
 
           {/* Bottom Section */}
-          <div className={`mt-auto pt-6 space-y-4 ${isActuallyCollapsed ? 'px-0' : 'px-2'}`}>
-            <div className={`space-y-2  border-white/10 pt-6 ${isActuallyCollapsed ? 'flex flex-col items-center' : ''}`}>
-             
-              
-            </div>
+          <div className={` space-y-4 ${isActuallyCollapsed ? 'px-0' : 'px-2'}`}>
+            
 
             {/* User Profile */}
-            <div 
+            <div
               ref={dropdownRef}
               className="relative"
             >
-              <div 
+              <div
                 onClick={() => !isActuallyCollapsed && setShowProfileMenu(!showProfileMenu)}
                 className={`p-3 rounded-2xl bg-white/10 backdrop-blur-sm border border-white/10 flex items-center gap-3 transition-all duration-300 ${isActuallyCollapsed ? 'justify-center p-2' : 'cursor-pointer hover:bg-white/20'}`}
               >
@@ -210,7 +207,7 @@ export default function Sidebar({ open, onClose, collapsed, setCollapsed }) {
 
               {/* Profile Dropdown Menu */}
               {showProfileMenu && !isActuallyCollapsed && (
-                <div 
+                <div
                   className="absolute bottom-full left-0 w-full mb-2  border-white/10 rounded-2xl shadow-soft-2xl overflow-hidden z-[60] animate-in fade-in slide-in-from-bottom-2 duration-200"
                   style={{
                     background: 'linear-gradient(to bottom, #004e92, #000428)'

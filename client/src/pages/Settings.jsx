@@ -3,15 +3,15 @@ import { authFetch, getUser, saveUser } from '../auth'
 import { API_BASE_URL } from '../apiConfig'
 import { Card, CardHeader, CardBody, Button, PageHeader } from '../components/TailAdminComponents'
 import { InputGroup, Alert } from '../components/FormComponents'
-import { User, Lock, Camera, CheckCircle2, AlertCircle, Trash2, Mail } from 'lucide-react'
+import { User, Lock, Camera, CheckCircle2, AlertCircle, Trash2, Mail, Loader2 } from 'lucide-react'
 import { Loader } from '../components/Loader'
+import { handleError, handleApiResponse } from '../utils/errorHandler'
+import toast from 'react-hot-toast'
 
 export default function Settings() {
   const [user, setUser] = useState(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
-  const [error, setError] = useState('')
-  const [success, setSuccess] = useState('')
 
   // Form states
   const [formData, setFormData] = useState({
@@ -28,17 +28,15 @@ export default function Settings() {
   const loadProfile = async () => {
     try {
       const res = await authFetch(`${API_BASE_URL}/me`)
-      if (res.ok) {
-        const data = await res.json()
-        setUser(data)
-        setFormData(prev => ({
-          ...prev,
-          name: data.name || '',
-          profilePicture: data.profilePicture || ''
-        }))
-      }
+      const data = await handleApiResponse(res)
+      setUser(data)
+      setFormData(prev => ({
+        ...prev,
+        name: data.name || '',
+        profilePicture: data.profilePicture || ''
+      }))
     } catch (e) {
-      setError('Failed to load profile')
+      handleError(e)
     } finally {
       setLoading(false)
     }
@@ -46,11 +44,27 @@ export default function Settings() {
 
   const handleUpdateProfile = async (e) => {
     e.preventDefault()
-    setError('')
-    setSuccess('')
 
     if (formData.password && formData.password !== formData.confirmPassword) {
-      setError('Passwords do not match')
+      toast.error('Passwords do not match')
+      return
+    }
+
+    // Check if any changes were made
+    const hasNameChanged = formData.name !== (user?.name || '')
+    const hasImageChanged = formData.profilePicture !== (user?.profilePicture || '')
+    const hasPasswordChanged = !!formData.password
+
+    if (!hasNameChanged && !hasImageChanged && !hasPasswordChanged) {
+      console.info('[Settings] No changes detected, skipping update');
+      toast('No changes detected', {
+        icon: 'ℹ️',
+        style: {
+          background: '#f0f9ff',
+          color: '#0369a1',
+          border: '1px solid #bae6fd',
+        }
+      })
       return
     }
 
@@ -70,12 +84,7 @@ export default function Settings() {
         body: JSON.stringify(payload)
       })
 
-      if (!res.ok) {
-        const data = await res.json()
-        throw new Error(data.error || 'Failed to update profile')
-      }
-
-      const updatedUser = await res.json()
+      const updatedUser = await handleApiResponse(res)
       
       // Update local storage and current user state
       const currentUser = getUser()
@@ -83,7 +92,7 @@ export default function Settings() {
       saveUser(newUser)
       setUser(updatedUser)
       
-      setSuccess('Profile updated successfully')
+      toast.success('Profile updated successfully')
       setFormData(prev => ({ ...prev, password: '', confirmPassword: '' }))
       
       // Refresh page after a delay to update sidebar etc
@@ -92,7 +101,7 @@ export default function Settings() {
       }, 1500)
 
     } catch (e) {
-      setError(e.message)
+      handleError(e)
     } finally {
       setSaving(false)
     }
@@ -104,12 +113,12 @@ export default function Settings() {
       // Validate file type
       const validTypes = ['image/jpeg', 'image/jpg', 'image/png']
       if (!validTypes.includes(file.type)) {
-        setError('Please upload a valid image file (JPG, JPEG, or PNG)')
+        toast.error('Please upload a valid image file (JPG, JPEG, or PNG)')
         return
       }
 
       if (file.size > 10 * 1024 * 1024) {
-        setError('Image size should be less than 10MB')
+        toast.error('Image size should be less than 10MB')
         return
       }
       const reader = new FileReader()
@@ -182,22 +191,6 @@ export default function Settings() {
                 <h6 className="font-bold text-slate-700">Profile Information</h6>
               </CardHeader>
               <CardBody className="space-y-6">
-                {error && (
-                  <Alert variant="danger" className="mb-4">
-                    <div className="flex items-center gap-3">
-                      <AlertCircle size={18} />
-                      {error}
-                    </div>
-                  </Alert>
-                )}
-                {success && (
-                  <Alert variant="success" className="mb-4">
-                    <div className="flex items-center gap-3">
-                      <CheckCircle2 size={18} />
-                      {success}
-                    </div>
-                  </Alert>
-                )}
 
                 <div className="space-y-4">
                   <div className="grid grid-cols-1 gap-4">

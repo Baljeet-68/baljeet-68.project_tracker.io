@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useMemo, useCallback } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { authFetch, getUser, clearToken, clearUser } from '../auth'
+import { handleError, handleApiResponse } from '../utils/errorHandler'
 import { LineChart, BarChart, PieChart, AreaChart, ParetoChart } from '../components/ChartComponents'
 import { StatCard, Card, CardHeader, CardBody, Badge, PageHeader } from '../components/TailAdminComponents'
 import { TrendingUp, AlertCircle, CheckCircle, Users, Activity, ChevronDown } from 'lucide-react'
@@ -25,7 +26,6 @@ export default function Dashboard() {
   useEffect(() => {
     localStorage.setItem('dashboardSelectedYear', selectedYear.toString())
   }, [selectedYear])
-  const [error, setError] = useState('')
   const [loading, setLoading] = useState(true)
   const [trendLoading, setTrendLoading] = useState(false)
   
@@ -46,8 +46,9 @@ export default function Dashboard() {
       clearToken()
       clearUser()
       nav('/login', { replace: true })
+      handleError(new Error('Session expired. Please login again.'))
     } else {
-      setError(e.message)
+      handleError(e)
     }
   }, [nav])
 
@@ -63,11 +64,9 @@ export default function Dashboard() {
         authFetch(`${API_BASE_URL}/screens`)
       ])
 
-      if (!projRes.ok) throw new Error('Failed to fetch projects')
-      
-      const projData = await projRes.json()
-      const bugsData = bugsRes.ok ? await bugsRes.json() : []
-      const screensData = screensRes.ok ? await screensRes.json() : []
+      const projData = await handleApiResponse(projRes)
+      const bugsData = await handleApiResponse(bugsRes)
+      const screensData = await handleApiResponse(screensRes)
 
       setProjects(projData)
       setAllBugs(bugsData)
@@ -86,8 +85,7 @@ export default function Dashboard() {
     setTrendLoading(true)
     try {
       const res = await authFetch(`${API_BASE_URL}/bugs/stats/${year}`)
-      if (!res.ok) throw new Error('Failed to fetch bug trend')
-      const data = await res.json()
+      const data = await handleApiResponse(res)
       setBugTrend(data)
     } catch (e) {
       handleAuthError(e)

@@ -1,11 +1,13 @@
 import React, { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { authFetch, getUser, clearToken, clearUser } from '../auth'
+import { authFetch, getUser } from '../auth'
 import { API_BASE_URL } from '../apiConfig';
 import { Card, CardHeader, CardBody, Badge, Button, PageHeader } from '../components/TailAdminComponents'
-import { Table, Select, Modal, InputGroup, Alert } from '../components/FormComponents'
+import { Table, Select, Modal, InputGroup } from '../components/FormComponents'
 import { Eye, Plus, Edit, FolderPlus, Briefcase, User, FileText } from 'lucide-react'
 import { Loader } from '../components/Loader'
+import { handleError, handleApiResponse } from '../utils/errorHandler'
+import { toast } from 'react-hot-toast'
 
 /**
  * Helper to get status gradient based on project status
@@ -28,7 +30,6 @@ const getStatusGradient = (status) => {
 export default function Projects() {
   const [projects, setProjects] = useState([])
   const [users, setUsers] = useState([])
-  const [error, setError] = useState('')
   const [loading, setLoading] = useState(true)
   const [statusFilter, setStatusFilter] = useState('')
   
@@ -38,6 +39,7 @@ export default function Projects() {
 
   // Edit Project form states
   const [editProjectForm, setEditProjectForm] = useState({ id: '', name: '', client: '', description: '', testerId: '', developerIds: [] })
+  const [originalProject, setOriginalProject] = useState(null)
   const [editProjectDialog, setEditProjectDialog] = useState(false)
 
   const user = getUser()
@@ -52,30 +54,19 @@ export default function Projects() {
    */
   const load = React.useCallback(async () => {
     setLoading(true)
-    setError('')
     try {
       const [projectsRes, usersRes] = await Promise.all([
         authFetch(`${API_BASE_URL}/projects`),
         authFetch(`${API_BASE_URL}/users`)
       ])
       
-      if (!projectsRes.ok) throw new Error('Failed to fetch projects')
-      
-      const projectsData = await projectsRes.json()
+      const projectsData = await handleApiResponse(projectsRes)
       setProjects(projectsData)
       
-      if (usersRes.ok) {
-        const usersData = await usersRes.json()
-        setUsers(usersData)
-      }
+      const usersData = await handleApiResponse(usersRes)
+      setUsers(usersData)
     } catch (e) {
-      if (e.message === 'Unauthorized: Token expired or invalid') {
-        clearToken()
-        clearUser()
-        nav('/login', { replace: true })
-      } else {
-        setError(e.message)
-      }
+      handleError(e)
     } finally {
       setLoading(false)
     }
@@ -86,7 +77,7 @@ export default function Projects() {
    */
   const handleCreateProject = async () => {
     if (!projectForm.name) {
-      setError('Please enter project name')
+      toast.error('Please enter project name')
       return
     }
     try {
@@ -95,13 +86,14 @@ export default function Projects() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(projectForm)
       })
-      if (!res.ok) throw new Error('Failed to create project')
+      await handleApiResponse(res)
       
+      toast.success('Project created successfully')
       await load()
       setProjectForm({ name: '', client: '', description: '', testerId: '', developerIds: [] })
       setProjectDialog(false)
     } catch (e) {
-      setError(e.message)
+      handleError(e)
     }
   }
 
@@ -109,14 +101,16 @@ export default function Projects() {
    * Open edit dialog with project data
    */
   const handleEditProject = (project) => {
-    setEditProjectForm({
+    const projectData = {
       id: project.id,
       name: project.name,
       client: project.client || '',
       description: project.description || '',
       testerId: project.testerId || '',
       developerIds: Array.isArray(project.developerIds) ? project.developerIds : []
-    })
+    }
+    setEditProjectForm(projectData)
+    setOriginalProject(projectData)
     setEditProjectDialog(true)
   }
 
@@ -125,11 +119,34 @@ export default function Projects() {
    */
   const handleUpdateProject = async () => {
     if (!editProjectForm.name) {
-      setError('Please enter project name')
+      toast.error('Please enter project name')
       return
     }
     try {
       const { id, name, client, description, testerId, developerIds } = editProjectForm;
+      
+      // Check for changes
+      const hasChanges = 
+        name !== originalProject.name ||
+        client !== originalProject.client ||
+        description !== originalProject.description ||
+        testerId !== originalProject.testerId ||
+        JSON.stringify(developerIds.sort()) !== JSON.stringify(originalProject.developerIds.sort());
+
+      if (!hasChanges) {
+        console.info('[Projects] No changes detected for project:', id);
+        toast('No changes detected', {
+          icon: 'ℹ️',
+          style: {
+            background: '#f0f9ff',
+            color: '#0369a1',
+            border: '1px solid #bae6fd',
+          }
+        })
+        setEditProjectDialog(false)
+        return
+      }
+
       const payload = { name, client, description, testerId, developerIds };
       
       const res = await authFetch(`${API_BASE_URL}/projects/${id}`, {
@@ -137,14 +154,13 @@ export default function Projects() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       })
-      if (!res.ok) {
-        const data = await res.json()
-        throw new Error(data.error || 'Failed to update project')
-      }
+      await handleApiResponse(res)
+      
+      toast.success('Project updated successfully')
       await load()
       setEditProjectDialog(false)
     } catch (e) {
-      setError(e.message)
+      handleError(e)
     }
   }
 
@@ -255,12 +271,6 @@ export default function Projects() {
 
       <Card>
         <CardHeader>
-          {error && (
-            <Alert variant="danger" className="mb-4">
-              {error}
-            </Alert>
-          )}
-
           <div className="max-w-xs">
             <Select
               label="Filter by Status"

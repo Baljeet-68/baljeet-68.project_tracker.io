@@ -6,22 +6,22 @@ import { Alert } from '../components/FormComponents'
 import { authFetch } from '../auth'
 import { API_BASE_URL } from '../apiConfig'
 import { Loader } from '../components/Loader'
+import { handleError, handleApiResponse } from '../utils/errorHandler'
+import { toast } from 'react-hot-toast'
 
 export default function Notifications() {
   const navigate = useNavigate()
   const [notifications, setNotifications] = useState([])
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
 
   const fetchNotifications = async () => {
     try {
       setLoading(true)
       const res = await authFetch(`${API_BASE_URL}/notifications`)
-      if (!res.ok) throw new Error('Failed to fetch notifications')
-      const data = await res.json()
+      const data = await handleApiResponse(res)
       setNotifications(Array.isArray(data) ? data : [])
     } catch (err) {
-      setError(err.message)
+      handleError(err)
     } finally {
       setLoading(false)
     }
@@ -36,11 +36,11 @@ export default function Notifications() {
       const res = await authFetch(`${API_BASE_URL}/notifications/mark-all-read`, {
         method: 'POST'
       })
-      if (res.ok) {
-        setNotifications(prev => prev.map(n => ({ ...n, status: 'read' })))
-      }
+      await handleApiResponse(res)
+      setNotifications(prev => prev.map(n => ({ ...n, status: 'read' })))
+      toast.success('All notifications marked as read')
     } catch (err) {
-      console.error('Failed to mark all as read:', err)
+      handleError(err)
     }
   }
 
@@ -52,11 +52,10 @@ export default function Notifications() {
       const res = await authFetch(`${API_BASE_URL}/notifications/${id}/mark-read`, {
         method: 'POST'
       })
-      if (res.ok) {
-        setNotifications(prev => prev.map(n => n.id === id ? { ...n, status: 'read' } : n))
-      }
+      await handleApiResponse(res)
+      setNotifications(prev => prev.map(n => n.id === id ? { ...n, status: 'read' } : n))
     } catch (err) {
-      console.error('Failed to mark as read:', err)
+      handleError(err)
     }
   }
 
@@ -163,13 +162,6 @@ export default function Notifications() {
       <div className="flex flex-wrap -mx-3">
         <div className="w-full max-w-full px-3">
           <Card>
-            {error && (
-              <CardHeader className="pb-0">
-                <Alert variant="danger">
-                  {error}
-                </Alert>
-              </CardHeader>
-            )}
             <CardBody>
               <div className="space-y-4">
                 {loading && notifications.length === 0 ? (

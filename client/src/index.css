@@ -30,4 +30,9 @@
     -ms-overflow-style: none;
     scrollbar-width: none;
   }
+  
+  @keyframes toast-progress {
+    from { width: 0%; }
+    to { width: 100%; }
+  }
 }

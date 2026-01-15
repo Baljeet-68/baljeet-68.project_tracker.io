@@ -2,15 +2,16 @@ import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { saveToken, getToken, saveUser } from '../auth'
 import { API_BASE_URL } from '../apiConfig';
-import { Eye, EyeOff, Lock, LayoutDashboard, Mail, AlertCircle } from 'lucide-react'
-import { InputGroup, Alert } from '../components/FormComponents'
+import { Eye, EyeOff, Lock, LayoutDashboard, Mail } from 'lucide-react'
+import { InputGroup } from '../components/FormComponents'
 import { Button } from '../components/TailAdminComponents'
 import { Loader } from '../components/Loader'
+import { handleError, handleApiResponse, validateField } from '../utils/errorHandler'
 
 export default function Login() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [error, setError] = useState('')
+  const [fieldErrors, setFieldErrors] = useState({})
   const [loading, setLoading] = useState(false)
   const [showPwd, setShowPwd] = useState(false)
   const nav = useNavigate()
@@ -20,9 +21,40 @@ export default function Login() {
     if (token) nav('/dashboard', { replace: true })
   }, [nav])
 
+  const validate = () => {
+    const errors = {}
+    const emailError = validateField('email', email)
+    const passwordError = validateField('password', password)
+    
+    if (emailError) errors.email = emailError
+    if (passwordError) errors.password = passwordError
+    
+    setFieldErrors(errors)
+    return Object.keys(errors).length === 0
+  }
+
+  const handleEmailChange = (e) => {
+    const value = e.target.value
+    setEmail(value)
+    // Clear error as user types
+    if (fieldErrors.email) {
+      setFieldErrors(prev => ({ ...prev, email: '' }))
+    }
+  }
+
+  const handlePasswordChange = (e) => {
+    const value = e.target.value
+    setPassword(value)
+    // Clear error as user types
+    if (fieldErrors.password) {
+      setFieldErrors(prev => ({ ...prev, password: '' }))
+    }
+  }
+
   const submit = async (e) => {
     e.preventDefault()
-    setError('')
+    if (!validate()) return
+
     setLoading(true)
 
     try {
@@ -32,11 +64,7 @@ export default function Login() {
         body: JSON.stringify({ email, password })
       });
 
-      if (!res.ok) {
-        const data = await res.json()
-        throw new Error(data.error || 'Invalid email or password')
-      }
-      const data = await res.json()
+      const data = await handleApiResponse(res)
       saveToken(data.token)
       saveUser(data.user)
       
@@ -44,7 +72,7 @@ export default function Login() {
       const targetPath = role === 'hr' ? '/notifications' : '/dashboard'
       nav(targetPath, { replace: true })
     } catch (err) {
-      setError(err.message || 'Login failed. Please try again.')
+      handleError(err)
     } finally {
       setLoading(false)
     }
@@ -69,7 +97,7 @@ export default function Login() {
               <p className="text-slate-500 text-lg font-medium">Enter your credentials to access your workspace</p>
             </div>
 
-            <form onSubmit={submit} className="space-y-6" name="loginForm">
+            <form onSubmit={submit} className="space-y-6" name="loginForm" noValidate>
               {loading && <Loader message="Authenticating..." />}
               <InputGroup
                 label="Email Address"
@@ -77,7 +105,8 @@ export default function Login() {
                 icon={<Mail size={18} className="text-slate-400" />}
                 placeholder="Enter your email address"
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                onChange={handleEmailChange}
+                error={fieldErrors.email}
                 required
               />
 
@@ -87,7 +116,8 @@ export default function Login() {
                 icon={<Lock size={18} className="text-slate-400" />}
                 placeholder="Enter your password"
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                onChange={handlePasswordChange}
+                error={fieldErrors.password}
                 required
                 rightElement={
                   <button
@@ -99,13 +129,6 @@ export default function Login() {
                   </button>
                 }
               />
-
-              {error && (
-                <Alert variant="danger" className="flex items-center gap-3">
-                  <AlertCircle size={18} />
-                  {error}
-                </Alert>
-              )}
 
               <Button
                 type="submit"

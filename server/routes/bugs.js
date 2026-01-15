@@ -19,6 +19,7 @@ let projectsSource;
 let bugByIdSource;
 let updateBugInDbSource;
 let deleteBugFromDbSource;
+let bugCountersSource;
 
 if (USE_LIVE_DB) {
   bugsSource = async () => await dbApi.getBugsFromMySQL();
@@ -27,6 +28,12 @@ if (USE_LIVE_DB) {
   bugByIdSource = dbApi.getBugById;
   updateBugInDbSource = dbApi.updateBugInDb;
   deleteBugFromDbSource = dbApi.deleteBugFromDb;
+  bugCountersSource = async () => {
+    const [rows] = await pool.query('SELECT projectId, MAX(bugNumber) as maxBugNumber FROM bugs GROUP BY projectId');
+    const counters = {};
+    rows.forEach(r => { counters[r.projectId] = r.maxBugNumber; });
+    return counters;
+  };
 } else {
   bugsSource = async () => localData.bugs;
   usersSource = async () => localData.users;
@@ -38,6 +45,13 @@ if (USE_LIVE_DB) {
     if (bugIndex > -1) {
       bugs[bugIndex] = { ...bugs[bugIndex], ...changes };
     }
+  };
+  bugCountersSource = async () => {
+    const counters = {};
+    localData.bugs.forEach(b => {
+      counters[b.projectId] = Math.max(counters[b.projectId] || 0, b.bugNumber || 0);
+    });
+    return counters;
   };
 }
 

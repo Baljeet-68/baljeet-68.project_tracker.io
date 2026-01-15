@@ -9,7 +9,9 @@ import {
 } from 'lucide-react'
 import { Loader } from '../components/Loader'
 import { API_BASE_URL } from '../apiConfig'
-import { getUser } from '../auth'
+import { getUser, authFetch } from '../auth'
+import { handleError, handleApiResponse } from '../utils/errorHandler'
+import toast from 'react-hot-toast'
 
 export default function Attendance() {
   const location = useLocation()
@@ -35,8 +37,6 @@ export default function Attendance() {
   const [selectedLeave, setSelectedLeave] = useState(null)
   const [confirmConfig, setConfirmConfig] = useState({ isOpen: false, title: '', message: '', onConfirm: () => {}, type: 'primary' })
   const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
-  const [success, setSuccess] = useState('')
   
   const formatDateISO = useCallback((dateStr) => {
     if (!dateStr) return ''
@@ -70,29 +70,21 @@ export default function Attendance() {
 
   const fetchSummary = useCallback(async () => {
     try {
-      const res = await fetch(`${API_BASE_URL}/leaves/stats/summary`, {
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
-      })
-      if (res.ok) {
-        const data = await res.json()
-        setSummary(data)
-      }
+      const res = await authFetch(`${API_BASE_URL}/leaves/stats/summary`)
+      const data = await handleApiResponse(res)
+      setSummary(data)
     } catch (err) {
-      console.error('Failed to fetch summary:', err)
+      handleError(err)
     }
   }, [])
 
   const fetchLeaves = useCallback(async () => {
     try {
-      const res = await fetch(`${API_BASE_URL}/leaves`, {
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
-      })
-      if (res.ok) {
-        const data = await res.json()
-        setLeaves(data)
-      }
+      const res = await authFetch(`${API_BASE_URL}/leaves`)
+      const data = await handleApiResponse(res)
+      setLeaves(data)
     } catch (err) {
-      console.error('Failed to fetch leaves:', err)
+      handleError(err)
     }
   }, [])
 
@@ -121,7 +113,7 @@ export default function Attendance() {
 
     // Only Compensation can have past dates
     if (leaveForm.type !== 'Compensation' && startDate < today) {
-      setError('Leave request cannot be for a past date.')
+      toast.error('Leave request cannot be for a past date.')
       return
     }
 
@@ -131,7 +123,7 @@ export default function Attendance() {
       threeDaysFromNow.setDate(today.getDate() + 3)
       
       if (startDate < threeDaysFromNow) {
-        setError('Paid Leave and Full Day Leave must be requested at least 3 days in advance. Use "Emergency Leave" if needed.')
+        toast.error('Paid Leave and Full Day Leave must be requested at least 3 days in advance. Use "Emergency Leave" if needed.')
         return
       }
     }
@@ -153,8 +145,6 @@ export default function Attendance() {
     }
 
     setLoading(true)
-    setError('')
-    setSuccess('')
 
     const submitData = { ...leaveForm }
     if (!submitData.end_date || submitData.type !== 'Full Day') {
@@ -162,19 +152,17 @@ export default function Attendance() {
     }
 
     try {
-      const res = await fetch(`${API_BASE_URL}/leaves`, {
+      const res = await authFetch(`${API_BASE_URL}/leaves`, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify(submitData)
       })
 
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'Failed to submit leave')
+      await handleApiResponse(res)
 
-      setSuccess('Leave request submitted successfully!')
+      toast.success('Leave request submitted successfully!')
       setShowLeaveModal(false)
       loadData()
       // Reset form
@@ -190,7 +178,7 @@ export default function Attendance() {
         is_emergency: false
       })
     } catch (err) {
-      setError(err.message)
+      handleError(err)
     } finally {
       setLoading(false)
     }
@@ -198,44 +186,40 @@ export default function Attendance() {
 
   const handleStatusUpdate = async (id, status) => {
     try {
-      const res = await fetch(`${API_BASE_URL}/leaves/${id}/status`, {
+      const res = await authFetch(`${API_BASE_URL}/leaves/${id}/status`, {
         method: 'PATCH',
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify({ status })
       })
-      if (res.ok) {
-        loadData()
-      } else {
-        const data = await res.json()
-        alert(data.error)
-      }
+      await handleApiResponse(res)
+      toast.success(`Leave request ${status} successfully`)
+      loadData()
     } catch (err) {
-      console.error('Failed to update leave status:', err)
+      handleError(err)
     }
   }
 
-  const handleCancelLeave = async (id) => {
+  const handleCancelLeave = (id) => {
     setConfirmConfig({
       isOpen: true,
-      title: 'Cancel Request',
+      title: 'Cancel Leave Request',
       message: 'Are you sure you want to cancel this leave request?',
       type: 'danger',
       confirmText: 'Yes, Cancel it',
       onConfirm: async () => {
         try {
-          const res = await fetch(`${API_BASE_URL}/leaves/${id}/cancel`, {
+          const res = await authFetch(`${API_BASE_URL}/leaves/${id}/cancel`, {
             method: 'PATCH',
-            headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+            headers: { 'Content-Type': 'application/json' }
           })
-          if (res.ok) {
-            loadData()
-            setConfirmConfig(prev => ({ ...prev, isOpen: false }))
-          }
+          await handleApiResponse(res)
+          toast.success('Leave request cancelled')
+          loadData()
+          setConfirmConfig(prev => ({ ...prev, isOpen: false }))
         } catch (err) {
-          console.error('Failed to cancel leave:', err)
+          handleError(err)
         }
       }
     })
@@ -345,25 +329,18 @@ export default function Attendance() {
     
     setLoading(true)
     try {
-      const res = await fetch(`${API_BASE_URL}/leaves/convert`, {
+      const res = await authFetch(`${API_BASE_URL}/leaves/convert`, {
         method: 'POST',
-        headers: { 
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+        headers: {
           'Content-Type': 'application/json'
         }
       })
       
-      const data = await res.json()
-      
-      if (res.ok) {
-        setSuccess(data.message)
-        loadData()
-      } else {
-        setError(data.error || 'Failed to convert leaves')
-      }
+      const data = await handleApiResponse(res)
+      toast.success(data.message || 'Leaves converted successfully')
+      loadData()
     } catch (err) {
-      console.error('Conversion error:', err)
-      setError('An error occurred during conversion')
+      handleError(err)
     } finally {
       setLoading(false)
     }
@@ -572,7 +549,6 @@ export default function Attendance() {
         size="lg"
       >
         <form onSubmit={handleLeaveSubmit} className="space-y-4">
-          {error && <Alert variant="danger">{error}</Alert>}
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Select

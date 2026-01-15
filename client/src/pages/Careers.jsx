@@ -4,7 +4,8 @@ import { API_BASE_URL } from '../apiConfig'
 import { Card, CardHeader, CardBody, Badge, Button, PageHeader } from '../components/TailAdminComponents'
 import { Modal, InputGroup, Select, Table, Alert } from '../components/FormComponents'
 import { Briefcase, Plus, Edit, Trash2, Users, FileText, MapPin, Clock, DollarSign, Calendar, ArrowLeft } from 'lucide-react'
-import { toast } from 'react-toastify'
+import { handleError, handleApiResponse } from '../utils/errorHandler'
+import toast from 'react-hot-toast'
 import ReactQuill from 'react-quill'
 import 'react-quill/dist/quill.snow.css'
 
@@ -39,9 +40,10 @@ export default function Careers() {
     setLoading(true)
     try {
       const res = await authFetch(`${API_BASE_URL}/jobs`)
-      if (res.ok) setJobs(await res.json())
+      const data = await handleApiResponse(res)
+      setJobs(data)
     } catch (e) {
-      toast.error('Failed to load jobs')
+      handleError(e)
     } finally {
       setLoading(false)
     }
@@ -50,19 +52,46 @@ export default function Careers() {
   const loadApplications = async () => {
     try {
       const res = await authFetch(`${API_BASE_URL}/applications`)
-      if (res.ok) setApplications(await res.json())
+      const data = await handleApiResponse(res)
+      setApplications(data)
     } catch (e) {
-      toast.error('Failed to load applications')
+      handleError(e)
     }
   }
 
   const handleSaveJob = async () => {
     if (!jobForm.title || !jobForm.description) {
-      toast.warn('Title and Description are required')
+      toast.error('Title and Description are required')
       return
     }
 
     try {
+      if (editingJob) {
+        // Check for changes
+        const hasChanges = 
+          jobForm.title !== (editingJob.title || '') ||
+          jobForm.description !== (editingJob.description || '') ||
+          jobForm.location !== (editingJob.location || '') ||
+          jobForm.type !== (editingJob.type || 'Full-time') ||
+          jobForm.salary !== (editingJob.salary || '') ||
+          jobForm.status !== (editingJob.status || 'active');
+
+        if (!hasChanges) {
+          console.info('[Careers] No changes detected for job:', editingJob.id);
+          toast('No changes detected', {
+            icon: 'ℹ️',
+            style: {
+              background: '#f0f9ff',
+              color: '#0369a1',
+              border: '1px solid #bae6fd',
+            }
+          })
+          setView('list')
+          setEditingJob(null)
+          return
+        }
+      }
+
       const method = editingJob ? 'PATCH' : 'POST'
       const url = editingJob ? `${API_BASE_URL}/jobs/${editingJob.id}` : `${API_BASE_URL}/jobs`
       
@@ -72,15 +101,14 @@ export default function Careers() {
         body: JSON.stringify(jobForm)
       })
 
-      if (res.ok) {
-        toast.success(editingJob ? 'Job updated' : 'Job posted')
-        setView('list')
-        setEditingJob(null)
-        setJobForm({ title: '', description: '', location: '', type: 'Full-time', salary: '', status: 'active' })
-        loadJobs()
-      }
+      await handleApiResponse(res)
+      toast.success(editingJob ? 'Job updated' : 'Job posted')
+      setView('list')
+      setEditingJob(null)
+      setJobForm({ title: '', description: '', location: '', type: 'Full-time', salary: '', status: 'active' })
+      loadJobs()
     } catch (e) {
-      toast.error('Operation failed')
+      handleError(e)
     }
   }
 
@@ -88,12 +116,11 @@ export default function Careers() {
     if (!window.confirm('Delete this job post?')) return
     try {
       const res = await authFetch(`${API_BASE_URL}/jobs/${id}`, { method: 'DELETE' })
-      if (res.ok) {
-        toast.success('Job deleted')
-        loadJobs()
-      }
+      await handleApiResponse(res)
+      toast.success('Job deleted')
+      loadJobs()
     } catch (e) {
-      toast.error('Delete failed')
+      handleError(e)
     }
   }
 
@@ -104,12 +131,11 @@ export default function Careers() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status })
       })
-      if (res.ok) {
-        toast.success('Status updated')
-        loadJobs()
-      }
+      await handleApiResponse(res)
+      toast.success('Status updated')
+      loadJobs()
     } catch (e) {
-      toast.error('Update failed')
+      handleError(e)
     }
   }
 
@@ -120,12 +146,11 @@ export default function Careers() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status })
       })
-      if (res.ok) {
-        toast.success('Status updated')
-        loadApplications()
-      }
+      await handleApiResponse(res)
+      toast.success('Status updated')
+      loadApplications()
     } catch (e) {
-      toast.error('Update failed')
+      handleError(e)
     }
   }
 

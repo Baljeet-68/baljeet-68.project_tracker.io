@@ -2,8 +2,7 @@ import React, { useState } from 'react'
 import { Link, useNavigate, useLocation, Outlet } from 'react-router-dom'
 import { getUser, clearToken, clearUser, authFetch } from './auth'
 import Sidebar from './components/Sidebar'
-import { ToastContainer, toast } from 'react-toastify';
-import 'react-toastify/dist/ReactToastify.css';
+import { handleError } from './utils/errorHandler'
 
 export default function Layout() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
@@ -60,12 +59,11 @@ export default function Layout() {
   // Centralized error handling for authFetch
   const handleAuthError = (error) => {
     if (error.message === 'Unauthorized: Token expired or invalid') {
-      clearToken();
-      clearUser();
-      nav('/login', { replace: true });
+      clearToken()
+      clearUser()
+      nav('/login', { replace: true })
+      handleError(error)
     }
-    // You might want to handle other errors here as well, e.g., display a toast
-    console.error("Auth Fetch Error:", error);
   }
 
   return (
@@ -86,7 +84,6 @@ export default function Layout() {
           <Outlet />
         </div>
       </main>
-      <ToastContainer position="bottom-right" />
     </div>
   )
 }

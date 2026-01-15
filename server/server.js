@@ -20,8 +20,10 @@ app.use((req, res, next) => {
     bugs: null,
     screens: null,
     projects: null,
-    projectBugs: {},    // Map of projectId -> bugs
-    projectScreens: {}, // Map of projectId -> screens
+    projectBugs: {},         // Map of projectId -> bugs
+    projectScreens: {},      // Map of projectId -> screens
+    projectMilestones: {},   // Map of projectId -> milestones
+    notifications: {},       // Map of userId -> notifications
   };
   next();
 });

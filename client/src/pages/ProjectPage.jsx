@@ -2,11 +2,11 @@ import React, { useEffect, useState } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import { authFetch, getUser, clearToken, clearUser } from '../auth'
 import { API_BASE_URL } from '../apiConfig';
-import { ToastContainer, toast } from 'react-toastify';
-import 'react-toastify/dist/ReactToastify.css';
 import { Card, CardHeader, CardBody, Badge, Button, StatCard, PageHeader } from '../components/TailAdminComponents'
 import { Table, Modal, InputGroup, Select, ProgressBar } from '../components/FormComponents'
 import { Loader } from '../components/Loader'
+import { handleError, handleApiResponse } from '../utils/errorHandler'
+import toast from 'react-hot-toast'
 import {
   Edit,
   Trash2,
@@ -107,16 +107,18 @@ export default function ProjectPage() {
   const [bugsList, setBugsList] = useState([])
   const [activityList, setActivityList] = useState([])
   const [milestonesList, setMilestonesList] = useState([])
-  const [error, setError] = useState('')
   const [loading, setLoading] = useState(true)
   const [tabIndex, setTabIndex] = useState(0)
   const user = getUser()
   const nav = useNavigate()
 
   // Project settings edit states (admin)
+  const [projectStatus, setProjectStatus] = useState('Active')
   const [projectStart, setProjectStart] = useState('')
   const [projectEnd, setProjectEnd] = useState('')
-  const [projectStatus, setProjectStatus] = useState('')
+  const [originalProjectStatus, setOriginalProjectStatus] = useState('Active')
+  const [originalProjectStart, setOriginalProjectStart] = useState('')
+  const [originalProjectEnd, setOriginalProjectEnd] = useState('')
 
   // Dialog states
   const [bugDialog, setBugDialog] = useState(false)
@@ -124,12 +126,14 @@ export default function ProjectPage() {
   const [milestoneDialog, setMilestoneDialog] = useState(false)
   const [editingScreen, setEditingScreen] = useState(null)
   const [editingMilestone, setEditingMilestone] = useState(null)
-  const [bugEditDialog, setBugEditDialog] = useState(false)
   const [bugEditId, setBugEditId] = useState(null)
   const [bugEditDeadline, setBugEditDeadline] = useState('')
+  const [bugEditOriginalDeadline, setBugEditOriginalDeadline] = useState('')
+  const [bugEditDialog, setBugEditDialog] = useState(false)
   const [screenEditDeadlineDialog, setScreenEditDeadlineDialog] = useState(false)
   const [screenEditDeadlineId, setScreenEditDeadlineId] = useState(null)
   const [screenEditDeadlineValue, setScreenEditDeadlineValue] = useState('')
+  const [screenEditDeadlineOriginalValue, setScreenEditDeadlineOriginalValue] = useState('')
 
   // Form states
   const [bugForm, setBugForm] = useState({ description: '', severity: 'medium', screenId: '', module: '', assignedDeveloperId: '', attachments: [], deadline: '' })
@@ -216,12 +220,13 @@ export default function ProjectPage() {
    * Centralized error handling for authentication issues
    */
   const handleAuthError = React.useCallback((e) => {
-    if (e.message === 'Unauthorized: Token expired or invalid') {
+    if (e.message?.includes('Unauthorized') || e.message?.includes('Token expired')) {
       clearToken()
       clearUser()
       nav('/login', { replace: true })
+      handleError(new Error('Session expired. Please login again.'))
     } else {
-      toast.error(e.message)
+      handleError(e)
     }
   }, [nav])
 
@@ -239,19 +244,29 @@ export default function ProjectPage() {
         authFetch(`${API_BASE_URL}/projects/${id}/milestones`)
       ])
 
-      if (!projRes.ok) throw new Error('Failed to fetch project')
-      const projData = await projRes.json()
+      const projData = await handleApiResponse(projRes)
       setProject(projData)
       
       // Initialize edit states
-      setProjectStart(projData.startDate ? new Date(projData.startDate).toISOString().slice(0, 10) : '')
-      setProjectEnd(projData.endDate ? new Date(projData.endDate).toISOString().slice(0, 10) : '')
-      setProjectStatus(projData.status || '')
+      const startStr = projData.startDate ? new Date(projData.startDate).toISOString().slice(0, 10) : ''
+      setProjectStart(startStr)
+      setOriginalProjectStart(startStr)
+      const endStr = projData.endDate ? new Date(projData.endDate).toISOString().slice(0, 10) : ''
+      setProjectEnd(endStr)
+      setOriginalProjectEnd(endStr)
+      const statusStr = projData.status || ''
+      setProjectStatus(statusStr)
+      setOriginalProjectStatus(statusStr)
 
-      if (screensRes.ok) setScreensList(await screensRes.json())
-      if (bugsRes.ok) setBugsList(await bugsRes.json())
-      if (activityRes.ok) setActivityList(await activityRes.json())
-      if (milestonesRes.ok) setMilestonesList(await milestonesRes.json())
+      const screensData = await handleApiResponse(screensRes)
+      const bugsData = await handleApiResponse(bugsRes)
+      const activityData = await handleApiResponse(activityRes)
+      const milestonesData = await handleApiResponse(milestonesRes)
+
+      setScreensList(Array.isArray(screensData) ? screensData : [])
+      setBugsList(Array.isArray(bugsData) ? bugsData : [])
+      setActivityList(Array.isArray(activityData) ? activityData : [])
+      setMilestonesList(Array.isArray(milestonesData) ? milestonesData : [])
     } catch (e) {
       handleAuthError(e)
     } finally {
@@ -273,7 +288,7 @@ export default function ProjectPage() {
           deadline: bugForm.deadline || null
         })
       })
-      if (!res.ok) throw new Error('Failed to create bug')
+      await handleApiResponse(res)
       
       setBugForm({ description: '', severity: 'medium', screenId: '', module: '', assignedDeveloperId: '', attachments: [], deadline: '' })
       setBugDialog(false)
@@ -285,27 +300,40 @@ export default function ProjectPage() {
 
   const openBugEdit = (bug) => {
     setBugEditId(bug.id)
-    setBugEditDeadline(bug.deadline ? new Date(bug.deadline).toISOString().slice(0, 10) : '')
+    const deadlineStr = bug.deadline ? new Date(bug.deadline).toISOString().slice(0, 10) : ''
+    setBugEditDeadline(deadlineStr)
+    setBugEditOriginalDeadline(deadlineStr)
     setBugEditDialog(true)
   }
 
   const handleSaveBugDeadline = async () => {
     if (!bugEditId) return
+    
+    if (bugEditDeadline === bugEditOriginalDeadline) {
+      console.info('[ProjectPage] No changes detected in bug deadline');
+      toast('No changes detected', {
+        icon: 'ℹ️',
+        style: {
+          background: '#f0f9ff',
+          color: '#0369a1',
+          border: '1px solid #bae6fd',
+        }
+      })
+      setBugEditDialog(false)
+      return
+    }
+
     try {
       const res = await authFetch(`${API_BASE_URL}/bugs/${bugEditId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ deadline: bugEditDeadline || null })
       })
-      if (!res.ok) {
-        const errData = await res.json()
-        throw new Error(errData.error || 'Failed to update bug deadline')
-      }
+      await handleApiResponse(res)
       setBugEditDialog(false)
       setBugEditId(null)
       setBugEditDeadline('')
       loadData()
-      toast.success('Bug deadline updated successfully!')
     } catch (e) {
       handleAuthError(e)
     }
@@ -355,9 +383,8 @@ export default function ProjectPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: newStatus })
       })
-      if (!res.ok) throw new Error('Failed to update bug status')
+      await handleApiResponse(res)
       loadData()
-      toast.success('Bug status updated successfully!')
     } catch (e) {
       handleAuthError(e)
     }
@@ -370,9 +397,8 @@ export default function ProjectPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: newStatus, actualEndDate: new Date() })
       })
-      if (!res.ok) throw new Error('Failed to update screen status')
+      await handleApiResponse(res)
       loadData()
-      toast.success('Screen status updated successfully!')
     } catch (e) {
       handleAuthError(e)
     }
@@ -382,12 +408,36 @@ export default function ProjectPage() {
     if (!screenForm.title) return
     try {
       if (editingScreen) {
+        // Check for changes
+        const hasChanges = 
+          screenForm.title !== (editingScreen.title || '') ||
+          screenForm.module !== (editingScreen.module || '') ||
+          screenForm.assigneeId !== (editingScreen.assigneeId || '') ||
+          screenForm.plannedDeadline !== (editingScreen.plannedDeadline ? new Date(editingScreen.plannedDeadline).toISOString().slice(0, 10) : '') ||
+          screenForm.notes !== (editingScreen.notes || '');
+
+        if (!hasChanges) {
+            console.info('[ProjectPage] No changes detected in screen form');
+            toast('No changes detected', {
+            icon: 'ℹ️',
+            style: {
+              background: '#f0f9ff',
+              color: '#0369a1',
+              border: '1px solid #bae6fd',
+            }
+          })
+          setEditingScreen(null)
+          setScreenDialog(false)
+          setScreenForm({ title: '', module: '', assigneeId: '', plannedDeadline: '', notes: '' })
+          return
+        }
+
         const res = await authFetch(`${API_BASE_URL}/screens/${editingScreen.id}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(screenForm)
         })
-        if (!res.ok) throw new Error('Failed to update screen')
+        await handleApiResponse(res)
         setEditingScreen(null)
       } else {
         const res = await authFetch(`${API_BASE_URL}/projects/${id}/screens`, {
@@ -395,12 +445,11 @@ export default function ProjectPage() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(screenForm)
         })
-        if (!res.ok) throw new Error('Failed to create screen')
+        await handleApiResponse(res)
       }
       setScreenForm({ title: '', module: '', assigneeId: '', plannedDeadline: '', notes: '' })
       setScreenDialog(false)
       loadData()
-      toast.success(editingScreen ? 'Screen updated successfully!' : 'Screen added successfully!')
     } catch (e) {
       handleAuthError(e)
     }
@@ -414,33 +463,63 @@ export default function ProjectPage() {
 
   const openScreenDeadlineEdit = (s) => {
     setScreenEditDeadlineId(s.id)
-    setScreenEditDeadlineValue(s.plannedDeadline ? new Date(s.plannedDeadline).toISOString().slice(0, 10) : '')
+    const deadlineStr = s.plannedDeadline ? new Date(s.plannedDeadline).toISOString().slice(0, 10) : ''
+    setScreenEditDeadlineValue(deadlineStr)
+    setScreenEditDeadlineOriginalValue(deadlineStr)
     setScreenEditDeadlineDialog(true)
   }
 
   const handleSaveScreenDeadline = async () => {
     if (!screenEditDeadlineId) return
+
+    if (screenEditDeadlineValue === screenEditDeadlineOriginalValue) {
+      console.info('[ProjectPage] No changes detected in screen deadline');
+      toast('No changes detected', {
+        icon: 'ℹ️',
+        style: {
+          background: '#f0f9ff',
+          color: '#0369a1',
+          border: '1px solid #bae6fd',
+        }
+      })
+      setScreenEditDeadlineDialog(false)
+      setScreenEditDeadlineId(null)
+      return
+    }
+
     try {
       const res = await authFetch(`${API_BASE_URL}/screens/${screenEditDeadlineId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ plannedDeadline: screenEditDeadlineValue || null })
       })
-      if (!res.ok) {
-        const errData = await res.json()
-        throw new Error(errData.error || 'Failed to update deadline')
-      }
+      await handleApiResponse(res)
       setScreenEditDeadlineDialog(false)
       setScreenEditDeadlineId(null)
       setScreenEditDeadlineValue('')
       loadData()
-      toast.success('Screen deadline updated successfully!')
     } catch (e) {
       handleAuthError(e)
     }
   }
 
   const handleUpdateProjectSettings = async () => {
+    // Check for changes
+    if (projectStart === originalProjectStart && 
+        projectEnd === originalProjectEnd && 
+        projectStatus === originalProjectStatus) {
+      console.info('[ProjectPage] No changes detected in project settings');
+      toast('No changes detected', {
+        icon: 'ℹ️',
+        style: {
+          background: '#f0f9ff',
+          color: '#0369a1',
+          border: '1px solid #bae6fd',
+        }
+      })
+      return
+    }
+
     try {
       const res = await authFetch(`${API_BASE_URL}/projects/${id}`, {
         method: 'PATCH',
@@ -451,12 +530,8 @@ export default function ProjectPage() {
           status: projectStatus
         })
       })
-      if (!res.ok) {
-        const errData = await res.json()
-        throw new Error(errData.error || 'Failed to update project settings')
-      }
+      await handleApiResponse(res)
       loadData()
-      toast.success('Project settings updated successfully!')
     } catch (e) {
       handleAuthError(e)
     }
@@ -466,9 +541,8 @@ export default function ProjectPage() {
     if (!window.confirm('Delete this bug?')) return
     try {
       const res = await authFetch(`${API_BASE_URL}/bugs/${bugId}`, { method: 'DELETE' })
-      if (!res.ok) throw new Error('Failed to delete bug')
+      await handleApiResponse(res)
       loadData()
-      toast.success('Bug deleted successfully!')
     } catch (e) {
       handleAuthError(e)
     }
@@ -478,9 +552,8 @@ export default function ProjectPage() {
     if (!window.confirm('Delete this screen?')) return
     try {
       const res = await authFetch(`${API_BASE_URL}/screens/${screenId}`, { method: 'DELETE' })
-      if (!res.ok) throw new Error('Failed to delete screen')
+      await handleApiResponse(res)
       loadData()
-      toast.success('Screen deleted successfully!')
     } catch (e) {
       handleAuthError(e)
     }
@@ -490,25 +563,48 @@ export default function ProjectPage() {
     if (!milestoneForm.milestoneNumber) return
     try {
       if (editingMilestone) {
+        // Check for changes
+        const milestoneTimeline = editingMilestone.timeline ? new Date(editingMilestone.timeline).toISOString().slice(0, 10) : '';
+        const hasChanges = 
+          milestoneForm.milestoneNumber !== (editingMilestone.milestoneNumber || '') ||
+          milestoneForm.module !== (editingMilestone.module || '') ||
+          milestoneForm.timeline !== milestoneTimeline ||
+          milestoneForm.status !== (editingMilestone.status || 'Pending');
+
+        if (!hasChanges) {
+          console.info('[ProjectPage] No changes detected in milestone form');
+          toast('No changes detected', {
+            icon: 'ℹ️',
+            style: {
+              background: '#f0f9ff',
+              color: '#0369a1',
+              border: '1px solid #bae6fd',
+            }
+          })
+          setEditingMilestone(null)
+          setMilestoneDialog(false)
+          setMilestoneForm({ milestoneNumber: '', module: '', timeline: '', status: 'Pending' })
+          return
+        }
+
         const res = await authFetch(`${API_BASE_URL}/milestones/${editingMilestone.id}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(milestoneForm)
         })
-        if (!res.ok) throw new Error('Failed to update milestone')
+        await handleApiResponse(res)
       } else {
         const res = await authFetch(`${API_BASE_URL}/projects/${id}/milestones`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(milestoneForm)
         })
-        if (!res.ok) throw new Error('Failed to create milestone')
+        await handleApiResponse(res)
       }
       setMilestoneForm({ milestoneNumber: '', module: '', timeline: '', status: 'Pending' })
       setMilestoneDialog(false)
       setEditingMilestone(null)
       loadData()
-      toast.success(editingMilestone ? 'Milestone updated successfully!' : 'Milestone added successfully!')
     } catch (e) {
       handleAuthError(e)
     }
@@ -543,9 +639,8 @@ export default function ProjectPage() {
     if (!window.confirm('Delete this milestone?')) return
     try {
       const res = await authFetch(`${API_BASE_URL}/milestones/${mid}`, { method: 'DELETE' })
-      if (!res.ok) throw new Error('Failed to delete milestone')
+      await handleApiResponse(res)
       loadData()
-      toast.success('Milestone deleted successfully!')
     } catch (e) {
       handleAuthError(e)
     }
@@ -1489,8 +1584,6 @@ export default function ProjectPage() {
           </div>
         )}
       </Modal>
-
-      <ToastContainer position="bottom-right" theme="colored" />
     </div>
   )
 }
