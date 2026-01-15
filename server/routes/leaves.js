@@ -2,7 +2,79 @@ const express = require('express');
 const router = express.Router();
 const { pool } = require('../db');
 const { authenticate } = require('../middleware/auth');
-const { getLeaves } = require('../middleware/helpers');
+const { getLeaves, getUsers } = require('../middleware/helpers');
+const { USE_LIVE_DB } = require('../config');
+const localData = !USE_LIVE_DB ? require('../data') : null;
+
+// Helper to safely get ISO date string (YYYY-MM-DD)
+const getSafeDate = (d) => {
+  if (!d) return '';
+  const dateObj = (d instanceof Date) ? d : new Date(d);
+  if (isNaN(dateObj.getTime())) return '';
+  return dateObj.toISOString().split('T')[0];
+};
+
+// Define data source functions
+let leavesSource;
+let createLeaveInDbSource;
+let updateLeaveInDbSource;
+let deleteLeaveFromDbSource;
+let usersSource;
+let createNotificationInDbSource;
+
+if (USE_LIVE_DB) {
+  const dbApi = require('../api');
+  leavesSource = async () => await dbApi.getLeavesFromMySQL ? await dbApi.getLeavesFromMySQL() : [];
+  createLeaveInDbSource = async (leave) => {
+    const sql = `INSERT INTO leaves 
+      (user_id, type, status, start_date, end_date, half_day_period, short_leave_time, compensation_worked_date, compensation_worked_time, reason, approver_id, is_emergency) 
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+    const [result] = await pool.execute(sql, [
+      leave.user_id, leave.type, leave.status, leave.start_date, leave.end_date || leave.start_date, 
+      leave.half_day_period, leave.short_leave_time, leave.compensation_worked_date, leave.compensation_worked_time, 
+      leave.reason, leave.approver_id, leave.is_emergency ? 1 : 0
+    ]);
+    return { ...leave, id: result.insertId };
+  };
+  updateLeaveInDbSource = async (id, changes) => {
+    const fields = [];
+    const values = [];
+    Object.keys(changes).forEach(key => {
+      fields.push(`${key} = ?`);
+      values.push(changes[key]);
+    });
+    values.push(id);
+    await pool.execute(`UPDATE leaves SET ${fields.join(', ')} WHERE id = ?`, values);
+  };
+  usersSource = async () => {
+    const [rows] = await pool.query('SELECT * FROM users');
+    return rows;
+  };
+  createNotificationInDbSource = async (notification) => {
+    await pool.query(
+      'INSERT INTO notifications (user_id, type, title, message, category) VALUES (?, ?, ?, ?, ?)',
+      [notification.user_id, notification.type, notification.title, notification.message, notification.category]
+    );
+  };
+} else {
+  leavesSource = async () => localData.leaves || [];
+  createLeaveInDbSource = async (leave) => {
+    if (!localData.leaves) localData.leaves = [];
+    const newLeave = { ...leave, id: `lv${Date.now()}` };
+    localData.leaves.push(newLeave);
+    return newLeave;
+  };
+  updateLeaveInDbSource = async (id, changes) => {
+    if (!localData.leaves) return;
+    const idx = localData.leaves.findIndex(l => String(l.id) === String(id));
+    if (idx > -1) localData.leaves[idx] = { ...localData.leaves[idx], ...changes };
+  };
+  usersSource = async () => localData.users || [];
+  createNotificationInDbSource = async (notification) => {
+    if (!localData.notifications) localData.notifications = [];
+    localData.notifications.push({ ...notification, id: `notif${Date.now()}`, status: 'unread', created_at: new Date().toISOString() });
+  };
+}
 
 // Helper to check if a user is Admin or HR
 const isAdminOrHR = (req, res, next) => {
@@ -98,13 +170,23 @@ router.post(`/leaves`, authenticate, async (req, res) => {
 
     // Find an approver id for the record (optional, since we use role-based queues)
     let approver_id = null;
-    if (approver_role !== 'hr_or_admin') {
-      const [approvers] = await pool.query('SELECT id FROM users WHERE role = ? LIMIT 1', [approver_role]);
-      approver_id = approvers.length > 0 ? approvers[0].id : null;
+    if (USE_LIVE_DB) {
+      if (approver_role !== 'hr_or_admin') {
+        const [approvers] = await pool.query('SELECT id FROM users WHERE role = ? LIMIT 1', [approver_role]);
+        approver_id = approvers.length > 0 ? approvers[0].id : null;
+      } else {
+        const [approvers] = await pool.query('SELECT id FROM users WHERE role = "hr" LIMIT 1');
+        approver_id = approvers.length > 0 ? approvers[0].id : null;
+      }
     } else {
-      // For hr_or_admin, we'll just leave it null or pick the first HR
-      const [approvers] = await pool.query('SELECT id FROM users WHERE role = "hr" LIMIT 1');
-      approver_id = approvers.length > 0 ? approvers[0].id : null;
+      const users = await usersSource();
+      if (approver_role !== 'hr_or_admin') {
+        const approver = users.find(u => u.role === approver_role);
+        approver_id = approver ? approver.id : null;
+      } else {
+        const approver = users.find(u => u.role === 'hr');
+        approver_id = approver ? approver.id : null;
+      }
     }
 
     // Rules Validation
@@ -116,48 +198,86 @@ router.post(`/leaves`, authenticate, async (req, res) => {
 
     // 1. Max 2 short leaves per month
     if (type === 'Short Leave' || type === 'Early Leave') {
-      const [shortLeaves] = await pool.query(
-        'SELECT COUNT(*) as count FROM leaves WHERE user_id = ? AND type IN ("Short Leave", "Early Leave") AND start_date BETWEEN ? AND ? AND status != "Rejected"',
-        [userId, monthStart, monthEnd]
-      );
-      if (shortLeaves[0].count >= 2) {
-        // Warning logic handled by UI or just return warning info
-        // Requirement: "third give warning" -> we allow but warn
+      let shortCount = 0;
+      if (USE_LIVE_DB) {
+        const [shortLeaves] = await pool.query(
+          'SELECT COUNT(*) as count FROM leaves WHERE user_id = ? AND type IN ("Short Leave", "Early Leave") AND start_date BETWEEN ? AND ? AND status != "Rejected"',
+          [userId, monthStart, monthEnd]
+        );
+        shortCount = shortLeaves[0].count;
+      } else {
+        const leaves = await leavesSource();
+        shortCount = leaves.filter(l => 
+          l.user_id === userId && 
+          ['Short Leave', 'Early Leave'].includes(l.type) && 
+          new Date(l.start_date) >= monthStart && 
+          new Date(l.start_date) <= monthEnd && 
+          l.status !== 'Rejected'
+        ).length;
+      }
+      if (shortCount >= 2) {
+        // Warning logic
       }
     }
 
     // 2. Max 1 paid leave per month
     if (type === 'Paid Leave') {
-      const [paidLeaves] = await pool.query(
-        'SELECT COUNT(*) as count FROM leaves WHERE user_id = ? AND type = "Paid Leave" AND start_date BETWEEN ? AND ? AND status NOT IN ("Rejected", "Cancelled")',
-        [userId, monthStart, monthEnd]
-      );
-      if (paidLeaves[0].count >= 1) {
+      let paidCount = 0;
+      if (USE_LIVE_DB) {
+        const [paidLeaves] = await pool.query(
+          'SELECT COUNT(*) as count FROM leaves WHERE user_id = ? AND type = "Paid Leave" AND start_date BETWEEN ? AND ? AND status NOT IN ("Rejected", "Cancelled")',
+          [userId, monthStart, monthEnd]
+        );
+        paidCount = paidLeaves[0].count;
+      } else {
+        const leaves = await leavesSource();
+        paidCount = leaves.filter(l => 
+          l.user_id === userId && 
+          l.type === 'Paid Leave' && 
+          new Date(l.start_date) >= monthStart && 
+          new Date(l.start_date) <= monthEnd && 
+          !['Rejected', 'Cancelled'].includes(l.status)
+        ).length;
+      }
+      if (paidCount >= 1) {
         return res.status(400).json({ error: 'Maximum 1 paid leave per month allowed' });
       }
     }
 
     // 5. No overlapping or duplicate leave dates
-    const [overlap] = await pool.query(
-      'SELECT id FROM leaves WHERE user_id = ? AND status NOT IN ("Rejected", "Cancelled") AND ((start_date <= ? AND end_date >= ?) OR (start_date <= ? AND end_date >= ?))',
-      [userId, end_date || start_date, start_date, end_date || start_date, start_date]
-    );
-    if (overlap.length > 0) {
+    let hasOverlap = false;
+    const endDateVal = end_date || start_date;
+    if (USE_LIVE_DB) {
+      const [overlap] = await pool.query(
+        'SELECT id FROM leaves WHERE user_id = ? AND status NOT IN ("Rejected", "Cancelled") AND ((start_date <= ? AND end_date >= ?) OR (start_date <= ? AND end_date >= ?))',
+        [userId, endDateVal, start_date, endDateVal, start_date]
+      );
+      hasOverlap = overlap.length > 0;
+    } else {
+      const leaves = await leavesSource();
+      hasOverlap = leaves.some(l => {
+        if (l.user_id !== userId || ['Rejected', 'Cancelled'].includes(l.status)) return false;
+        const lStart = getSafeDate(l.start_date);
+        const lEnd = getSafeDate(l.end_date) || lStart;
+        return (lStart <= endDateVal && lEnd >= start_date);
+      });
+    }
+
+    if (hasOverlap) {
       return res.status(400).json({ error: 'Leave request overlaps with an existing leave' });
     }
 
-    const sql = `INSERT INTO leaves 
-      (user_id, type, status, start_date, end_date, half_day_period, short_leave_time, compensation_worked_date, compensation_worked_time, reason, approver_id, is_emergency) 
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
-    
-    const [inserted] = await pool.execute(sql, [
-      userId, type, status, start_date, end_date || start_date, half_day_period, short_leave_time, compensation_worked_date, compensation_worked_time, reason, approver_id, is_emergency ? 1 : 0
-    ]);
+    const leave = await createLeaveInDbSource({
+      user_id: userId, type, status, start_date, end_date: end_date || start_date, 
+      half_day_period, short_leave_time, compensation_worked_date, compensation_worked_time, 
+      reason, approver_id, is_emergency: is_emergency ? 1 : 0
+    });
 
     // Create Notifications for HR or Admin
     if (status === 'Submitted') {
-      const [user] = await pool.query('SELECT name FROM users WHERE id = ?', [userId]);
-      const userName = user[0]?.name || 'Someone';
+      const allUsers = await usersSource();
+      const user = allUsers.find(u => String(u.id) === String(userId));
+      const userName = user?.name || 'Someone';
       
       let notifyRoles = [];
       if (role === 'hr') {
@@ -168,7 +288,7 @@ router.post(`/leaves`, authenticate, async (req, res) => {
         notifyRoles = ['hr'];
       }
 
-      const [targetUsers] = await pool.query('SELECT id FROM users WHERE role IN (?)', [notifyRoles]);
+      const targetUsers = allUsers.filter(u => notifyRoles.includes(u.role));
       
       // Format date for notification
       const dateOptions = { weekday: 'short', year: 'numeric', month: 'short', day: '2-digit', timeZone: 'Asia/Kolkata' };
@@ -181,20 +301,17 @@ router.post(`/leaves`, authenticate, async (req, res) => {
       const halfDayInfo = type === 'Half Day' ? ` (${half_day_period})` : '';
       
       for (const targetUser of targetUsers) {
-        await pool.query(
-          'INSERT INTO notifications (user_id, type, title, message, category) VALUES (?, ?, ?, ?, ?)',
-          [
-            targetUser.id, 
-            'leave_request', 
-            'New Leave Request', 
-            `${userName} has submitted a ${type} request for ${dateDisplay}${halfDayInfo}.`,
-            'HR'
-          ]
-        );
+        await createNotificationInDbSource({
+          user_id: targetUser.id, 
+          type: 'leave_request', 
+          title: 'New Leave Request', 
+          message: `${userName} has submitted a ${type} request for ${dateDisplay}${halfDayInfo}.`,
+          category: 'HR'
+        });
       }
     }
 
-    res.json({ message: 'Leave request submitted successfully' });
+    res.status(201).json({ message: 'Leave request submitted successfully' });
   } catch (error) {
     console.error('Error submitting leave:', error);
     res.status(500).json({ error: 'Failed to submit leave request' });
@@ -213,18 +330,20 @@ router.patch(`/leaves/:id/status`, authenticate, isAdminOrHR, async (req, res) =
     }
 
     // Check if the user is authorized to approve this leave
-    const [leave] = await pool.query('SELECT l.*, u.role as userRole FROM leaves l JOIN users u ON l.user_id = u.id WHERE l.id = ?', [id]);
-    if (leave.length === 0) return res.status(404).json({ error: 'Leave not found' });
+    const allLeaves = await leavesSource();
+    const leave = allLeaves.find(l => String(l.id) === String(id));
+    if (!leave) return res.status(404).json({ error: 'Leave not found' });
 
-    const targetUserRole = leave[0].userRole.toLowerCase();
+    const allUsers = await usersSource();
+    const targetUser = allUsers.find(u => String(u.id) === String(leave.user_id));
+    if (!targetUser) return res.status(404).json({ error: 'User not found' });
+
+    const targetUserRole = targetUser.role.toLowerCase();
     let canApprove = false;
 
     if (role === 'admin') {
-      // Admin approves HR, Management, Accountant, and also Developer, Tester, Ecommerce
-      // Basically Admin can approve everything except their own (but they can't request anyway)
       canApprove = true; 
     } else if (role === 'hr') {
-      // HR approves Tester, Developer, E-commerce, Management, Accountant
       if (['tester', 'developer', 'ecommerce', 'management', 'accountant'].includes(targetUserRole)) {
         canApprove = true;
       }
@@ -234,27 +353,21 @@ router.patch(`/leaves/:id/status`, authenticate, isAdminOrHR, async (req, res) =
       return res.status(403).json({ error: 'You are not authorized to approve this leave request' });
     }
 
-    await pool.execute('UPDATE leaves SET status = ?, approver_id = ? WHERE id = ?', [status, userId, id]);
+    await updateLeaveInDbSource(id, { status, approver_id: userId });
     
     // Notify the user about approval/rejection
-    const [leaveInfo] = await pool.query('SELECT user_id, type, start_date, half_day_period FROM leaves WHERE id = ?', [id]);
-    if (leaveInfo.length > 0) {
-      const { type, start_date, half_day_period } = leaveInfo[0];
-      const dateOptions = { weekday: 'short', year: 'numeric', month: 'short', day: '2-digit', timeZone: 'Asia/Kolkata' };
-      const formattedDate = new Date(start_date).toLocaleDateString('en-IN', dateOptions);
-      const halfDayInfo = type === 'Half Day' ? ` (${half_day_period})` : '';
+    const { type, start_date, half_day_period } = leave;
+    const dateOptions = { weekday: 'short', year: 'numeric', month: 'short', day: '2-digit', timeZone: 'Asia/Kolkata' };
+    const formattedDate = new Date(start_date).toLocaleDateString('en-IN', dateOptions);
+    const halfDayInfo = type === 'Half Day' ? ` (${half_day_period})` : '';
 
-      await pool.query(
-        'INSERT INTO notifications (user_id, type, title, message, category) VALUES (?, ?, ?, ?, ?)',
-        [
-          leaveInfo[0].user_id,
-          'leave_status',
-          `Leave Request ${status}`,
-          `Your ${type} request for ${formattedDate}${halfDayInfo} has been ${status.toLowerCase()}.`,
-          'HR'
-        ]
-      );
-    }
+    await createNotificationInDbSource({
+      user_id: leave.user_id,
+      type: 'leave_status',
+      title: `Leave Request ${status}`,
+      message: `Your ${type} request for ${formattedDate}${halfDayInfo} has been ${status.toLowerCase()}.`,
+      category: 'HR'
+    });
     
     res.json({ message: `Leave ${status.toLowerCase()} successfully` });
   } catch (error) {
@@ -269,43 +382,42 @@ router.patch(`/leaves/:id/cancel`, authenticate, async (req, res) => {
     const { id } = req.params;
     const { userId } = req.user;
 
-    const [leave] = await pool.query('SELECT * FROM leaves WHERE id = ? AND user_id = ?', [id, userId]);
-    if (leave.length === 0) return res.status(404).json({ error: 'Leave not found' });
+    const allLeaves = await leavesSource();
+    const leave = allLeaves.find(l => String(l.id) === String(id) && String(l.user_id) === String(userId));
+    if (!leave) return res.status(404).json({ error: 'Leave not found' });
 
-    if (leave[0].status !== 'Submitted' && leave[0].status !== 'Pending Approval') {
+    if (leave.status !== 'Submitted' && leave.status !== 'Pending Approval') {
       return res.status(400).json({ error: 'Only pending leaves can be cancelled' });
     }
 
-    await pool.execute('UPDATE leaves SET status = "Cancelled" WHERE id = ?', [id]);
+    await updateLeaveInDbSource(id, { status: 'Cancelled' });
 
     // Notify HR or Admin about cancellation
-    const [user] = await pool.query('SELECT name, role FROM users WHERE id = ?', [userId]);
-    const userName = user[0]?.name || 'Someone';
-    const userRole = user[0]?.role || '';
+    const allUsers = await usersSource();
+    const user = allUsers.find(u => String(u.id) === String(userId));
+    const userName = user?.name || 'Someone';
+    const userRole = user?.role || '';
 
     let notifyRole = 'hr';
     if (['hr', 'management', 'accountant'].includes(userRole.toLowerCase())) {
       notifyRole = 'admin';
     }
 
-    const [targetUsers] = await pool.query('SELECT id FROM users WHERE role = ?', [notifyRole]);
+    const targetUsers = allUsers.filter(u => u.role === notifyRole);
     
     for (const targetUser of targetUsers) {
-      const { type, start_date, half_day_period } = leave[0];
+      const { type, start_date, half_day_period } = leave;
       const dateOptions = { weekday: 'short', year: 'numeric', month: 'short', day: '2-digit', timeZone: 'Asia/Kolkata' };
       const formattedDate = new Date(start_date).toLocaleDateString('en-IN', dateOptions);
       const halfDayInfo = type === 'Half Day' ? ` (${half_day_period})` : '';
 
-      await pool.query(
-        'INSERT INTO notifications (user_id, type, title, message, category) VALUES (?, ?, ?, ?, ?)',
-        [
-          targetUser.id, 
-          'leave_cancelled', 
-          'Leave Request Cancelled', 
-          `${userName} has cancelled their ${type} request for ${formattedDate}${halfDayInfo}.`,
-          'HR'
-        ]
-      );
+      await createNotificationInDbSource({
+        user_id: targetUser.id, 
+        type: 'leave_cancelled', 
+        title: 'Leave Request Cancelled', 
+        message: `${userName} has cancelled their ${type} request for ${formattedDate}${halfDayInfo}.`,
+        category: 'HR'
+      });
     }
 
     res.json({ message: 'Leave cancelled successfully' });
@@ -324,20 +436,20 @@ router.get(`/leaves/stats/summary`, authenticate, async (req, res) => {
     const monthPrefix = new Date().toISOString().substring(0, 7); // YYYY-MM
 
     // 1. On leave today (Full Day / Paid Leave / Compensation)
-    const onLeaveToday = allLeaves.filter(l => 
-      l.status === 'Approved' && 
-      todayStr >= l.start_date.toISOString().split('T')[0] && 
-      todayStr <= l.end_date.toISOString().split('T')[0] &&
-      ["Full Day", "Paid Leave", "Compensation"].includes(l.type)
-    ).length;
+    const onLeaveToday = allLeaves.filter(l => {
+      if (l.status !== 'Approved') return false;
+      const start = getSafeDate(l.start_date);
+      const end = getSafeDate(l.end_date) || start;
+      return todayStr >= start && todayStr <= end && ["Full Day", "Paid Leave", "Compensation"].includes(l.type);
+    }).length;
 
     // 2. On halfday today
-    const onHalfDayToday = allLeaves.filter(l => 
-      l.status === 'Approved' && 
-      todayStr >= l.start_date.toISOString().split('T')[0] && 
-      todayStr <= l.end_date.toISOString().split('T')[0] &&
-      l.type === "Half Day"
-    ).length;
+    const onHalfDayToday = allLeaves.filter(l => {
+      if (l.status !== 'Approved') return false;
+      const start = getSafeDate(l.start_date);
+      const end = getSafeDate(l.end_date) || start;
+      return todayStr >= start && todayStr <= end && l.type === "Half Day";
+    }).length;
 
     // 3. Pending requests (for HR or Admin based on matrix)
     const pendingRequests = (role === 'admin' || role === 'hr') 
@@ -345,39 +457,55 @@ router.get(`/leaves/stats/summary`, authenticate, async (req, res) => {
       : 0;
 
     // 4. Specifically for Admin: Pending from HR/Management/Accountant
-    const adminPendingRequests = (role === 'admin')
-      ? allLeaves.filter(l => l.status === 'Submitted' && ['hr', 'management', 'accountant'].includes(l.userRole?.toLowerCase())).length
-      : 0;
+    let adminPendingRequests = 0;
+    if (role === 'admin') {
+      const allUsers = await usersSource();
+      adminPendingRequests = allLeaves.filter(l => {
+        if (l.status !== 'Submitted') return false;
+        const user = allUsers.find(u => String(u.id) === String(l.user_id));
+        const userRole = user?.role?.toLowerCase() || '';
+        return ['hr', 'management', 'accountant'].includes(userRole);
+      }).length;
+    }
 
     // 5. User's own pending requests
     const myPendingRequests = allLeaves.filter(l => l.user_id === userId && l.status === 'Submitted').length;
 
     // 6. This month leaves (Taken only)
-    const thisMonthLeaves = allLeaves.filter(l => 
-      l.user_id === userId && 
-      l.status === "Approved" && 
-      !["Half Day", "Short Leave", "Early Leave"].includes(l.type) &&
-      l.start_date.toISOString().startsWith(monthPrefix) &&
-      l.start_date.toISOString().split('T')[0] < todayStr
-    ).length;
+    const thisMonthLeaves = allLeaves.filter(l => {
+      const start = getSafeDate(l.start_date);
+      return (
+        l.user_id === userId && 
+        l.status === "Approved" && 
+        !["Half Day", "Short Leave", "Early Leave"].includes(l.type) &&
+        start.startsWith(monthPrefix) &&
+        start < todayStr
+      );
+    }).length;
 
     // 7. This month halfday (Taken only)
-    const thisMonthHalfDays = allLeaves.filter(l => 
-      l.user_id === userId && 
-      l.status === "Approved" && 
-      l.type === "Half Day" && 
-      l.start_date.toISOString().startsWith(monthPrefix) &&
-      l.start_date.toISOString().split('T')[0] < todayStr
-    ).length;
+    const thisMonthHalfDays = allLeaves.filter(l => {
+      const start = getSafeDate(l.start_date);
+      return (
+        l.user_id === userId && 
+        l.status === "Approved" && 
+        l.type === "Half Day" && 
+        start.startsWith(monthPrefix) &&
+        start < todayStr
+      );
+    }).length;
 
     // 8. Paid leave taken this month
-    const paidLeaveTaken = allLeaves.filter(l => 
-      l.user_id === userId && 
-      l.status === "Approved" && 
-      l.type === "Paid Leave" &&
-      l.start_date.toISOString().startsWith(monthPrefix) &&
-      l.start_date.toISOString().split('T')[0] < todayStr
-    ).length;
+    const paidLeaveTaken = allLeaves.filter(l => {
+      const start = getSafeDate(l.start_date);
+      return (
+        l.user_id === userId && 
+        l.status === "Approved" && 
+        l.type === "Paid Leave" &&
+        start.startsWith(monthPrefix) &&
+        start < todayStr
+      );
+    }).length;
 
     res.json({
       onLeaveToday,
@@ -401,10 +529,17 @@ router.post(`/leaves/convert`, authenticate, async (req, res) => {
     const { userId } = req.user;
     
     // 1. Find 2 approved Half Day leaves
-    const [halfDays] = await pool.query(
-      'SELECT id FROM leaves WHERE user_id = ? AND type = "Half Day" AND status = "Approved" LIMIT 2',
-      [userId]
-    );
+    let halfDays;
+    if (USE_LIVE_DB) {
+      const [rows] = await pool.query(
+        'SELECT id FROM leaves WHERE user_id = ? AND type = "Half Day" AND status = "Approved" LIMIT 2',
+        [userId]
+      );
+      halfDays = rows;
+    } else {
+      const allLeaves = await leavesSource();
+      halfDays = allLeaves.filter(l => l.user_id === userId && l.type === "Half Day" && l.status === "Approved").slice(0, 2);
+    }
 
     if (halfDays.length < 2) {
       return res.status(400).json({ error: 'You need at least 2 approved Half Day leaves to convert.' });
@@ -412,45 +547,61 @@ router.post(`/leaves/convert`, authenticate, async (req, res) => {
 
     const ids = halfDays.map(h => h.id);
 
-    // Start transaction
-    const connection = await pool.getConnection();
-    await connection.beginTransaction();
+    if (USE_LIVE_DB) {
+      // Start transaction
+      const connection = await pool.getConnection();
+      await connection.beginTransaction();
 
-    try {
-      // 2. Mark half days as Cancelled or delete them (using Cancelled for now as placeholder for "Used")
-      // Better: we can just mark them as 'Cancelled' or add a new status.
-      // Since we can't easily change ENUM here without migrations, we'll use 'Cancelled' 
-      // but maybe it's better to just leave them and add the paid leave? No, that would double count.
-      await connection.execute('UPDATE leaves SET status = "Cancelled", reason = CONCAT(reason, " (Converted to Paid Leave)") WHERE id IN (?, ?)', [ids[0], ids[1]]);
+      try {
+        // 2. Mark half days as Cancelled
+        await connection.execute('UPDATE leaves SET status = "Cancelled", reason = CONCAT(reason, " (Converted to Paid Leave)") WHERE id IN (?, ?)', [ids[0], ids[1]]);
 
-      // 3. Create a new Paid Leave
-      // We'll use today's date or the date of the first half day
+        // 3. Create a new Paid Leave
+        const today = new Date().toISOString().split('T')[0];
+        await connection.execute(
+          'INSERT INTO leaves (user_id, type, status, start_date, end_date, reason) VALUES (?, "Paid Leave", "Approved", ?, ?, "Converted from 2 Half Days")',
+          [userId, today, today]
+        );
+
+        await connection.commit();
+
+        // Notify the user about the conversion
+        await pool.query(
+          'INSERT INTO notifications (user_id, type, title, message, category) VALUES (?, ?, ?, ?, ?)',
+          [userId, 'leave_status', 'Leave Converted', 'Successfully converted 2 Half Day leaves to 1 Paid Leave.', 'HR']
+        );
+
+        res.json({ message: 'Successfully converted 2 half days to 1 paid leave.' });
+      } catch (err) {
+        await connection.rollback();
+        throw err;
+      } finally {
+        connection.release();
+      }
+    } else {
+      // Local Mode Conversion
+      await updateLeaveInDbSource(ids[0], { status: 'Cancelled', reason: 'Converted to Paid Leave' });
+      await updateLeaveInDbSource(ids[1], { status: 'Cancelled', reason: 'Converted to Paid Leave' });
+
       const today = new Date().toISOString().split('T')[0];
-      await connection.execute(
-        'INSERT INTO leaves (user_id, type, status, start_date, end_date, reason) VALUES (?, "Paid Leave", "Approved", ?, ?, "Converted from 2 Half Days")',
-        [userId, today, today]
-      );
+      await createLeaveInDbSource({
+        user_id: userId,
+        type: 'Paid Leave',
+        status: 'Approved',
+        start_date: today,
+        end_date: today,
+        reason: 'Converted from 2 Half Days'
+      });
 
-      await connection.commit();
-
-      // Notify the user about the conversion
-      await pool.query(
-        'INSERT INTO notifications (user_id, type, title, message, category) VALUES (?, ?, ?, ?, ?)',
-        [
-          userId,
-          'leave_status',
-          'Leave Converted',
-          'Successfully converted 2 Half Day leaves to 1 Paid Leave.',
-          'HR'
-        ]
-      );
+      await createNotificationInDbSource({
+        user_id: userId,
+        type: 'leave_status',
+        title: 'Leave Converted',
+        message: 'Successfully converted 2 Half Day leaves to 1 Paid Leave.',
+        category: 'HR'
+      });
 
       res.json({ message: 'Successfully converted 2 half days to 1 paid leave.' });
-    } catch (err) {
-      await connection.rollback();
-      throw err;
-    } finally {
-      connection.release();
     }
   } catch (error) {
     console.error('Error converting leaves:', error);

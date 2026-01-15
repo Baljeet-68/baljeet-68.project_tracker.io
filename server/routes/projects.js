@@ -254,9 +254,18 @@ router.patch(`/projects/:id`, authenticate, requireRole('admin'), async (req, re
 router.delete(`/projects/:id`, authenticate, requireRole('admin'), async (req, res) => {
   try {
     const projectId = req.params.id;
-    const [result] = await pool.execute('DELETE FROM projects WHERE id = ?', [projectId]);
-    if (result.affectedRows === 0) {
-      return res.status(404).json({ error: 'Project not found' });
+    if (USE_LIVE_DB) {
+      const [result] = await pool.execute('DELETE FROM projects WHERE id = ?', [projectId]);
+      if (result.affectedRows === 0) {
+        return res.status(404).json({ error: 'Project not found' });
+      }
+    } else {
+      const projects = await getProjectsSource();
+      const index = projects.findIndex(p => p.id === projectId);
+      if (index === -1) {
+        return res.status(404).json({ error: 'Project not found' });
+      }
+      projects.splice(index, 1);
     }
     logActivity(projectId, 'project', projectId, 'deleted', req.user.userId, {});
     res.status(204).send(); // No content

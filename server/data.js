@@ -182,6 +182,16 @@ const bugCounters = {
 const milestones = []
 const jobs = []
 const applications = []
-const leaves = []
+const leaves = [
+  {
+    id: 'l1',
+    user_id: 'u3',
+    type: 'Full Day',
+    status: 'Approved',
+    start_date: new Date('2026-01-15'),
+    end_date: null, // Test case for null end_date
+    reason: 'Vacation'
+  }
+]
 
 module.exports = { users, projects, screens, bugs, activityLog, bugCounters, milestones, jobs, applications, leaves }
