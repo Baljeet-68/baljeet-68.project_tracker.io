@@ -491,6 +491,36 @@ async function deleteMilestoneFromDb(milestoneId) {
   }
 }
 
+async function getProjectDocumentsFromMySQL(projectId) {
+  try {
+    const [rows] = await pool.query('SELECT * FROM project_documents WHERE projectId = ? ORDER BY createdAt DESC', [projectId]);
+    return rows;
+  } catch (error) {
+    console.error('Database query failed in getProjectDocumentsFromMySQL:', error);
+    throw error;
+  }
+}
+
+async function createProjectDocumentInDb(doc) {
+  try {
+    const sql = 'INSERT INTO project_documents (id, projectId, title, description, fileName, fileData, createdBy, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?)';
+    const params = [doc.id, doc.projectId, doc.title, doc.description, doc.fileName, doc.fileData, doc.createdBy, doc.createdAt];
+    await pool.execute(sql, params);
+  } catch (error) {
+    console.error('Database insert failed in createProjectDocumentInDb:', error);
+    throw error;
+  }
+}
+
+async function deleteProjectDocumentFromDb(id) {
+  try {
+    await pool.execute('DELETE FROM project_documents WHERE id = ?', [id]);
+  } catch (error) {
+    console.error('Database delete failed in deleteProjectDocumentFromDb:', error);
+    throw error;
+  }
+}
+
 module.exports = {
   pool,
   getProjectsFromMySQL,
@@ -522,6 +552,10 @@ module.exports = {
   deleteMilestoneFromDb,
   getScreensFromMySQL,
   getScreensByProjectId,
+  // Project Documents
+  getProjectDocumentsFromMySQL,
+  createProjectDocumentInDb,
+  deleteProjectDocumentFromDb,
   // Career Job Functions
   getJobsFromMySQL,
   createJobInDb,

@@ -29,7 +29,9 @@ import {
   MessageSquare,
   RefreshCw,
   Bug,
-  Activity
+  Activity,
+  Upload,
+  FileText
 } from 'lucide-react'
 
 /**
@@ -107,6 +109,7 @@ export default function ProjectPage() {
   const [bugsList, setBugsList] = useState([])
   const [activityList, setActivityList] = useState([])
   const [milestonesList, setMilestonesList] = useState([])
+  const [documentsList, setDocumentsList] = useState([])
   const [loading, setLoading] = useState(true)
   const [tabIndex, setTabIndex] = useState(0)
   const user = getUser()
@@ -134,11 +137,14 @@ export default function ProjectPage() {
   const [screenEditDeadlineId, setScreenEditDeadlineId] = useState(null)
   const [screenEditDeadlineValue, setScreenEditDeadlineValue] = useState('')
   const [screenEditDeadlineOriginalValue, setScreenEditDeadlineOriginalValue] = useState('')
+  const [documentDialog, setDocumentDialog] = useState(false)
+  const [uploading, setUploading] = useState(false)
 
   // Form states
   const [bugForm, setBugForm] = useState({ description: '', severity: 'medium', screenId: '', module: '', assignedDeveloperId: '', attachments: [], deadline: '' })
   const [screenForm, setScreenForm] = useState({ title: '', module: '', assigneeId: '', plannedDeadline: '', notes: '' })
   const [milestoneForm, setMilestoneForm] = useState({ milestoneNumber: '', module: '', timeline: '', status: 'Pending' })
+  const [documentForm, setDocumentForm] = useState({ title: '', description: '', file: null })
 
 
   // Filter states
@@ -236,12 +242,13 @@ export default function ProjectPage() {
   const loadData = async () => {
     setLoading(true)
     try {
-      const [projRes, screensRes, bugsRes, activityRes, milestonesRes] = await Promise.all([
+      const [projRes, screensRes, bugsRes, activityRes, milestonesRes, docsRes] = await Promise.all([
         authFetch(`${API_BASE_URL}/projects/${id}`),
         authFetch(`${API_BASE_URL}/projects/${id}/screens`),
         authFetch(`${API_BASE_URL}/projects/${id}/bugs`),
         authFetch(`${API_BASE_URL}/projects/${id}/activity`),
-        authFetch(`${API_BASE_URL}/projects/${id}/milestones`)
+        authFetch(`${API_BASE_URL}/projects/${id}/milestones`),
+        authFetch(`${API_BASE_URL}/projects/${id}/documents`)
       ])
 
       const projData = await handleApiResponse(projRes)
@@ -262,17 +269,78 @@ export default function ProjectPage() {
       const bugsData = await handleApiResponse(bugsRes)
       const activityData = await handleApiResponse(activityRes)
       const milestonesData = await handleApiResponse(milestonesRes)
+      const docsData = await handleApiResponse(docsRes)
 
       setScreensList(Array.isArray(screensData) ? screensData : [])
       setBugsList(Array.isArray(bugsData) ? bugsData : [])
       setActivityList(Array.isArray(activityData) ? activityData : [])
       setMilestonesList(Array.isArray(milestonesData) ? milestonesData : [])
+      setDocumentsList(Array.isArray(docsData) ? docsData : [])
     } catch (e) {
       handleAuthError(e)
     } finally {
       setLoading(false)
     }
   }
+
+  const handleUploadDocument = async () => {
+    if (!documentForm.title || !documentForm.file) {
+      toast.error('Title and file are required');
+      return;
+    }
+
+    setUploading(true);
+    try {
+      const reader = new FileReader();
+      reader.readAsDataURL(documentForm.file);
+      reader.onload = async () => {
+        const fileData = reader.result;
+        const res = await authFetch(`${API_BASE_URL}/projects/${id}/documents`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            title: documentForm.title,
+            description: documentForm.description,
+            fileName: documentForm.file.name,
+            fileData
+          })
+        });
+
+        const data = await handleApiResponse(res);
+        setDocumentsList([data, ...documentsList]);
+        setDocumentDialog(false);
+        setDocumentForm({ title: '', description: '', file: null });
+        toast.success('Document uploaded successfully');
+      };
+    } catch (error) {
+      handleError(error);
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleDeleteDocument = async (docId) => {
+    if (!window.confirm('Are you sure you want to delete this document?')) return;
+    try {
+      const res = await authFetch(`${API_BASE_URL}/documents/${docId}`, {
+        method: 'DELETE'
+      });
+      await handleApiResponse(res);
+      setDocumentsList(documentsList.filter(d => d.id !== docId));
+      toast.success('Document deleted successfully');
+    } catch (error) {
+      handleError(error);
+    }
+  };
+
+  const handleDownloadDocument = (doc) => {
+    const link = document.createElement('a');
+    link.href = doc.fileData;
+    link.download = doc.fileName;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
 
   /**
    * Handle bug reporting with attachments
@@ -944,7 +1012,7 @@ export default function ProjectPage() {
               <div className="flex flex-wrap -mx-3">
                 <div className="flex items-center w-full max-w-full px-3 shrink-0 md:w-8/12 md:flex-none">
                   <ul className="flex flex-wrap p-1 list-none bg-gray-50 rounded-xl" role="tablist">
-                    {['Overview', 'Screens', 'Milestones', 'Bugs', 'Activity'].map((tab, idx) => (
+                    {['Overview', 'Screens', 'Milestones', 'Bugs', 'Activity', 'Project Docs'].map((tab, idx) => (
                       <li key={tab} className="flex-auto text-center">
                         <button
                           onClick={() => setTabIndex(idx)}
@@ -1311,10 +1379,155 @@ export default function ProjectPage() {
                   </div>
                 </div>
               )}
+
+              {tabIndex === 5 && (
+                <div className="animate-fadeIn">
+                  <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mb-8">
+                    <div>
+                      <h6 className="font-bold text-slate-700 uppercase text-xs tracking-wider mb-1">Project Documents</h6>
+                      <p className="text-xs text-slate-500">Manage and share project-related files and documentation.</p>
+                    </div>
+                    <button 
+                      onClick={() => setDocumentDialog(true)}
+                      className="inline-flex items-center gap-2 px-6 py-3 font-bold text-center text-white uppercase align-middle transition-all bg-gradient-to-tl from-purple-700 to-pink-500 rounded-xl cursor-pointer text-xs shadow-soft-md hover:shadow-soft-lg active:opacity-85"
+                    >
+                      <Plus size={16} strokeWidth={3} />
+                      Upload Document
+                    </button>
+                  </div>
+
+                  <div className="overflow-x-auto">
+                    <table className="w-full mb-0 align-top border-collapse border-spacing-0 text-slate-500">
+                      <thead className="align-bottom">
+                        <tr>
+                          <th className="px-6 py-3 font-bold text-left uppercase align-middle bg-transparent border-b border-slate-100 shadow-none text-[10px] tracking-wider opacity-70 text-slate-700">Document</th>
+                          <th className="px-6 py-3 font-bold text-left uppercase align-middle bg-transparent border-b border-slate-100 shadow-none text-[10px] tracking-wider opacity-70 text-slate-700">Description</th>
+                          <th className="px-6 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-slate-100 shadow-none text-[10px] tracking-wider opacity-70 text-slate-700">Uploaded Date</th>
+                          <th className="px-6 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-slate-100 shadow-none text-[10px] tracking-wider opacity-70 text-slate-700">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {documentsList.length === 0 ? (
+                          <tr>
+                            <td colSpan="4" className="p-12 text-center">
+                              <div className="flex flex-col items-center justify-center">
+                                <div className="w-16 h-16 rounded-2xl bg-slate-50 flex items-center justify-center text-slate-300 mb-4">
+                                  <FileText size={32} />
+                                </div>
+                                <p className="text-sm font-bold text-slate-400">No documents uploaded yet</p>
+                              </div>
+                            </td>
+                          </tr>
+                        ) : (
+                          documentsList.map((doc) => (
+                            <tr key={doc.id} className="group hover:bg-slate-50/50 transition-colors">
+                              <td className="p-4 align-middle bg-transparent border-b border-slate-50 shadow-none">
+                                <div className="flex px-2 py-1">
+                                  <div className="flex items-center justify-center w-10 h-10 mr-4 text-white rounded-xl bg-gradient-to-tl from-blue-600 to-cyan-400 shadow-soft-sm">
+                                    <FileText size={18} />
+                                  </div>
+                                  <div className="flex flex-col justify-center">
+                                    <h6 className="mb-0 text-sm font-bold leading-normal text-slate-700">{doc.title}</h6>
+                                    <p className="mb-0 text-xs leading-tight text-slate-400">{doc.fileName}</p>
+                                  </div>
+                                </div>
+                              </td>
+                              <td className="p-4 align-middle bg-transparent border-b border-slate-50 shadow-none">
+                                <p className="mb-0 text-xs font-bold text-slate-600 max-w-xs truncate">{doc.description || 'No description'}</p>
+                              </td>
+                              <td className="p-4 text-center align-middle bg-transparent border-b border-slate-50 shadow-none">
+                                <span className="text-xs font-bold text-slate-400">{new Date(doc.createdAt).toLocaleDateString()}</span>
+                              </td>
+                              <td className="p-4 text-center align-middle bg-transparent border-b border-slate-50 shadow-none">
+                                <div className="flex items-center justify-center gap-2">
+                                  <button
+                                    onClick={() => handleDownloadDocument(doc)}
+                                    className="p-2 rounded-lg hover:bg-white hover:shadow-soft-md text-slate-400 hover:text-blue-600 transition-all"
+                                    title="Download Document"
+                                  >
+                                    <Download size={16} />
+                                  </button>
+                                  <button
+                                    onClick={() => handleDeleteDocument(doc.id)}
+                                    className="p-2 rounded-lg hover:bg-white hover:shadow-soft-md text-slate-400 hover:text-red-600 transition-all"
+                                    title="Delete Document"
+                                  >
+                                    <Trash2 size={16} />
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          ))
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
             </CardBody>
           </Card>
         </div>
       </div>
+
+      {/* Document Upload Modal */}
+      <Modal
+        isOpen={documentDialog}
+        title="Upload Project Document"
+        onClose={() => setDocumentDialog(false)}
+        footer={
+          <>
+            <Button variant="secondary" size="sm" onClick={() => setDocumentDialog(false)}>Cancel</Button>
+            <Button size="sm" onClick={handleUploadDocument} disabled={uploading}>
+              {uploading ? 'Uploading...' : 'Upload'}
+            </Button>
+          </>
+        }
+      >
+        <div className="flex flex-col gap-4">
+          <InputGroup 
+            label="Document Title" 
+            placeholder="e.g., Project Specification"
+            value={documentForm.title} 
+            onChange={(e) => setDocumentForm({ ...documentForm, title: e.target.value })} 
+          />
+          <div className="flex flex-col gap-1">
+            <label className="ml-1 font-bold text-xs text-slate-700 uppercase tracking-wider">Description</label>
+            <textarea
+              className="p-3 text-sm border border-slate-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-fuchsia-500/20 focus:border-fuchsia-500 transition-all min-h-[100px]"
+              placeholder="Brief description of the document..."
+              value={documentForm.description}
+              onChange={(e) => setDocumentForm({ ...documentForm, description: e.target.value })}
+            />
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className="ml-1 font-bold text-xs text-slate-700 uppercase tracking-wider">File</label>
+            <div className="relative group">
+              <input
+                type="file"
+                className="hidden"
+                id="doc-file-upload"
+                onChange={(e) => setDocumentForm({ ...documentForm, file: e.target.files[0] })}
+              />
+              <label
+                htmlFor="doc-file-upload"
+                className="flex flex-col items-center justify-center w-full p-8 border-2 border-dashed border-slate-200 rounded-2xl cursor-pointer hover:bg-slate-50 hover:border-fuchsia-400 transition-all group"
+              >
+                <div className="flex flex-col items-center justify-center">
+                  <div className="w-12 h-12 rounded-xl bg-slate-50 flex items-center justify-center text-slate-400 mb-3 group-hover:bg-fuchsia-50 group-hover:text-fuchsia-500 transition-all">
+                    <Upload size={24} />
+                  </div>
+                  <p className="text-sm font-bold text-slate-600 mb-1">
+                    {documentForm.file ? documentForm.file.name : 'Click to select a file'}
+                  </p>
+                  <p className="text-xs text-slate-400">
+                    {documentForm.file ? formatFileSize(documentForm.file.size) : 'Any document or archive format'}
+                  </p>
+                </div>
+              </label>
+            </div>
+          </div>
+        </div>
+      </Modal>
 
       {/* Modals */}
       <Modal

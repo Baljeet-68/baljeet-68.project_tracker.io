@@ -15,6 +15,7 @@ const {
   getScreensByProjectId,
   getMilestonesByProjectId,
   getMilestonesFromMySQL,
+  getProjectDocumentsFromMySQL,
   getAnnouncementsFromMySQL,
   getJobsFromMySQL,
   getApplicationsFromMySQL,
@@ -430,6 +431,29 @@ function logActivity(projectId, entityType, entityId, action, userId, changes) {
   localData.activityLog.push(activity);
 }
 
+/**
+ * Fetches project documents, with request-level memoization.
+ * @param {Object} req - Express request object.
+ * @param {string} projectId - The ID of the project.
+ * @returns {Promise<Array>}
+ */
+async function getProjectDocuments(req, projectId) {
+  if (req?.cache?.projectDocuments?.[projectId]) return req.cache.projectDocuments[projectId];
+  
+  let docs;
+  if (USE_LIVE_DB) {
+    docs = await getProjectDocumentsFromMySQL(projectId);
+  } else {
+    docs = localData.projectDocuments.filter(d => d.projectId === projectId);
+  }
+  
+  if (req?.cache) {
+    if (!req.cache.projectDocuments) req.cache.projectDocuments = {};
+    req.cache.projectDocuments[projectId] = docs;
+  }
+  return docs;
+}
+
 module.exports = { 
   normalizeProjectObj, 
   hasProjectAccess, 
@@ -443,6 +467,7 @@ module.exports = {
   getBugs,
   getScreens,
   getMilestones,
+  getProjectDocuments,
   getAnnouncements,
   getJobs,
   getApplications,
