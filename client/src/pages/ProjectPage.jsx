@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useMemo } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import { authFetch, getUser, clearToken, clearUser } from '../auth'
 import { API_BASE_URL } from '../apiConfig';
@@ -139,6 +139,11 @@ export default function ProjectPage() {
   const [screenEditDeadlineOriginalValue, setScreenEditDeadlineOriginalValue] = useState('')
   const [documentDialog, setDocumentDialog] = useState(false)
   const [uploading, setUploading] = useState(false)
+  const [uploadProgress, setUploadProgress] = useState(0)
+  const [docsLoading, setDocsLoading] = useState(true)
+  const [docSort, setDocSort] = useState({ column: 'createdAt', direction: 'desc' })
+  const [docPreviewDialog, setDocPreviewDialog] = useState(false)
+  const [previewDoc, setPreviewDoc] = useState(null)
 
   // Form states
   const [bugForm, setBugForm] = useState({ description: '', severity: 'medium', screenId: '', module: '', assignedDeveloperId: '', attachments: [], deadline: '' })
@@ -218,9 +223,36 @@ export default function ProjectPage() {
     }
   }, [project, bugsList, screensList, milestonesList]);
 
-  useEffect(() => {
-    loadData()
-  }, [id])
+  const sortedDocuments = useMemo(() => {
+    return [...documentsList].sort((a, b) => {
+      const { column, direction } = docSort;
+      let valA = a[column];
+      let valB = b[column];
+      
+      if (column === 'createdAt') {
+        valA = new Date(valA);
+        valB = new Date(valB);
+      } else if (typeof valA === 'string') {
+        valA = valA.toLowerCase();
+        valB = valB.toLowerCase();
+      }
+      
+      if (valA < valB) return direction === 'asc' ? -1 : 1;
+      if (valA > valB) return direction === 'asc' ? 1 : -1;
+      return 0;
+    });
+  }, [documentsList, docSort]);
+
+  const handleDocSort = (column) => {
+     setDocSort(prev => ({
+       column,
+       direction: prev.column === column && prev.direction === 'asc' ? 'desc' : 'asc'
+     }));
+   };
+
+   useEffect(() => {
+     loadData()
+   }, [id])
 
   /**
    * Centralized error handling for authentication issues
@@ -241,6 +273,7 @@ export default function ProjectPage() {
    */
   const loadData = async () => {
     setLoading(true)
+    setDocsLoading(true)
     try {
       const [projRes, screensRes, bugsRes, activityRes, milestonesRes, docsRes] = await Promise.all([
         authFetch(`${API_BASE_URL}/projects/${id}`),
@@ -276,10 +309,12 @@ export default function ProjectPage() {
       setActivityList(Array.isArray(activityData) ? activityData : [])
       setMilestonesList(Array.isArray(milestonesData) ? milestonesData : [])
       setDocumentsList(Array.isArray(docsData) ? docsData : [])
+      setDocsLoading(false)
     } catch (e) {
       handleAuthError(e)
     } finally {
       setLoading(false)
+      setDocsLoading(false)
     }
   }
 
@@ -290,39 +325,71 @@ export default function ProjectPage() {
     }
 
     setUploading(true);
+    setUploadProgress(0);
     try {
       const reader = new FileReader();
       reader.readAsDataURL(documentForm.file);
       reader.onload = async () => {
         const fileData = reader.result;
-        const res = await authFetch(`${API_BASE_URL}/projects/${id}/documents`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            title: documentForm.title,
-            description: documentForm.description,
-            fileName: documentForm.file.name,
-            fileData
-          })
-        });
+        const payload = {
+          title: documentForm.title,
+          description: documentForm.description,
+          fileName: documentForm.file.name,
+          fileSize: documentForm.file.size,
+          fileType: documentForm.file.type,
+          fileData
+        };
 
-        const data = await handleApiResponse(res);
-        setDocumentsList([data, ...documentsList]);
-        setDocumentDialog(false);
-        setDocumentForm({ title: '', description: '', file: null });
-        toast.success('Document uploaded successfully');
+        const xhr = new XMLHttpRequest();
+        xhr.open('POST', `${API_BASE_URL}/projects/${id}/documents`, true);
+        xhr.setRequestHeader('Content-Type', 'application/json');
+        xhr.setRequestHeader('Authorization', `Bearer ${getToken()}`);
+
+        xhr.upload.onprogress = (e) => {
+          if (e.lengthComputable) {
+            const percentComplete = Math.round((e.loaded / e.total) * 100);
+            setUploadProgress(percentComplete);
+          }
+        };
+
+        xhr.onload = async () => {
+          if (xhr.status >= 200 && xhr.status < 300) {
+            const data = JSON.parse(xhr.responseText);
+            setDocumentsList([data, ...documentsList]);
+            setDocumentDialog(false);
+            setDocumentForm({ title: '', description: '', file: null });
+            toast.success('Document uploaded successfully');
+          } else {
+            let errorMsg = 'Failed to upload document';
+            try {
+              const errorData = JSON.parse(xhr.responseText);
+              errorMsg = errorData.error || errorMsg;
+            } catch (e) {}
+            toast.error(errorMsg);
+          }
+          setUploading(false);
+        };
+
+        xhr.onerror = () => {
+          toast.error('Network error during upload');
+          setUploading(false);
+        };
+
+        xhr.send(JSON.stringify(payload));
       };
     } catch (error) {
-      handleError(error);
-    } finally {
+      console.error('Upload error:', error);
+      toast.error('Failed to process file');
       setUploading(false);
     }
   };
 
   const handleDeleteDocument = async (docId) => {
-    if (!window.confirm('Are you sure you want to delete this document?')) return;
+    const doc = documentsList.find(d => d.id === docId);
+    if (!window.confirm(`Are you sure you want to delete "${doc?.title || 'this document'}"?`)) return;
+    
     try {
-      const res = await authFetch(`${API_BASE_URL}/documents/${docId}`, {
+      const res = await authFetch(`${API_BASE_URL}/documents/${docId}?projectId=${id}&title=${encodeURIComponent(doc?.title || '')}`, {
         method: 'DELETE'
       });
       await handleApiResponse(res);
@@ -340,6 +407,22 @@ export default function ProjectPage() {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+  };
+
+  const handleViewDocument = async (doc) => {
+    setPreviewDoc(doc);
+    setDocPreviewDialog(true);
+    
+    // Log view activity to server
+    try {
+      await authFetch(`${API_BASE_URL}/documents/${doc.id}/view`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ projectId: id, title: doc.title })
+      });
+    } catch (e) {
+      console.warn('Failed to log document view:', e);
+    }
   };
 
   /**
@@ -1400,26 +1483,70 @@ export default function ProjectPage() {
                     <table className="w-full mb-0 align-top border-collapse border-spacing-0 text-slate-500">
                       <thead className="align-bottom">
                         <tr>
-                          <th className="px-6 py-3 font-bold text-left uppercase align-middle bg-transparent border-b border-slate-100 shadow-none text-[10px] tracking-wider opacity-70 text-slate-700">Document</th>
+                          <th 
+                            className="px-6 py-3 font-bold text-left uppercase align-middle bg-transparent border-b border-slate-100 shadow-none text-[10px] tracking-wider opacity-70 text-slate-700 cursor-pointer hover:text-fuchsia-600 transition-colors"
+                            onClick={() => handleDocSort('title')}
+                          >
+                            <div className="flex items-center gap-1">
+                              Document
+                              {docSort.column === 'title' && (docSort.direction === 'asc' ? '↑' : '↓')}
+                            </div>
+                          </th>
                           <th className="px-6 py-3 font-bold text-left uppercase align-middle bg-transparent border-b border-slate-100 shadow-none text-[10px] tracking-wider opacity-70 text-slate-700">Description</th>
-                          <th className="px-6 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-slate-100 shadow-none text-[10px] tracking-wider opacity-70 text-slate-700">Uploaded Date</th>
+                          <th 
+                            className="px-6 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-slate-100 shadow-none text-[10px] tracking-wider opacity-70 text-slate-700 cursor-pointer hover:text-fuchsia-600 transition-colors"
+                            onClick={() => handleDocSort('createdAt')}
+                          >
+                            <div className="flex items-center justify-center gap-1">
+                              Uploaded Date
+                              {docSort.column === 'createdAt' && (docSort.direction === 'asc' ? '↑' : '↓')}
+                            </div>
+                          </th>
                           <th className="px-6 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-slate-100 shadow-none text-[10px] tracking-wider opacity-70 text-slate-700">Actions</th>
                         </tr>
                       </thead>
                       <tbody>
-                        {documentsList.length === 0 ? (
+                        {docsLoading ? (
+                          // Skeleton Loading
+                          [...Array(3)].map((_, i) => (
+                            <tr key={i} className="animate-pulse">
+                              <td className="p-4 border-b border-slate-50">
+                                <div className="flex items-center gap-4">
+                                  <div className="w-10 h-10 bg-slate-100 rounded-xl"></div>
+                                  <div className="flex-1 space-y-2">
+                                    <div className="h-4 bg-slate-100 rounded w-24"></div>
+                                    <div className="h-3 bg-slate-100 rounded w-32"></div>
+                                  </div>
+                                </div>
+                              </td>
+                              <td className="p-4 border-b border-slate-50">
+                                <div className="h-4 bg-slate-100 rounded w-full max-w-xs"></div>
+                              </td>
+                              <td className="p-4 border-b border-slate-50">
+                                <div className="h-4 bg-slate-100 rounded w-16 mx-auto"></div>
+                              </td>
+                              <td className="p-4 border-b border-slate-50">
+                                <div className="flex justify-center gap-2">
+                                  <div className="w-8 h-8 bg-slate-100 rounded-lg"></div>
+                                  <div className="w-8 h-8 bg-slate-100 rounded-lg"></div>
+                                </div>
+                              </td>
+                            </tr>
+                          ))
+                        ) : sortedDocuments.length === 0 ? (
                           <tr>
                             <td colSpan="4" className="p-12 text-center">
                               <div className="flex flex-col items-center justify-center">
                                 <div className="w-16 h-16 rounded-2xl bg-slate-50 flex items-center justify-center text-slate-300 mb-4">
                                   <FileText size={32} />
                                 </div>
-                                <p className="text-sm font-bold text-slate-400">No documents uploaded yet</p>
+                                <p className="text-sm font-bold text-slate-400">No documents found for this project</p>
+                                <p className="text-xs text-slate-400 mt-1">Upload files to share them with the team.</p>
                               </div>
                             </td>
                           </tr>
                         ) : (
-                          documentsList.map((doc) => (
+                          sortedDocuments.map((doc) => (
                             <tr key={doc.id} className="group hover:bg-slate-50/50 transition-colors">
                               <td className="p-4 align-middle bg-transparent border-b border-slate-50 shadow-none">
                                 <div className="flex px-2 py-1">
@@ -1428,18 +1555,29 @@ export default function ProjectPage() {
                                   </div>
                                   <div className="flex flex-col justify-center">
                                     <h6 className="mb-0 text-sm font-bold leading-normal text-slate-700">{doc.title}</h6>
-                                    <p className="mb-0 text-xs leading-tight text-slate-400">{doc.fileName}</p>
+                                    <div className="flex items-center gap-2 mt-0.5">
+                                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{doc.fileType?.split('/')[1] || 'FILE'}</span>
+                                      <span className="text-[10px] text-slate-300">•</span>
+                                      <span className="text-[10px] font-bold text-slate-400">{formatFileSize(doc.fileSize)}</span>
+                                    </div>
                                   </div>
                                 </div>
                               </td>
                               <td className="p-4 align-middle bg-transparent border-b border-slate-50 shadow-none">
-                                <p className="mb-0 text-xs font-bold text-slate-600 max-w-xs truncate">{doc.description || 'No description'}</p>
+                                <p className="mb-0 text-xs font-bold text-slate-600 max-w-xs truncate" title={doc.description}>{doc.description || 'No description'}</p>
                               </td>
                               <td className="p-4 text-center align-middle bg-transparent border-b border-slate-50 shadow-none">
                                 <span className="text-xs font-bold text-slate-400">{new Date(doc.createdAt).toLocaleDateString()}</span>
                               </td>
                               <td className="p-4 text-center align-middle bg-transparent border-b border-slate-50 shadow-none">
-                                <div className="flex items-center justify-center gap-2">
+                                <div className="flex items-center justify-center gap-2 opacity-60 group-hover:opacity-100 transition-opacity">
+                                  <button
+                                    onClick={() => handleViewDocument(doc)}
+                                    className="p-2 rounded-lg hover:bg-white hover:shadow-soft-md text-slate-400 hover:text-fuchsia-600 transition-all"
+                                    title="View Document"
+                                  >
+                                    <Eye size={16} />
+                                  </button>
                                   <button
                                     onClick={() => handleDownloadDocument(doc)}
                                     className="p-2 rounded-lg hover:bg-white hover:shadow-soft-md text-slate-400 hover:text-blue-600 transition-all"
@@ -1447,13 +1585,15 @@ export default function ProjectPage() {
                                   >
                                     <Download size={16} />
                                   </button>
-                                  <button
-                                    onClick={() => handleDeleteDocument(doc.id)}
-                                    className="p-2 rounded-lg hover:bg-white hover:shadow-soft-md text-slate-400 hover:text-red-600 transition-all"
-                                    title="Delete Document"
-                                  >
-                                    <Trash2 size={16} />
-                                  </button>
+                                  {user?.role === 'admin' && (
+                                    <button
+                                      onClick={() => handleDeleteDocument(doc.id)}
+                                      className="p-2 rounded-lg hover:bg-white hover:shadow-soft-md text-slate-400 hover:text-red-600 transition-all"
+                                      title="Delete Document"
+                                    >
+                                      <Trash2 size={16} />
+                                    </button>
+                                  )}
                                 </div>
                               </td>
                             </tr>
@@ -1526,6 +1666,15 @@ export default function ProjectPage() {
               </label>
             </div>
           </div>
+          {uploading && (
+            <div className="mt-4">
+              <div className="flex justify-between items-center mb-1">
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Uploading...</span>
+                <span className="text-[10px] font-bold text-fuchsia-600">{uploadProgress}%</span>
+              </div>
+              <ProgressBar value={uploadProgress} max={100} showLabel={false} gradient="from-purple-700 to-pink-500" />
+            </div>
+          )}
         </div>
       </Modal>
 
@@ -1794,6 +1943,78 @@ export default function ProjectPage() {
                 </div>
               </div>
             )}
+          </div>
+        )}
+      </Modal>
+
+      {/* Project Document Preview Modal */}
+      <Modal
+        isOpen={docPreviewDialog}
+        title={previewDoc?.title || 'Document Preview'}
+        onClose={() => setDocPreviewDialog(false)}
+        footer={
+          <>
+            <Button variant="secondary" size="sm" onClick={() => setDocPreviewDialog(false)}>Close</Button>
+            <Button size="sm" onClick={() => handleDownloadDocument(previewDoc)}>
+              <Download size={14} className="mr-2" /> Download
+            </Button>
+          </>
+        }
+      >
+        {previewDoc && (
+          <div className="flex flex-col gap-6">
+            <div className="flex items-start gap-4 p-4 bg-slate-50 rounded-2xl border border-slate-100">
+              <div className="w-12 h-12 rounded-xl bg-gradient-to-tl from-blue-600 to-cyan-400 flex items-center justify-center text-white shadow-soft-md shrink-0">
+                <FileText size={24} />
+              </div>
+              <div>
+                <h6 className="text-slate-800 font-bold mb-1">{previewDoc.title}</h6>
+                <p className="text-xs text-slate-500 mb-0">{previewDoc.fileName}</p>
+                <div className="flex items-center gap-2 mt-2">
+                  <Badge gradient="from-slate-600 to-slate-300" size="sm">{previewDoc.fileType || 'Unknown Type'}</Badge>
+                  <Badge gradient="from-blue-600 to-cyan-400" size="sm">{formatFileSize(previewDoc.fileSize)}</Badge>
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 ml-1">Description</p>
+              <div className="p-4 bg-white border border-slate-100 rounded-2xl text-sm text-slate-600 leading-relaxed shadow-soft-sm">
+                {previewDoc.description || <span className="italic opacity-50">No description provided for this document.</span>}
+              </div>
+            </div>
+
+            {/* File Preview if possible */}
+            <div className="border-t border-slate-100 pt-6">
+              {previewDoc.fileType?.startsWith('image/') ? (
+                <div className="flex justify-center p-2 bg-slate-50 rounded-2xl border border-dashed border-slate-200">
+                  <img 
+                    src={previewDoc.fileData} 
+                    alt={previewDoc.title} 
+                    className="max-w-full max-h-[400px] rounded-xl shadow-soft-lg object-contain" 
+                  />
+                </div>
+              ) : (
+                <div className="flex flex-col items-center justify-center py-12 bg-slate-50 rounded-2xl border border-dashed border-slate-200">
+                  <div className="w-16 h-16 rounded-full bg-white flex items-center justify-center text-slate-300 mb-4 shadow-soft-sm">
+                    <FileText size={32} />
+                  </div>
+                  <p className="text-sm font-bold text-slate-500 mb-1">Preview not available for this file type</p>
+                  <p className="text-xs text-slate-400 mb-4">Please download the file to view its content</p>
+                </div>
+              )}
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
+                <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1">Uploaded By</p>
+                <p className="text-xs font-bold text-slate-700">{previewDoc.createdBy || 'System'}</p>
+              </div>
+              <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
+                <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1">Upload Date</p>
+                <p className="text-xs font-bold text-slate-700">{new Date(previewDoc.createdAt).toLocaleString()}</p>
+              </div>
+            </div>
           </div>
         )}
       </Modal>

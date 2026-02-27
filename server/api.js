@@ -503,8 +503,8 @@ async function getProjectDocumentsFromMySQL(projectId) {
 
 async function createProjectDocumentInDb(doc) {
   try {
-    const sql = 'INSERT INTO project_documents (id, projectId, title, description, fileName, fileData, createdBy, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?)';
-    const params = [doc.id, doc.projectId, doc.title, doc.description, doc.fileName, doc.fileData, doc.createdBy, doc.createdAt];
+    const sql = 'INSERT INTO project_documents (id, projectId, title, description, fileName, fileData, fileSize, fileType, createdBy, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)';
+    const params = [doc.id, doc.projectId, doc.title, doc.description, doc.fileName, doc.fileData, doc.fileSize || 0, doc.fileType || '', doc.createdBy, doc.createdAt];
     await pool.execute(sql, params);
   } catch (error) {
     console.error('Database insert failed in createProjectDocumentInDb:', error);
@@ -550,8 +550,8 @@ module.exports = {
   createMilestoneInDb,
   updateMilestoneInDb,
   deleteMilestoneFromDb,
-  getScreensFromMySQL,
   getScreensByProjectId,
+  getScreensFromMySQL, // Standardize duplicate
   // Project Documents
   getProjectDocumentsFromMySQL,
   createProjectDocumentInDb,

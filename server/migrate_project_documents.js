@@ -12,6 +12,8 @@ async function migrate() {
         description TEXT,
         fileName VARCHAR(255) NOT NULL,
         fileData LONGTEXT NOT NULL,
+        fileSize INT DEFAULT 0,
+        fileType VARCHAR(100),
         createdBy VARCHAR(255) NOT NULL,
         createdAt DATETIME NOT NULL,
         INDEX (projectId)
@@ -19,7 +21,22 @@ async function migrate() {
     `;
     
     await pool.query(sql);
-    console.log('SUCCESS: project_documents table created.');
+    console.log('SUCCESS: project_documents table created or already exists.');
+
+    // Ensure new columns exist for existing tables
+    try {
+      await pool.query('ALTER TABLE project_documents ADD COLUMN fileSize INT DEFAULT 0 AFTER fileData');
+      console.log('Added fileSize column.');
+    } catch (e) {
+      if (e.code !== 'ER_DUP_FIELDNAME') console.error('Error adding fileSize:', e.message);
+    }
+
+    try {
+      await pool.query('ALTER TABLE project_documents ADD COLUMN fileType VARCHAR(100) AFTER fileSize');
+      console.log('Added fileType column.');
+    } catch (e) {
+      if (e.code !== 'ER_DUP_FIELDNAME') console.error('Error adding fileType:', e.message);
+    }
     process.exit(0);
   } catch (error) {
     console.error('ERROR during migration:', error);
