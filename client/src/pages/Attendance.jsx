@@ -17,6 +17,11 @@ export default function Attendance() {
   const location = useLocation()
   const [searchTerm, setSearchTerm] = useState('')
   const [user] = useState(getUser())
+  const now = useMemo(() => new Date(), [])
+  const currentYear = now.getFullYear()
+  const currentMonth = now.getMonth() + 1 // 1-12
+  const [selectedYear, setSelectedYear] = useState(currentYear)
+  const [selectedMonth, setSelectedMonth] = useState(currentMonth) // 1-12
   
   // Leave state
   const [leaves, setLeaves] = useState([])
@@ -37,10 +42,32 @@ export default function Attendance() {
   const [selectedLeave, setSelectedLeave] = useState(null)
   const [confirmConfig, setConfirmConfig] = useState({ isOpen: false, title: '', message: '', onConfirm: () => {}, type: 'primary' })
   const [loading, setLoading] = useState(false)
+  const [historyLoading, setHistoryLoading] = useState(false)
+  const [historyRecords, setHistoryRecords] = useState([])
   
   const formatDateISO = useCallback((dateStr) => {
     if (!dateStr) return ''
     return dateStr.split('T')[0]
+  }, [])
+
+  const formatDatePretty = useCallback((dateStr) => {
+    if (!dateStr) return ''
+    const iso = dateStr.includes('T') ? dateStr.split('T')[0] : dateStr
+    const d = new Date(iso)
+    if (Number.isNaN(d.getTime())) return ''
+    return new Intl.DateTimeFormat('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).format(d)
+  }, [])
+
+  const formatTimePretty = useCallback((timeStr) => {
+    if (!timeStr) return ''
+    // Expect "HH:mm" or "HH:mm:ss"
+    const [hhRaw, mmRaw] = String(timeStr).split(':')
+    const hh = parseInt(hhRaw, 10)
+    const mm = parseInt(mmRaw, 10)
+    if (Number.isNaN(hh) || Number.isNaN(mm)) return timeStr
+    const d = new Date()
+    d.setHours(hh, mm, 0, 0)
+    return new Intl.DateTimeFormat('en-GB', { hour: 'numeric', minute: '2-digit' }).format(d)
   }, [])
 
   const formatDateDisplay = useCallback((dateStr) => {
@@ -88,12 +115,70 @@ export default function Attendance() {
     }
   }, [])
 
+  const fetchLeaveHistory = useCallback(async (year, month) => {
+    try {
+      setHistoryLoading(true)
+      const params = new URLSearchParams()
+      if (year) params.append('year', String(year))
+      if (month && month !== 'all') params.append('month', String(month))
+      if (!year && !month) {
+        // Default to current year/month as per API contract
+        params.set('year', String(currentYear))
+        params.set('month', String(currentMonth))
+      }
+      const query = params.toString()
+      const url = `${API_BASE_URL}/leaves/history${query ? `?${query}` : ''}`
+      const res = await authFetch(url)
+      const data = await handleApiResponse(res)
+      setHistoryRecords(Array.isArray(data) ? data : [])
+    } catch (err) {
+      handleError(err)
+    } finally {
+      setHistoryLoading(false)
+    }
+  }, [API_BASE_URL, authFetch, currentMonth, currentYear])
+
+  const availableYears = useMemo(() => {
+    const years = new Set([currentYear])
+    for (const l of leaves || []) {
+      const iso = formatDateISO(l?.start_date)
+      const y = iso ? new Date(iso).getFullYear() : NaN
+      if (!Number.isNaN(y)) years.add(y)
+    }
+    return Array.from(years).sort((a, b) => b - a)
+  }, [leaves, currentYear, formatDateISO])
+
+  useEffect(() => {
+    // Keep the selected year valid if the dataset changes (e.g., after creating/cancelling).
+    if (!availableYears.includes(selectedYear)) {
+      setSelectedYear(currentYear)
+    }
+  }, [availableYears, selectedYear, currentYear])
+
+  const monthOptions = useMemo(() => ([
+    { label: 'All', value: 'all' },
+    { label: 'January', value: 1 },
+    { label: 'February', value: 2 },
+    { label: 'March', value: 3 },
+    { label: 'April', value: 4 },
+    { label: 'May', value: 5 },
+    { label: 'June', value: 6 },
+    { label: 'July', value: 7 },
+    { label: 'August', value: 8 },
+    { label: 'September', value: 9 },
+    { label: 'October', value: 10 },
+    { label: 'November', value: 11 },
+    { label: 'December', value: 12 },
+  ]), [])
+
   const loadData = useCallback(async () => {
     await Promise.all([
       fetchLeaves(),
       fetchSummary()
     ])
-  }, [fetchLeaves, fetchSummary])
+    // Initial history load uses default filters (current year/month)
+    await fetchLeaveHistory(selectedYear, selectedMonth)
+  }, [fetchLeaves, fetchSummary, fetchLeaveHistory, selectedYear, selectedMonth])
 
   useEffect(() => {
     if (location.state && location.state.tab) {
@@ -101,6 +186,11 @@ export default function Attendance() {
     }
     loadData()
   }, [location.state, loadData])
+
+  // Whenever filters change, reload history
+  useEffect(() => {
+    fetchLeaveHistory(selectedYear, selectedMonth)
+  }, [selectedYear, selectedMonth, fetchLeaveHistory])
 
   const handleLeaveSubmit = async (e) => {
     e.preventDefault()
@@ -225,36 +315,84 @@ export default function Attendance() {
     })
   }
 
+  const calculateDuration = useCallback((leave) => {
+    const type = leave?.type
+    if (type === 'Half Day') return '0.5 day'
+    if (type === 'Short Leave') return 'Short'
+    if (type === 'Early Leave') return 'Early'
+
+    const startIso = formatDateISO(leave?.start_date)
+    const endIso = formatDateISO(leave?.end_date) || startIso
+    if (!startIso) return '—'
+    const start = new Date(startIso)
+    const end = new Date(endIso)
+    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return '—'
+    if (end < start) return '—'
+    const diffDays = Math.floor((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1
+    if (type === 'Full Day' || type === 'Paid Leave') return `${diffDays} day${diffDays === 1 ? '' : 's'}`
+    // Compensation (and any future full-day-like type): show days if it spans more than 1 day, else "1 day"
+    return `${diffDays} day${diffDays === 1 ? '' : 's'}`
+  }, [formatDateISO])
+
+  const renderDetails = useCallback((leave) => {
+    const type = leave?.type
+    if (type === 'Half Day') return leave?.half_day_period || '—'
+    if ((type === 'Short Leave' || type === 'Early Leave') && leave?.short_leave_time) {
+      return `Time: ${formatTimePretty(leave.short_leave_time)}`
+    }
+    if (type === 'Compensation') {
+      const workedDate = leave?.compensation_worked_date ? formatDatePretty(leave.compensation_worked_date) : ''
+      const workedTime = leave?.compensation_worked_time || ''
+      if (!workedDate && !workedTime) return '—'
+      if (workedDate && workedTime) return `Worked: ${workedDate} • ${workedTime}`
+      if (workedDate) return `Worked: ${workedDate}`
+      return `Worked: ${workedTime}`
+    }
+    return '—'
+  }, [formatDatePretty, formatTimePretty])
+
   const leaveColumns = useMemo(() => [
+    { label: 'Applied On', key: 'created_at', render: (createdAt) => {
+      if (!createdAt) return <span className="text-slate-400">—</span>
+      const pretty = formatDatePretty(createdAt)
+      return pretty ? <span className="font-medium text-slate-700">{pretty}</span> : <span className="text-slate-400">—</span>
+    }},
     { label: 'Employee', key: 'userName', render: (userName, row) => (
       <div className="flex flex-col">
         <span className="font-bold text-slate-700">{userName}</span>
         <span className="text-xs text-slate-400 font-medium">{row.userRole}</span>
       </div>
     )},
-    { label: 'Type', key: 'type', render: (type, row) => (
+    { label: 'Leave Type', key: 'type', render: (type, row) => (
       <div className="flex flex-col">
-        <span className="font-medium text-slate-600">{type}</span>
-        {row.is_emergency && (
-          <span className="text-[10px] font-bold text-red-500 uppercase tracking-tight flex items-center gap-0.5">
-            <AlertCircle size={10} /> Emergency
+        <div className="flex items-center gap-2">
+          <span className="font-medium text-slate-700">{type}</span>
+          {row.is_emergency && (
+            <span className="inline-flex items-center gap-1 rounded-full bg-red-50 px-2 py-0.5 text-[10px] font-bold text-red-600 uppercase tracking-tight border border-red-100">
+              <AlertCircle size={10} /> Emergency
+            </span>
+          )}
+        </div>
+      </div>
+    )},
+    { label: 'Period', key: 'dates', render: (_, row) => (
+      <div className="flex flex-col text-xs font-medium text-slate-600">
+        {row.type === 'Half Day' ? (
+          <span>{formatDatePretty(row.start_date)} ({row.half_day_period})</span>
+        ) : formatDateISO(row.start_date) === formatDateISO(row.end_date) ? (
+          <span>{formatDatePretty(row.start_date)}</span>
+        ) : (
+          <span className="whitespace-nowrap">
+            {formatDatePretty(row.start_date)} → {formatDatePretty(row.end_date)}
           </span>
         )}
       </div>
     )},
-    { label: 'Period', key: 'dates', render: (_, row) => (
-      <div className="flex flex-col text-xs font-medium text-slate-500">
-        {row.type === 'Half Day' ? (
-          <span>{formatDateDisplay(row.start_date)} ({row.half_day_period})</span>
-        ) : formatDateISO(row.start_date) === formatDateISO(row.end_date) ? (
-          <span>{formatDateDisplay(row.start_date)}</span>
-        ) : (
-          <>
-            <span>From: {formatDateDisplay(row.start_date)}</span>
-            {row.end_date && <span>To: {formatDateDisplay(row.end_date)}</span>}
-          </>
-        )}
-      </div>
+    { label: 'Duration', key: 'duration', render: (_, row) => (
+      <span className="font-medium text-slate-700">{calculateDuration(row)}</span>
+    )},
+    { label: 'Details', key: 'details', render: (_, row) => (
+      <span className="text-xs font-medium text-slate-600">{renderDetails(row)}</span>
     )},
     { label: 'Status', key: 'status', render: (status) => {
       let gradient = 'from-slate-500 to-slate-300'
@@ -289,7 +427,9 @@ export default function Attendance() {
         )}
       </div>
     )}
-  ], [formatDateDisplay, formatDateISO, user.id])
+  ], [calculateDuration, formatDateISO, formatDatePretty, renderDetails, user.id])
+
+  const historyColumns = useMemo(() => leaveColumns.filter(col => col.key !== 'actions'), [leaveColumns])
 
   const leaveHistory = useMemo(() => leaves.filter(l => l.user_id === user.id), [leaves, user.id])
 
@@ -353,11 +493,29 @@ export default function Attendance() {
     else if (activeTab === 'pendingApproval') data = pendingApproval
     else if (activeTab === 'leaveHistory') data = leaveHistory
 
-    return data.filter(l => 
-      l.userName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      l.type?.toLowerCase().includes(searchTerm.toLowerCase())
-    )
-  }, [activeTab, todayOnLeave, todayOnHalfDay, pendingApproval, leaveHistory, searchTerm])
+    const search = searchTerm.trim().toLowerCase()
+
+    return data.filter(l => {
+      const startIso = formatDateISO(l?.start_date)
+      if (!startIso) return false
+      const startDate = new Date(startIso)
+      if (Number.isNaN(startDate.getTime())) return false
+
+      const matchesYear = startDate.getFullYear() === Number(selectedYear)
+      const matchesMonth = selectedMonth === 'all'
+        ? true
+        : (startDate.getMonth() + 1) === Number(selectedMonth)
+
+      const matchesSearch = !search
+        ? true
+        : (
+          l.userName?.toLowerCase().includes(search) ||
+          l.type?.toLowerCase().includes(search)
+        )
+
+      return matchesYear && matchesMonth && matchesSearch
+    })
+  }, [activeTab, todayOnLeave, todayOnHalfDay, pendingApproval, leaveHistory, searchTerm, selectedYear, selectedMonth, formatDateISO])
 
   if (loading && leaves.length === 0) {
     return <Loader message="Loading attendance data..." />
@@ -515,11 +673,30 @@ export default function Attendance() {
               )}
             </div>
             <div className="flex items-center gap-3 w-full md:w-auto">
-              {activeTab === 'leaveHistory' && canConvertHalfDays() && (
+              {activeTab === 'leaveHistory' && canConvertHalfDays && (
                 <Button variant="outline" size="xs" onClick={handleConvert} className="text-xs">
                   Convert 2 Half Days
                 </Button>
               )}
+              <div className="w-full md:w-32">
+                <Select
+                  value={selectedYear}
+                  onChange={(e) => setSelectedYear(parseInt(e.target.value, 10))}
+                  options={availableYears.map(y => ({ label: String(y), value: y }))}
+                  containerClassName="mb-0"
+                />
+              </div>
+              <div className="w-full md:w-40">
+                <Select
+                  value={selectedMonth}
+                  onChange={(e) => {
+                    const v = e.target.value
+                    setSelectedMonth(v === 'all' ? 'all' : parseInt(v, 10))
+                  }}
+                  options={monthOptions}
+                  containerClassName="mb-0"
+                />
+              </div>
               <div className="relative w-full md:w-64">
                 <InputGroup
                   placeholder="Search..."
@@ -536,6 +713,52 @@ export default function Attendance() {
               data={activeTableData} 
               pagination={true} 
               pageSize={10} 
+            />
+          </CardBody>
+        </Card>
+      </div>
+
+      {/* Leave History Section */}
+      <div className="flex flex-col gap-4 mt-10">
+        <Card>
+          <CardHeader className="flex flex-col md:flex-row justify-between items-center gap-4">
+            <div>
+              <h6 className="font-bold text-slate-800">Leave History</h6>
+              <p className="text-sm text-slate-500 font-medium">
+                View historical leave records with year and month filters.
+              </p>
+            </div>
+            <div className="flex flex-col sm:flex-row items-center gap-3 w-full md:w-auto">
+              <div className="w-full sm:w-32">
+                <Select
+                  label="Year"
+                  value={selectedYear}
+                  onChange={(e) => setSelectedYear(parseInt(e.target.value, 10))}
+                  options={availableYears.map(y => ({ label: String(y), value: y }))}
+                  containerClassName="mb-0"
+                />
+              </div>
+              <div className="w-full sm:w-44">
+                <Select
+                  label="Month"
+                  value={selectedMonth}
+                  onChange={(e) => {
+                    const v = e.target.value
+                    setSelectedMonth(v === 'all' ? 'all' : parseInt(v, 10))
+                  }}
+                  options={monthOptions}
+                  containerClassName="mb-0"
+                />
+              </div>
+            </div>
+          </CardHeader>
+          <CardBody>
+            <Table
+              columns={historyColumns}
+              data={historyRecords}
+              loading={historyLoading}
+              pagination={true}
+              pageSize={10}
             />
           </CardBody>
         </Card>

@@ -110,6 +110,69 @@ router.get(`/leaves`, authenticate, async (req, res) => {
   }
 });
 
+// Leave history - filtered by year/month and role visibility
+router.get(`/leaves/history`, authenticate, async (req, res) => {
+  try {
+    const { role, userId } = req.user;
+    const { year, month } = req.query;
+
+    const allLeaves = await getLeaves(req);
+
+    // Role-based visibility
+    let visibleLeaves = [];
+    if (role === 'admin' || role === 'hr') {
+      visibleLeaves = allLeaves;
+    } else {
+      visibleLeaves = allLeaves.filter(l => String(l.user_id) === String(userId));
+    }
+
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const currentMonth = now.getMonth() + 1; // 1-12
+
+    const targetYear = year ? Number(year) : currentYear;
+    const targetMonth = month && month !== 'all'
+      ? Number(month)
+      : (!year && !month ? currentMonth : null); // default to current month only when no filters provided
+
+    const filtered = visibleLeaves.filter(l => {
+      const start = getSafeDate(l.start_date);
+      if (!start) return false;
+      const [yStr, mStr] = start.split('-');
+      const y = Number(yStr);
+      const m = Number(mStr);
+      if (!y || !m) return false;
+
+      if (y !== targetYear) return false;
+      if (targetMonth && m !== targetMonth) return false;
+      return true;
+    });
+
+    const mapped = filtered.map(l => ({
+      id: l.id,
+      user_id: l.user_id,
+      userName: l.userName,
+      userRole: l.userRole,
+      type: l.type,
+      status: l.status,
+      start_date: l.start_date,
+      end_date: l.end_date,
+      reason: l.reason,
+      is_emergency: Boolean(l.is_emergency),
+      half_day_period: l.half_day_period,
+      short_leave_time: l.short_leave_time,
+      compensation_worked_date: l.compensation_worked_date,
+      compensation_worked_time: l.compensation_worked_time,
+      created_at: l.created_at || l.createdAt || l.start_date || new Date().toISOString()
+    }));
+
+    res.json(mapped);
+  } catch (error) {
+    console.error('Error fetching leave history:', error);
+    res.status(500).json({ error: 'Failed to fetch leave history' });
+  }
+});
+
 // Submit a leave request
 router.post(`/leaves`, authenticate, async (req, res) => {
   try {

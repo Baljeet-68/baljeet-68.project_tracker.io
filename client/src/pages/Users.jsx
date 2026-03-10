@@ -1,11 +1,12 @@
 import React, { useEffect, useState } from 'react'
 import { authFetch, getUser } from '../auth'
 import { API_BASE_URL } from '../apiConfig'
-import { Card, CardHeader, CardBody, Badge, Button, PageHeader } from '../components/TailAdminComponents'
+import { Card, CardHeader, CardBody, Badge, Button } from '../components/TailAdminComponents'
 import { Modal, InputGroup, Select, Table, ConfirmDialog } from '../components/FormComponents'
 import { Users as UsersIcon, UserPlus, RefreshCw, Edit, Trash2, Eye, EyeOff, Wand2, Mail, User, Lock, Shield, Code, Briefcase, UserCheck, Calculator } from 'lucide-react'
 import { handleError, handleApiResponse } from '../utils/errorHandler'
 import { toast } from 'react-hot-toast'
+import PageLayout from '../components/layout/PageLayout'
 
 export default function Users() {
   const [users, setUsers] = useState([])
@@ -237,18 +238,15 @@ export default function Users() {
   ]
 
   return (
-    <div className="flex flex-col gap-6">
-      <PageHeader
-        title="User Management"
-        subtitle="Manage team members and their roles"
-        actions={(
-          <Button variant="info" size="sm" onClick={() => setUserDialog(true)}>
-            <UserPlus size={14} className="mr-1 inline" /> Add User
-          </Button>
-        )}
-      />
-
-      {/* Stat Cards */}
+    <PageLayout
+      title="User Management"
+      subtitle="Manage team members and their roles"
+      actions={(
+        <Button variant="info" size="sm" onClick={() => setUserDialog(true)}>
+          <UserPlus size={14} className="mr-1 inline" /> Add User
+        </Button>
+      )}
+    >
       <div className="grid grid-cols-1 md:grid-cols-6 gap-6">
         {statCards.map((stat, idx) => (
           <Card key={idx} className="p-4">
@@ -441,6 +439,6 @@ export default function Users() {
         confirmText={confirmConfig.confirmText}
         type={confirmConfig.type}
       />
-    </div>
+    </PageLayout>
   )
 }

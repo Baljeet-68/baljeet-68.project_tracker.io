@@ -2,12 +2,13 @@ import React, { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { authFetch, getUser } from '../auth'
 import { API_BASE_URL } from '../apiConfig';
-import { Card, CardHeader, CardBody, Badge, Button, PageHeader } from '../components/TailAdminComponents'
+import { Card, CardHeader, CardBody, Badge, Button } from '../components/TailAdminComponents'
 import { Table, Select, Modal, InputGroup } from '../components/FormComponents'
 import { Eye, Plus, Edit, FolderPlus, Briefcase, User, FileText } from 'lucide-react'
 import { Loader } from '../components/Loader'
 import { handleError, handleApiResponse } from '../utils/errorHandler'
 import { toast } from 'react-hot-toast'
+import PageLayout from '../components/layout/PageLayout'
 
 /**
  * Helper to get status gradient based on project status
@@ -258,17 +259,15 @@ export default function Projects() {
   ], [user?.role])
 
   return (
-    <div className="flex flex-col gap-6">
-      <PageHeader
-        title="Projects Management"
-        subtitle="Track and organize all your projects"
-        actions={user?.role === 'admin' ? (
-          <Button size="sm" variant="primary" onClick={() => setProjectDialog(true)}>
-            <Plus size={14} className="mr-2" /> New Project
-          </Button>
-        ) : null}
-      />
-
+    <PageLayout
+      title="Projects Management"
+      subtitle="Track and organize all your projects"
+      actions={user?.role === 'admin' ? (
+        <Button size="sm" variant="primary" onClick={() => setProjectDialog(true)}>
+          <Plus size={14} className="mr-2" /> New Project
+        </Button>
+      ) : null}
+    >
       <Card>
         <CardHeader>
           <div className="max-w-xs">
@@ -426,6 +425,6 @@ export default function Projects() {
           </div>
         </div>
       </Modal>
-    </div>
+    </PageLayout>
   )
 }
