@@ -3,7 +3,8 @@ import { Link, useNavigate } from 'react-router-dom'
 import { authFetch, getUser, clearToken, clearUser } from '../auth'
 import { handleError, handleApiResponse } from '../utils/errorHandler'
 import { LineChart, BarChart, PieChart, AreaChart, ParetoChart } from '../components/ChartComponents'
-import { StatCard, Card, CardHeader, CardBody, Badge, PageHeader } from '../components/TailAdminComponents'
+import { StatCard, Card, CardHeader, CardBody, Badge } from '../components/TailAdminComponents'
+import PageLayout from '../components/layout/PageLayout'
 import { TrendingUp, AlertCircle, CheckCircle, Users, Activity, ChevronDown } from 'lucide-react'
 import { API_BASE_URL } from '../apiConfig'
 import { Loader } from '../components/Loader'
@@ -227,30 +228,28 @@ export default function Dashboard() {
   const displayYear = selectedYear;
 
   return (
-    <div className="flex flex-col gap-6">
-      {/* Dashboard Header & Year Selector */}
-      <PageHeader
-        title="Dashboard Overview"
-        subtitle={<>Tracking projects and performance for {selectedYear}</>}
-        actions={(
-          <div className="relative w-full md:w-auto">
-            <select
-              value={selectedYear}
-              onChange={(e) => setSelectedYear(parseInt(e.target.value))}
-              className="appearance-none bg-white border-2 border-fuchsia-400/30 text-slate-700 text-sm font-bold rounded-xl focus:outline-none focus:border-fuchsia-500 focus:ring-4 focus:ring-fuchsia-500/10 px-6 py-3 pr-12 shadow-soft-xl cursor-pointer transition-all hover:border-fuchsia-500 hover:shadow-fuchsia-500/5 w-full md:min-w-[200px]"
-            >
-              {availableYears.map(year => (
-                <option key={year} value={year} className="py-2">
-                  {year === currentYear ? `${year} (Current Year)` : year}
-                </option>
-              ))}
-            </select>
-            <div className="absolute inset-y-0 right-0 flex items-center pr-4 pointer-events-none text-fuchsia-500">
-              <ChevronDown size={20} strokeWidth={3} />
-            </div>
+    <PageLayout
+      title="Dashboard Overview"
+      subtitle={<>Tracking projects and performance for {selectedYear}</>}
+      actions={(
+        <div className="relative w-full md:w-auto">
+          <select
+            value={selectedYear}
+            onChange={(e) => setSelectedYear(parseInt(e.target.value))}
+            className="appearance-none bg-white border-2 border-fuchsia-400/30 text-slate-700 text-sm font-bold rounded-xl focus:outline-none focus:border-fuchsia-500 focus:ring-4 focus:ring-fuchsia-500/10 px-6 py-3 pr-12 shadow-soft-xl cursor-pointer transition-all hover:border-fuchsia-500 hover:shadow-fuchsia-500/5 w-full md:min-w-[200px]"
+          >
+            {availableYears.map(year => (
+              <option key={year} value={year} className="py-2">
+                {year === currentYear ? `${year} (Current Year)` : year}
+              </option>
+            ))}
+          </select>
+          <div className="absolute inset-y-0 right-0 flex items-center pr-4 pointer-events-none text-fuchsia-500">
+            <ChevronDown size={20} strokeWidth={3} />
           </div>
-        )}
-      />
+        </div>
+      )}
+    >
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
@@ -336,7 +335,7 @@ export default function Dashboard() {
         </div>
 
         <div className="lg:col-span-5">
-          <Card className="h-full">
+          <Card className="h-full overflow-visible">
             <CardHeader>
               <h6 className="font-bold">Projects by Status</h6>
             </CardHeader>
@@ -406,6 +405,6 @@ export default function Dashboard() {
           </Card>
         </div>
       </div>
-    </div>
+    </PageLayout>
   )
 }

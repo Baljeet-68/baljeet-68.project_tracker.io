@@ -187,27 +187,11 @@ export const PieChart = ({ title, series, labels, height = 300, colors }) => {
       width: 4,
       colors: ['#fff']
     },
+    // Disable slice labels so we only show the clean
+    // donut center label (total projects) and avoid
+    // stray badges overlapping the ring for single values.
     dataLabels: {
-      enabled: true,
-      formatter: function (val, opts) {
-        return opts.w.config.series[opts.seriesIndex]
-      },
-      dropShadow: {
-        enabled: false,
-      },
-      style: {
-        fontSize: '12px',
-        fontWeight: 'bold',
-        colors: ['#fff']
-      },
-      background: {
-        enabled: true,
-        foreColor: '#fff',
-        padding: 4,
-        borderRadius: 4,
-        borderWidth: 0,
-        opacity: 0.9,
-      }
+      enabled: false,
     },
     tooltip: {
       theme: 'light',
@@ -312,12 +296,14 @@ export const PieChart = ({ title, series, labels, height = 300, colors }) => {
   if (!title) return chartContent;
 
   return (
-    <Card className="h-full">
+    <Card className="h-full overflow-visible">
       <CardHeader>
         <h3 className="text-base font-semibold text-dark-900">{title}</h3>
       </CardHeader>
-      <CardBody className="flex justify-center">
-        {chartContent}
+      <CardBody className="flex justify-center overflow-visible">
+        <div className="w-full overflow-visible pb-2">
+          {chartContent}
+        </div>
       </CardBody>
     </Card>
   )
