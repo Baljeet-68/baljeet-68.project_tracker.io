@@ -7,6 +7,7 @@ import { Megaphone, Plus, Edit, Trash2, Calendar, Target, User, Users as UsersIc
 import { Loader } from '../components/Loader'
 import { handleError, handleApiResponse } from '../utils/errorHandler'
 import { toast } from 'react-hot-toast'
+import PageContainer from '../components/layout/PageContainer'
 
 export default function Announcements() {
   const [announcements, setAnnouncements] = useState([])
@@ -218,6 +219,7 @@ export default function Announcements() {
   }
 
   return (
+    <PageContainer>
     <div className="flex flex-col gap-6">
       <PageHeader
         title="Announcements"
@@ -379,5 +381,6 @@ export default function Announcements() {
 
       <ConfirmDialog config={confirmConfig} onClose={() => setConfirmConfig(prev => ({ ...prev, isOpen: false }))} />
     </div>
+    </PageContainer>
   )
 }

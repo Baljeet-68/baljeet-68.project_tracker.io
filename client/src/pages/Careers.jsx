@@ -8,6 +8,7 @@ import { handleError, handleApiResponse } from '../utils/errorHandler'
 import toast from 'react-hot-toast'
 import ReactQuill from 'react-quill'
 import 'react-quill/dist/quill.snow.css'
+import PageContainer from '../components/layout/PageContainer'
 
 export default function Careers() {
   const [jobs, setJobs] = useState([])
@@ -305,6 +306,7 @@ export default function Careers() {
   }
 
   return (
+    <PageContainer>
     <div className="flex flex-col gap-6">
       <PageHeader
         title="Career Management"
@@ -418,5 +420,6 @@ export default function Careers() {
         </Card>
       )}
     </div>
+    </PageContainer>
   )
 }

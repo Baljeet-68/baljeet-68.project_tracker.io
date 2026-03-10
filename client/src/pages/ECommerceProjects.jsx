@@ -2,9 +2,11 @@ import React from 'react'
 import Lottie from 'lottie-react'
 import underDevData from '../../public/assets/img/illustrations/under_dev.json'
 import { Card, CardBody, PageHeader } from '../components/TailAdminComponents'
+import PageContainer from '../components/layout/PageContainer'
 
 export default function ECommerceProjects() {
   return (
+    <PageContainer>
     <div className="mx-auto max-w-7xl">
       <PageHeader
         title="E-Commerce Projects"
@@ -29,5 +31,6 @@ export default function ECommerceProjects() {
         </CardBody>
       </Card>
     </div>
+    </PageContainer>
   )
 }

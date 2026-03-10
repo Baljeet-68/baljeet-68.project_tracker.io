@@ -8,6 +8,7 @@ import { API_BASE_URL } from '../apiConfig'
 import { Loader } from '../components/Loader'
 import { handleError, handleApiResponse } from '../utils/errorHandler'
 import { toast } from 'react-hot-toast'
+import PageContainer from '../components/layout/PageContainer'
 
 export default function Notifications() {
   const navigate = useNavigate()
@@ -126,6 +127,7 @@ export default function Notifications() {
   ]
 
   return (
+    <PageContainer>
     <div className="flex flex-col gap-6">
       <PageHeader
         title="Notifications"
@@ -250,5 +252,6 @@ export default function Notifications() {
         </div>
       </div>
     </div>
+    </PageContainer>
   )
 }

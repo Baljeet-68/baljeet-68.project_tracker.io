@@ -7,6 +7,7 @@ import { Table, Modal, InputGroup, Select, ProgressBar } from '../components/For
 import { Loader } from '../components/Loader'
 import { handleError, handleApiResponse } from '../utils/errorHandler'
 import toast from 'react-hot-toast'
+import PageContainer from '../components/layout/PageContainer'
 import {
   Edit,
   Trash2,
@@ -1035,6 +1036,7 @@ export default function ProjectPage() {
   ]
 
   return (
+    <PageContainer>
     <div className="container-fluid py-4">
       {/* Breadcrumbs */}
       <nav className="mb-6 px-4">
@@ -2045,6 +2047,7 @@ export default function ProjectPage() {
         )}
       </Modal>
     </div>
+    </PageContainer>
   )
 }
 

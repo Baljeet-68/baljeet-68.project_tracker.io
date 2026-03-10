@@ -12,6 +12,7 @@ import { API_BASE_URL } from '../apiConfig'
 import { getUser, authFetch } from '../auth'
 import { handleError, handleApiResponse } from '../utils/errorHandler'
 import toast from 'react-hot-toast'
+import PageContainer from '../components/layout/PageContainer'
 
 export default function Attendance() {
   const location = useLocation()
@@ -530,6 +531,7 @@ export default function Attendance() {
   }
 
   return (
+    <PageContainer>
     <div className="flex flex-col gap-6">
       {/* Header */}
       <PageHeader
@@ -1069,5 +1071,6 @@ export default function Attendance() {
         onCancel={() => setConfirmConfig(prev => ({ ...prev, isOpen: false }))}
       />
     </div>
+    </PageContainer>
   )
 }

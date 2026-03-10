@@ -77,10 +77,13 @@ export default function Layout() {
       />
 
       {/* Main Content */}
-      <main className={`relative h-full max-h-screen transition-all duration-300 ease-in-out ${sidebarCollapsed ? 'lg:ml-20' : 'lg:ml-72'
-        } rounded-xl`}>
-        {/* Page Content */}
-        <div className="w-full px-0 sm:px-2 lg:px-4 py-6">
+      <main
+        className={`relative h-full max-h-screen transition-all duration-300 ease-in-out ${
+          sidebarCollapsed ? 'lg:ml-20' : 'lg:ml-72'
+        } rounded-xl`}
+      >
+        {/* Page Content (no horizontal padding here; PageContainer controls it) */}
+        <div className="w-full">
           <Outlet />
         </div>
       </main>

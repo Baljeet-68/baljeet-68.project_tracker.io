@@ -7,6 +7,7 @@ import { User, Lock, Camera, CheckCircle2, AlertCircle, Trash2, Mail, Loader2 } 
 import { Loader } from '../components/Loader'
 import { handleError, handleApiResponse } from '../utils/errorHandler'
 import toast from 'react-hot-toast'
+import PageContainer from '../components/layout/PageContainer'
 
 export default function Settings() {
   const [user, setUser] = useState(null)
@@ -138,6 +139,7 @@ export default function Settings() {
   }
 
   return (
+    <PageContainer>
     <div className="max-w-4xl mx-auto">
       <PageHeader
         title="Account Settings"
@@ -257,5 +259,6 @@ export default function Settings() {
         </div>
       </div>
     </div>
+    </PageContainer>
   )
 }

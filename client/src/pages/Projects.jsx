@@ -9,6 +9,7 @@ import { Loader } from '../components/Loader'
 import { handleError, handleApiResponse } from '../utils/errorHandler'
 import { toast } from 'react-hot-toast'
 import PageLayout from '../components/layout/PageLayout'
+import PageContainer from '../components/layout/PageContainer'
 
 /**
  * Helper to get status gradient based on project status
@@ -259,15 +260,16 @@ export default function Projects() {
   ], [user?.role])
 
   return (
-    <PageLayout
-      title="Projects Management"
-      subtitle="Track and organize all your projects"
-      actions={user?.role === 'admin' ? (
-        <Button size="sm" variant="primary" onClick={() => setProjectDialog(true)}>
-          <Plus size={14} className="mr-2" /> New Project
-        </Button>
-      ) : null}
-    >
+    <PageContainer>
+      <PageLayout
+        title="Projects Management"
+        subtitle="Track and organize all your projects"
+        actions={user?.role === 'admin' ? (
+          <Button size="sm" variant="primary" onClick={() => setProjectDialog(true)}>
+            <Plus size={14} className="mr-2" /> New Project
+          </Button>
+        ) : null}
+      >
       <Card>
         <CardHeader>
           <div className="max-w-xs">
@@ -426,5 +428,6 @@ export default function Projects() {
         </div>
       </Modal>
     </PageLayout>
+    </PageContainer>
   )
 }

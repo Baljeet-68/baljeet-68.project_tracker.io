@@ -32,7 +32,7 @@ export default function PageLayout({
   return (
     <div className="w-full">
       <div
-        className={`mx-auto ${widthClass} flex flex-col gap-6 px-2 sm:px-4 lg:px-6`}
+        className={`mx-auto ${widthClass} flex flex-col gap-6`}
       >
         {title && (
           <PageHeader

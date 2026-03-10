@@ -5,6 +5,7 @@ import { handleError, handleApiResponse } from '../utils/errorHandler'
 import { LineChart, BarChart, PieChart, AreaChart, ParetoChart } from '../components/ChartComponents'
 import { StatCard, Card, CardHeader, CardBody, Badge } from '../components/TailAdminComponents'
 import PageLayout from '../components/layout/PageLayout'
+import PageContainer from '../components/layout/PageContainer'
 import { TrendingUp, AlertCircle, CheckCircle, Users, Activity, ChevronDown } from 'lucide-react'
 import { API_BASE_URL } from '../apiConfig'
 import { Loader } from '../components/Loader'
@@ -228,7 +229,8 @@ export default function Dashboard() {
   const displayYear = selectedYear;
 
   return (
-    <PageLayout
+    <PageContainer>
+      <PageLayout
       title="Dashboard Overview"
       subtitle={<>Tracking projects and performance for {selectedYear}</>}
       actions={(
@@ -406,5 +408,6 @@ export default function Dashboard() {
         </div>
       </div>
     </PageLayout>
+    </PageContainer>
   )
 }
