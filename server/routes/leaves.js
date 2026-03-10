@@ -114,7 +114,7 @@ router.get(`/leaves`, authenticate, async (req, res) => {
 router.get(`/leaves/history`, authenticate, async (req, res) => {
   try {
     const { role, userId } = req.user;
-    const { year, month, search } = req.query;
+    const { year, month, search, status } = req.query;
 
     const allLeaves = await getLeaves(req);
 
@@ -149,13 +149,18 @@ router.get(`/leaves/history`, authenticate, async (req, res) => {
     });
 
     const searchLower = (search || '').trim().toLowerCase();
-    const filtered = searchLower
+    let filtered = searchLower
       ? yearMonthFiltered.filter(l =>
           String(l.userName || '')
             .toLowerCase()
             .includes(searchLower)
         )
       : yearMonthFiltered;
+
+    const normalizedStatus = (status || '').trim();
+    if (normalizedStatus && normalizedStatus.toLowerCase() !== 'all') {
+      filtered = filtered.filter(l => String(l.status) === normalizedStatus);
+    }
 
     const mapped = filtered.map(l => ({
       id: l.id,

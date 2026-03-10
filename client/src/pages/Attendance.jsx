@@ -45,6 +45,7 @@ export default function Attendance() {
   const [historyLoading, setHistoryLoading] = useState(false)
   const [historyRecords, setHistoryRecords] = useState([])
   const [historySearchTerm, setHistorySearchTerm] = useState('')
+  const [historyStatus, setHistoryStatus] = useState('all')
   
   const formatDateISO = useCallback((dateStr) => {
     if (!dateStr) return ''
@@ -116,7 +117,7 @@ export default function Attendance() {
     }
   }, [])
 
-  const fetchLeaveHistory = useCallback(async (year, month, searchTerm) => {
+  const fetchLeaveHistory = useCallback(async (year, month, searchTerm, statusFilter) => {
     try {
       setHistoryLoading(true)
       const params = new URLSearchParams()
@@ -129,6 +130,9 @@ export default function Attendance() {
       }
       if (searchTerm && searchTerm.trim()) {
         params.set('search', searchTerm.trim())
+      }
+      if (statusFilter && statusFilter !== 'all') {
+        params.set('status', statusFilter)
       }
       const query = params.toString()
       const url = `${API_BASE_URL}/leaves/history${query ? `?${query}` : ''}`
@@ -180,9 +184,9 @@ export default function Attendance() {
       fetchLeaves(),
       fetchSummary()
     ])
-    // Initial history load uses default filters (current year/month) & empty search
-    await fetchLeaveHistory(selectedYear, selectedMonth, historySearchTerm)
-  }, [fetchLeaves, fetchSummary, fetchLeaveHistory, selectedYear, selectedMonth, historySearchTerm])
+    // Initial history load uses default filters (current year/month), empty search, all statuses
+    await fetchLeaveHistory(selectedYear, selectedMonth, historySearchTerm, historyStatus)
+  }, [fetchLeaves, fetchSummary, fetchLeaveHistory, selectedYear, selectedMonth, historySearchTerm, historyStatus])
 
   useEffect(() => {
     if (location.state && location.state.tab) {
@@ -193,8 +197,8 @@ export default function Attendance() {
 
   // Whenever filters change, reload history
   useEffect(() => {
-    fetchLeaveHistory(selectedYear, selectedMonth, historySearchTerm)
-  }, [selectedYear, selectedMonth, historySearchTerm, fetchLeaveHistory])
+    fetchLeaveHistory(selectedYear, selectedMonth, historySearchTerm, historyStatus)
+  }, [selectedYear, selectedMonth, historySearchTerm, historyStatus, fetchLeaveHistory])
 
   const handleLeaveSubmit = async (e) => {
     e.preventDefault()
@@ -754,6 +758,22 @@ export default function Attendance() {
                     setSelectedMonth(v === 'all' ? 'all' : parseInt(v, 10))
                   }}
                   options={monthOptions}
+                  containerClassName="mb-0"
+                />
+              </div>
+              <div className="w-full sm:w-40">
+                <Select
+                  label="Status"
+                  value={historyStatus}
+                  onChange={(e) => setHistoryStatus(e.target.value)}
+                  options={[
+                    { label: 'All', value: 'all' },
+                    { label: 'Submitted', value: 'Submitted' },
+                    { label: 'Pending Approval', value: 'Pending Approval' },
+                    { label: 'Approved', value: 'Approved' },
+                    { label: 'Rejected', value: 'Rejected' },
+                    { label: 'Cancelled', value: 'Cancelled' },
+                  ]}
                   containerClassName="mb-0"
                 />
               </div>
