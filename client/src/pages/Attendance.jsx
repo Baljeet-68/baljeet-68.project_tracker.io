@@ -44,6 +44,7 @@ export default function Attendance() {
   const [loading, setLoading] = useState(false)
   const [historyLoading, setHistoryLoading] = useState(false)
   const [historyRecords, setHistoryRecords] = useState([])
+  const [historySearchTerm, setHistorySearchTerm] = useState('')
   
   const formatDateISO = useCallback((dateStr) => {
     if (!dateStr) return ''
@@ -115,7 +116,7 @@ export default function Attendance() {
     }
   }, [])
 
-  const fetchLeaveHistory = useCallback(async (year, month) => {
+  const fetchLeaveHistory = useCallback(async (year, month, searchTerm) => {
     try {
       setHistoryLoading(true)
       const params = new URLSearchParams()
@@ -125,6 +126,9 @@ export default function Attendance() {
         // Default to current year/month as per API contract
         params.set('year', String(currentYear))
         params.set('month', String(currentMonth))
+      }
+      if (searchTerm && searchTerm.trim()) {
+        params.set('search', searchTerm.trim())
       }
       const query = params.toString()
       const url = `${API_BASE_URL}/leaves/history${query ? `?${query}` : ''}`
@@ -136,7 +140,7 @@ export default function Attendance() {
     } finally {
       setHistoryLoading(false)
     }
-  }, [API_BASE_URL, authFetch, currentMonth, currentYear])
+  }, [API_BASE_URL, authFetch, currentMonth, currentYear, handleError])
 
   const availableYears = useMemo(() => {
     const years = new Set([currentYear])
@@ -176,9 +180,9 @@ export default function Attendance() {
       fetchLeaves(),
       fetchSummary()
     ])
-    // Initial history load uses default filters (current year/month)
-    await fetchLeaveHistory(selectedYear, selectedMonth)
-  }, [fetchLeaves, fetchSummary, fetchLeaveHistory, selectedYear, selectedMonth])
+    // Initial history load uses default filters (current year/month) & empty search
+    await fetchLeaveHistory(selectedYear, selectedMonth, historySearchTerm)
+  }, [fetchLeaves, fetchSummary, fetchLeaveHistory, selectedYear, selectedMonth, historySearchTerm])
 
   useEffect(() => {
     if (location.state && location.state.tab) {
@@ -189,8 +193,8 @@ export default function Attendance() {
 
   // Whenever filters change, reload history
   useEffect(() => {
-    fetchLeaveHistory(selectedYear, selectedMonth)
-  }, [selectedYear, selectedMonth, fetchLeaveHistory])
+    fetchLeaveHistory(selectedYear, selectedMonth, historySearchTerm)
+  }, [selectedYear, selectedMonth, historySearchTerm, fetchLeaveHistory])
 
   const handleLeaveSubmit = async (e) => {
     e.preventDefault()
@@ -672,7 +676,7 @@ export default function Attendance() {
                 </button>
               )}
             </div>
-            <div className="flex items-center gap-3 w-full md:w-auto">
+            <div className="flex flex-col lg:flex-row items-stretch gap-3 w-full md:w-auto">
               {activeTab === 'leaveHistory' && canConvertHalfDays && (
                 <Button variant="outline" size="xs" onClick={handleConvert} className="text-xs">
                   Convert 2 Half Days
@@ -680,6 +684,7 @@ export default function Attendance() {
               )}
               <div className="w-full md:w-32">
                 <Select
+                  label="Year"
                   value={selectedYear}
                   onChange={(e) => setSelectedYear(parseInt(e.target.value, 10))}
                   options={availableYears.map(y => ({ label: String(y), value: y }))}
@@ -688,6 +693,7 @@ export default function Attendance() {
               </div>
               <div className="w-full md:w-40">
                 <Select
+                  label="Month"
                   value={selectedMonth}
                   onChange={(e) => {
                     const v = e.target.value
@@ -699,6 +705,7 @@ export default function Attendance() {
               </div>
               <div className="relative w-full md:w-64">
                 <InputGroup
+                  label="Search"
                   placeholder="Search..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
@@ -721,14 +728,14 @@ export default function Attendance() {
       {/* Leave History Section */}
       <div className="flex flex-col gap-4 mt-10">
         <Card>
-          <CardHeader className="flex flex-col md:flex-row justify-between items-center gap-4">
+          <CardHeader className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
             <div>
               <h6 className="font-bold text-slate-800">Leave History</h6>
               <p className="text-sm text-slate-500 font-medium">
                 View historical leave records with year and month filters.
               </p>
             </div>
-            <div className="flex flex-col sm:flex-row items-center gap-3 w-full md:w-auto">
+            <div className="flex flex-col lg:flex-row items-stretch gap-3 w-full md:w-auto">
               <div className="w-full sm:w-32">
                 <Select
                   label="Year"
@@ -748,6 +755,15 @@ export default function Attendance() {
                   }}
                   options={monthOptions}
                   containerClassName="mb-0"
+                />
+              </div>
+              <div className="relative w-full lg:w-64">
+                <InputGroup
+                  label="Search"
+                  placeholder="Search by employee..."
+                  value={historySearchTerm}
+                  onChange={(e) => setHistorySearchTerm(e.target.value)}
+                  icon={<Search size={16} className="text-slate-400" />}
                 />
               </div>
             </div>

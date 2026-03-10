@@ -114,7 +114,7 @@ router.get(`/leaves`, authenticate, async (req, res) => {
 router.get(`/leaves/history`, authenticate, async (req, res) => {
   try {
     const { role, userId } = req.user;
-    const { year, month } = req.query;
+    const { year, month, search } = req.query;
 
     const allLeaves = await getLeaves(req);
 
@@ -135,7 +135,7 @@ router.get(`/leaves/history`, authenticate, async (req, res) => {
       ? Number(month)
       : (!year && !month ? currentMonth : null); // default to current month only when no filters provided
 
-    const filtered = visibleLeaves.filter(l => {
+    const yearMonthFiltered = visibleLeaves.filter(l => {
       const start = getSafeDate(l.start_date);
       if (!start) return false;
       const [yStr, mStr] = start.split('-');
@@ -147,6 +147,15 @@ router.get(`/leaves/history`, authenticate, async (req, res) => {
       if (targetMonth && m !== targetMonth) return false;
       return true;
     });
+
+    const searchLower = (search || '').trim().toLowerCase();
+    const filtered = searchLower
+      ? yearMonthFiltered.filter(l =>
+          String(l.userName || '')
+            .toLowerCase()
+            .includes(searchLower)
+        )
+      : yearMonthFiltered;
 
     const mapped = filtered.map(l => ({
       id: l.id,
