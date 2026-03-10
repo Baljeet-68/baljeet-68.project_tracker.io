@@ -260,8 +260,9 @@ export default function Projects() {
   ], [user?.role])
 
   return (
-    <PageContainer>
+  <PageContainer>
       <PageLayout
+        maxWidth="full"
         title="Projects Management"
         subtitle="Track and organize all your projects"
         actions={user?.role === 'admin' ? (

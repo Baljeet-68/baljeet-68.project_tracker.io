@@ -140,7 +140,7 @@ export default function Settings() {
 
   return (
     <PageContainer>
-    <div className="max-w-4xl mx-auto">
+    <div className="flex flex-col gap-6">
       <PageHeader
         title="Account Settings"
         subtitle="Update your profile information and security settings"

@@ -239,8 +239,9 @@ export default function Users() {
   ]
 
   return (
-    <PageContainer>
+  <PageContainer>
       <PageLayout
+        maxWidth="full"
         title="User Management"
         subtitle="Manage team members and their roles"
         actions={(

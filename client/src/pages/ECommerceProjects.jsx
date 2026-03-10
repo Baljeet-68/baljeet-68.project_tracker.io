@@ -7,7 +7,7 @@ import PageContainer from '../components/layout/PageContainer'
 export default function ECommerceProjects() {
   return (
     <PageContainer>
-    <div className="mx-auto max-w-7xl">
+    <div className="flex flex-col gap-6">
       <PageHeader
         title="E-Commerce Projects"
         subtitle="Manage and track e-commerce projects"

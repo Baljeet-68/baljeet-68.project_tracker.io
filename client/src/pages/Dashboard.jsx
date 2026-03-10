@@ -229,8 +229,9 @@ export default function Dashboard() {
   const displayYear = selectedYear;
 
   return (
-    <PageContainer>
+  <PageContainer>
       <PageLayout
+      maxWidth="full"
       title="Dashboard Overview"
       subtitle={<>Tracking projects and performance for {selectedYear}</>}
       actions={(
@@ -407,7 +408,7 @@ export default function Dashboard() {
           </Card>
         </div>
       </div>
-    </PageLayout>
+      </PageLayout>
     </PageContainer>
   )
 }
