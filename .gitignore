@@ -4,3 +4,9 @@ server/node_modules/
 node_modules/
 server/.env
 client/.env
+
+# Build output
+client/dist/
+
+# Common local logs
+*.log

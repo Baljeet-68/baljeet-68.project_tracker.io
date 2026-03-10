@@ -152,6 +152,3 @@ server.on("error", (err) => {
     console.error("❌ Server error:", err);
   }
 });
-
-console.log("DB_USER:", process.env.DB_USER);
-console.log("DB_PASS length:", process.env.DB_PASS?.length);
