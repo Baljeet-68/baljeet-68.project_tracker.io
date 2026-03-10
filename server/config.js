@@ -1,12 +1,12 @@
-const path = require('path');
-require('dotenv').config({ path: path.join(__dirname, '.env') });
+const { getConfig } = require('./config/runtime');
 
-// Toggle this to switch between local and live DB
-const MODE = (process.env.MODE || 'local').trim().toLowerCase();
-const USE_LIVE_DB = MODE === 'live'; 
-
-console.log(`[CONFIG] MODE detected: "${MODE}", USE_LIVE_DB: ${USE_LIVE_DB}`);
+// Backwards-compatible facade for legacy imports.
+function getUSE_LIVE_DB() {
+  return getConfig().USE_LIVE_DB;
+}
 
 module.exports = {
-  USE_LIVE_DB
+  get USE_LIVE_DB() {
+    return getUSE_LIVE_DB();
+  }
 };

@@ -144,6 +144,7 @@ export default function ProjectPage() {
   const [docSort, setDocSort] = useState({ column: 'createdAt', direction: 'desc' })
   const [docPreviewDialog, setDocPreviewDialog] = useState(false)
   const [previewDoc, setPreviewDoc] = useState(null)
+  const [previewDocUrl, setPreviewDocUrl] = useState(null)
 
   // Form states
   const [bugForm, setBugForm] = useState({ description: '', severity: 'medium', screenId: '', module: '', assignedDeveloperId: '', attachments: [], deadline: '' })
@@ -327,56 +328,46 @@ export default function ProjectPage() {
     setUploading(true);
     setUploadProgress(0);
     try {
-      const reader = new FileReader();
-      reader.readAsDataURL(documentForm.file);
-      reader.onload = async () => {
-        const fileData = reader.result;
-        const payload = {
-          title: documentForm.title,
-          description: documentForm.description,
-          fileName: documentForm.file.name,
-          fileSize: documentForm.file.size,
-          fileType: documentForm.file.type,
-          fileData
-        };
+      const form = new FormData();
+      form.append('title', documentForm.title);
+      if (documentForm.description) form.append('description', documentForm.description);
+      form.append('file', documentForm.file);
 
-        const xhr = new XMLHttpRequest();
-        xhr.open('POST', `${API_BASE_URL}/projects/${id}/documents`, true);
-        xhr.setRequestHeader('Content-Type', 'application/json');
-        xhr.setRequestHeader('Authorization', `Bearer ${getToken()}`);
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST', `${API_BASE_URL}/projects/${id}/documents`, true);
+      xhr.setRequestHeader('Authorization', `Bearer ${getToken()}`);
 
-        xhr.upload.onprogress = (e) => {
-          if (e.lengthComputable) {
-            const percentComplete = Math.round((e.loaded / e.total) * 100);
-            setUploadProgress(percentComplete);
-          }
-        };
-
-        xhr.onload = async () => {
-          if (xhr.status >= 200 && xhr.status < 300) {
-            const data = JSON.parse(xhr.responseText);
-            setDocumentsList([data, ...documentsList]);
-            setDocumentDialog(false);
-            setDocumentForm({ title: '', description: '', file: null });
-            toast.success('Document uploaded successfully');
-          } else {
-            let errorMsg = 'Failed to upload document';
-            try {
-              const errorData = JSON.parse(xhr.responseText);
-              errorMsg = errorData.error || errorMsg;
-            } catch (e) {}
-            toast.error(errorMsg);
-          }
-          setUploading(false);
-        };
-
-        xhr.onerror = () => {
-          toast.error('Network error during upload');
-          setUploading(false);
-        };
-
-        xhr.send(JSON.stringify(payload));
+      xhr.upload.onprogress = (e) => {
+        if (e.lengthComputable) {
+          const percentComplete = Math.round((e.loaded / e.total) * 100);
+          setUploadProgress(percentComplete);
+        }
       };
+
+      xhr.onload = async () => {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          const data = JSON.parse(xhr.responseText);
+          setDocumentsList([data, ...documentsList]);
+          setDocumentDialog(false);
+          setDocumentForm({ title: '', description: '', file: null });
+          toast.success('Document uploaded successfully');
+        } else {
+          let errorMsg = 'Failed to upload document';
+          try {
+            const errorData = JSON.parse(xhr.responseText);
+            errorMsg = errorData.error || errorMsg;
+          } catch (e) {}
+          toast.error(errorMsg);
+        }
+        setUploading(false);
+      };
+
+      xhr.onerror = () => {
+        toast.error('Network error during upload');
+        setUploading(false);
+      };
+
+      xhr.send(form);
     } catch (error) {
       console.error('Upload error:', error);
       toast.error('Failed to process file');
@@ -401,17 +392,44 @@ export default function ProjectPage() {
   };
 
   const handleDownloadDocument = (doc) => {
-    const link = document.createElement('a');
-    link.href = doc.fileData;
-    link.download = doc.fileName;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    (async () => {
+      try {
+        const apiOrigin = API_BASE_URL.replace(/\/api$/, '');
+        const url = `${apiOrigin}${doc.downloadUrl || ''}`;
+        const res = await authFetch(url, { method: 'GET' });
+        const blob = await res.blob();
+        const objectUrl = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = objectUrl;
+        link.download = doc.fileName || 'document';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(objectUrl);
+      } catch (e) {
+        handleError(e);
+      }
+    })();
   };
 
   const handleViewDocument = async (doc) => {
     setPreviewDoc(doc);
+    setPreviewDocUrl(null);
     setDocPreviewDialog(true);
+
+    // If it's an image, fetch a signed blob via auth and preview safely.
+    try {
+      if (doc.fileType?.startsWith('image/') && doc.downloadUrl) {
+        const apiOrigin = API_BASE_URL.replace(/\/api$/, '');
+        const url = `${apiOrigin}${doc.downloadUrl}`;
+        const res = await authFetch(url, { method: 'GET' });
+        const blob = await res.blob();
+        const objectUrl = URL.createObjectURL(blob);
+        setPreviewDocUrl(objectUrl);
+      }
+    } catch (e) {
+      console.warn('Failed to load preview:', e);
+    }
     
     // Log view activity to server
     try {
@@ -1951,10 +1969,18 @@ export default function ProjectPage() {
       <Modal
         isOpen={docPreviewDialog}
         title={previewDoc?.title || 'Document Preview'}
-        onClose={() => setDocPreviewDialog(false)}
+        onClose={() => {
+          if (previewDocUrl) URL.revokeObjectURL(previewDocUrl);
+          setPreviewDocUrl(null);
+          setDocPreviewDialog(false);
+        }}
         footer={
           <>
-            <Button variant="secondary" size="sm" onClick={() => setDocPreviewDialog(false)}>Close</Button>
+            <Button variant="secondary" size="sm" onClick={() => {
+              if (previewDocUrl) URL.revokeObjectURL(previewDocUrl);
+              setPreviewDocUrl(null);
+              setDocPreviewDialog(false);
+            }}>Close</Button>
             <Button size="sm" onClick={() => handleDownloadDocument(previewDoc)}>
               <Download size={14} className="mr-2" /> Download
             </Button>
@@ -1989,7 +2015,7 @@ export default function ProjectPage() {
               {previewDoc.fileType?.startsWith('image/') ? (
                 <div className="flex justify-center p-2 bg-slate-50 rounded-2xl border border-dashed border-slate-200">
                   <img 
-                    src={previewDoc.fileData} 
+                    src={previewDocUrl || ''} 
                     alt={previewDoc.title} 
                     className="max-w-full max-h-[400px] rounded-xl shadow-soft-lg object-contain" 
                   />

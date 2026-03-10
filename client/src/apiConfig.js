@@ -1,6 +1,6 @@
 // Toggle between local & live
 // Use local API in development, live API in production
-const USE_LIVE_API = true; 
+const USE_LIVE_API = (import.meta.env.VITE_USE_LIVE_API || '').toString().toLowerCase() === 'true';
 
 // LOCAL API BASE (backend routes start with /login, /api/projects etc.)
 const LOCAL_API_URL = "http://localhost:4000/api";

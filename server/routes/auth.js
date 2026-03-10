@@ -3,27 +3,24 @@ const router = express.Router();
 const jwt = require('jsonwebtoken');
 const { authenticate, tokenBlacklist } = require('../middleware/auth');
 const { getProfileUrl, getUsers } = require('../middleware/helpers');
-const { USE_LIVE_DB, USE_ENCRYPTION } = require('../config');
-const { comparePassword } = require('../utils/encryption');
+const { USE_LIVE_DB } = require('../config');
+const { comparePassword, hashPassword } = require('../utils/encryption');
+const { getConfig } = require('../config/runtime');
+const { v4: uuidv4 } = require('uuid');
 
-const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret';
 // Login - accepts { email, password } - returns JWT with userId, email, role
 router.post(`/login`, async (req, res) => {
   const { email, password } = req.body;
-  console.log(`[LOGIN ATTEMPT] Email: ${email}`);
+  req.log?.info({ email: email ? String(email).toLowerCase() : undefined }, 'Login attempt');
 
   if (!email || !password) return res.status(400).json({ error: 'Missing email or password' });
   
   const users = await getUsers(req);
-  console.log(`[LOGIN] User source type: ${USE_LIVE_DB ? 'MySQL' : 'Local Data'}`);
-  console.log(`[LOGIN] Found ${users.length} users in source.`);
   
   const user = users.find((u) => u.email.toLowerCase() === email.toLowerCase());
   
   if (!user) {
-    console.log(`[LOGIN] User not found: ${email}`);
-    // Optional: log available emails for debugging (be careful with PII in production)
-    console.log(`[LOGIN] Available emails: ${users.map(u => u.email).join(', ')}`);
+    req.log?.warn({ email: String(email).toLowerCase() }, 'Login failed: user not found');
     return res.status(401).json({ error: 'Invalid credentials' });
   }
 
@@ -33,12 +30,41 @@ router.post(`/login`, async (req, res) => {
     return res.status(403).json({ error: 'Account is inactive. Contact the admin' });
   }
 
-  const passwordMatch = await comparePassword(password, user.password);
+  let passwordMatch = await comparePassword(password, user.password);
+  // Backwards-compat: if legacy plaintext passwords exist, allow one-time login and upgrade to bcrypt.
+  if (!passwordMatch && typeof user.password === 'string' && !user.password.startsWith('$2')) {
+    if (password === user.password) {
+      passwordMatch = true;
+      try {
+        const upgraded = await hashPassword(password);
+        if (USE_LIVE_DB) {
+          // eslint-disable-next-line global-require
+          const api = require('../api');
+          await api.updateUserInDb(user.id, { password: upgraded });
+        } else {
+          // eslint-disable-next-line global-require
+          const localData = require('../data');
+          const idx = (localData.users || []).findIndex(u => u.id === user.id);
+          if (idx >= 0) localData.users[idx].password = upgraded;
+        }
+        req.log?.info({ userId: user.id }, 'Upgraded legacy plaintext password to bcrypt');
+      } catch (e) {
+        req.log?.error({ err: e, userId: user.id }, 'Failed to upgrade legacy password');
+      }
+    }
+  }
+
   if (!passwordMatch) {
-    console.log(`[LOGIN] Password mismatch for: ${email}`);
+    req.log?.warn({ userId: user.id }, 'Login failed: password mismatch');
     return res.status(401).json({ error: 'Invalid credentials' });
   }
-  const token = jwt.sign({ userId: user.id, email: user.email, role: user.role }, JWT_SECRET, { expiresIn: '8h' });
+  const { JWT_SECRET } = getConfig();
+  const jti = uuidv4();
+  const token = jwt.sign(
+    { userId: user.id, email: user.email, role: user.role, jti },
+    JWT_SECRET,
+    { expiresIn: '8h', algorithm: 'HS256' }
+  );
   return res.json({ 
     token, 
     user: { 
@@ -61,29 +87,18 @@ router.post(`/logout`, (req, res) => {
   return res.json({ ok: true });
 });
 
-// Get current user
-router.get(`/me`, async (req, res) => {
-  const auth = req.headers.authorization;
-  if (!auth) return res.status(401).json({ error: 'Missing authorization header' });
-  const parts = auth.split(' ');
-  if (parts.length !== 2 || parts[0] !== 'Bearer') return res.status(401).json({ error: 'Invalid auth format' });
-  const token = parts[1];
-  if (tokenBlacklist.has(token)) return res.status(401).json({ error: 'Token revoked' });
-  try {
-    const payload = jwt.verify(token, JWT_SECRET);
-    const users = await getUsers(req);
-    const user = users.find(u => u.id === payload.userId);
-    if (!user) return res.status(401).json({ error: 'User not found' });
-    return res.json({ 
-      id: payload.userId, 
-      email: payload.email, 
-      role: payload.role, 
-      name: user?.name,
-      profilePicture: user ? getProfileUrl(req, user.profilePicture) : ''
-    });
-  } catch (err) {
-    return res.status(401).json({ error: 'Invalid token' });
-  }
+// Get current user (uses shared authenticate middleware)
+router.get(`/me`, authenticate, async (req, res) => {
+  const users = await getUsers(req);
+  const user = users.find(u => u.id === req.user.userId);
+  if (!user) return res.status(401).json({ error: 'User not found' });
+  return res.json({
+    id: req.user.userId,
+    email: req.user.email,
+    role: req.user.role,
+    name: user?.name,
+    profilePicture: user ? getProfileUrl(req, user.profilePicture) : ''
+  });
 });
 
 module.exports = router;

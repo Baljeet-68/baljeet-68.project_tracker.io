@@ -7,6 +7,7 @@ const { getUserName, getProfileUrl, getUsers } = require('../middleware/helpers'
 const { USE_LIVE_DB } = require('../config');
 const dbApi = USE_LIVE_DB ? require('../api') : null;
 const localData = !USE_LIVE_DB ? require('../data') : null;
+const { hashPassword } = require('../utils/encryption');
 
 var usersSource;
 var createUserInDbSource;
@@ -80,7 +81,7 @@ router.patch(`/me`, authenticate, async (req, res) => {
     const { name, password, profilePicture } = req.body;
     const changes = {};
     if (name) changes.name = name;
-    if (password) changes.password = password;
+    if (password) changes.password = await hashPassword(password);
 
     // Handle profile picture storage as file
     if (profilePicture !== undefined) {
@@ -177,7 +178,7 @@ router.post(`/users`, authenticate, requireRole('admin'), async (req, res) => {
     if (!name || !email || !password || !role) return res.status(400).json({ error: 'Missing fields' });
     const users = await usersSource();
     if (users.find((u) => u.email === email)) return res.status(400).json({ error: 'User exists' });
-    const newUser = { id: `u${Date.now()}`, name, email, password, role };
+    const newUser = { id: `u${Date.now()}`, name, email, password: await hashPassword(password), role };
 
     if (USE_LIVE_DB) {
       await createUserInDbSource(newUser);
@@ -205,7 +206,7 @@ router.patch(`/users/:id`, authenticate, requireRole('admin'), async (req, res) 
     const changes = {};
     if (name) changes.name = name;
     if (email) changes.email = email;
-    if (password) changes.password = password;
+    if (password) changes.password = await hashPassword(password);
     if (role) changes.role = role;
     if (active == '0' || active == 0) changes.active = active;
     if (active == '1' || active == 1) changes.active = active;

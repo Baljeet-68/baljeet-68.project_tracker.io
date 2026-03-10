@@ -1,5 +1,8 @@
 const jwt = require('jsonwebtoken');
-const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret';
+const { getConfig } = require('../config/runtime');
+
+// NOTE: In-memory blacklist is kept for backwards compatibility with existing logout behavior.
+// For production-scale revocation, replace with Redis/DB keyed by jti with TTL.
 const tokenBlacklist = new Set();
 
 // Middleware to protect routes
@@ -11,7 +14,8 @@ function authenticate(req, res, next) {
   const token = parts[1];
   if (tokenBlacklist.has(token)) return res.status(401).json({ error: 'Token revoked' });
   try {
-    const payload = jwt.verify(token, JWT_SECRET);
+    const { JWT_SECRET } = getConfig();
+    const payload = jwt.verify(token, JWT_SECRET, { algorithms: ['HS256'] });
     req.user = payload;
     next();
   } catch (err) {

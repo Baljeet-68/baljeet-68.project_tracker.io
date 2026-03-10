@@ -1,14 +1,15 @@
 // server/db.js
 const mysql = require('mysql2/promise');
-const path = require('path');
-require('dotenv').config({ path: path.join(__dirname, '.env') });
+const { getConfig } = require('./config/runtime');
+
+const cfg = getConfig();
 
 const pool = mysql.createPool({
-  host: process.env.DB_HOST || 'localhost',
-  port: process.env.DB_PORT ? parseInt(process.env.DB_PORT, 10) : 3306,
-  user: process.env.DB_USER || 'root',
-  password: process.env.DB_PASS || '',
-  database: process.env.DB_NAME || 'project_tracker',
+  host: cfg.DB.host,
+  port: cfg.DB.port,
+  user: cfg.DB.user,
+  password: cfg.DB.password,
+  database: cfg.DB.database,
   waitForConnections: true,
   connectionLimit: 10,
   queueLimit: 0,

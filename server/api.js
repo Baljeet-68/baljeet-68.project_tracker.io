@@ -1,5 +1,5 @@
 const { pool } = require('./db');
-const { hashPassword, encrypt, decrypt } = require('./utils/encryption');
+const { hashPassword } = require('./utils/encryption');
 
 /**
  * Helper to parse developerIds from JSON string or array
@@ -197,9 +197,9 @@ async function updateProjectInDb(projectId, changes) {
     const fields = [];
     const values = [];
 
-    if (changes.name !== undefined) { fields.push('name = ?'); values.push(encrypt(changes.name)); }
-    if (changes.client !== undefined) { fields.push('client = ?'); values.push(encrypt(changes.client)); }
-    if (changes.description !== undefined) { fields.push('description = ?'); values.push(encrypt(changes.description)); }
+    if (changes.name !== undefined) { fields.push('name = ?'); values.push(changes.name); }
+    if (changes.client !== undefined) { fields.push('client = ?'); values.push(changes.client); }
+    if (changes.description !== undefined) { fields.push('description = ?'); values.push(changes.description); }
     if (changes.status !== undefined) { fields.push('status = ?'); values.push(changes.status); }
     if (changes.testerId !== undefined) { fields.push('testerId = ?'); values.push(changes.testerId); }
     if (changes.developerIds !== undefined) { fields.push('developerIds = ?'); values.push(JSON.stringify(changes.developerIds)); }
@@ -250,8 +250,11 @@ async function deleteScreenFromDb(screenId) {
 
   async function createUserInDb(user) {
     try {
+      const password = (typeof user.password === 'string' && user.password.startsWith('$2'))
+        ? user.password
+        : await hashPassword(user.password);
       const sql = 'INSERT INTO users (`id`, `name`, `email`, `password`, `role`, `active`) VALUES (?, ?, ?, ?, ?, ?)';
-      const params = [user.id, user.name, user.email, user.password, user.role, user.active !== undefined ? Number(user.active) : 1];
+      const params = [user.id, user.name, user.email, password, user.role, user.active !== undefined ? Number(user.active) : 1];
       await pool.query(sql, params);
     } catch (error) {
     console.error('Database insert failed in createUserInDb:', error);
@@ -268,7 +271,10 @@ async function updateUserInDb(userId, changes) {
     if (changes.email !== undefined) { fields.push('`email` = ?'); values.push(changes.email); }
     if (changes.password !== undefined) {
       fields.push('`password` = ?');
-      values.push(changes.password);
+      const password = (typeof changes.password === 'string' && changes.password.startsWith('$2'))
+        ? changes.password
+        : await hashPassword(changes.password);
+      values.push(password);
     }
     if (changes.role !== undefined) { fields.push('`role` = ?'); values.push(changes.role); }
     if (changes.profilePicture !== undefined) { fields.push('`profilePicture` = ?'); values.push(changes.profilePicture); }
@@ -300,8 +306,6 @@ async function getBugsFromMySQL() {
     const [rows] = await pool.query('SELECT * FROM bugs');
     return rows.map(r => ({
       ...r,
-      description: decrypt(r.description),
-      module: decrypt(r.module),
       attachments: parseAttachments(r.attachments)
     }));
   } catch (error) {
@@ -315,8 +319,6 @@ async function getBugsByProjectId(projectId) {
     const [rows] = await pool.query('SELECT * FROM bugs WHERE projectId = ?', [projectId]);
     return rows.map(r => ({
       ...r,
-      description: decrypt(r.description),
-      module: decrypt(r.module),
       attachments: parseAttachments(r.attachments)
     }));
   } catch (error) {
@@ -504,7 +506,8 @@ async function getProjectDocumentsFromMySQL(projectId) {
 async function createProjectDocumentInDb(doc) {
   try {
     const sql = 'INSERT INTO project_documents (id, projectId, title, description, fileName, fileData, fileSize, fileType, createdBy, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)';
-    const params = [doc.id, doc.projectId, doc.title, doc.description, doc.fileName, doc.fileData, doc.fileSize || 0, doc.fileType || '', doc.createdBy, doc.createdAt];
+    const fileData = doc.storagePath || doc.fileData || '';
+    const params = [doc.id, doc.projectId, doc.title, doc.description, doc.fileName, fileData, doc.fileSize || 0, doc.fileType || '', doc.createdBy, doc.createdAt];
     await pool.execute(sql, params);
   } catch (error) {
     console.error('Database insert failed in createProjectDocumentInDb:', error);
@@ -635,12 +638,29 @@ async function updateJobInDb(id, changes) {
   try {
     const fields = [];
     const values = [];
-    Object.keys(changes).forEach(key => {
+    const allowed = new Set([
+      'title',
+      'description',
+      'location',
+      'type',
+      'salary',
+      'status',
+      'expiryDate',
+      'createdBy',
+      'createdAt'
+    ]);
+
+    for (const key of Object.keys(changes || {})) {
+      if (!allowed.has(key)) {
+        const err = new Error(`Invalid field: ${key}`);
+        err.statusCode = 400;
+        throw err;
+      }
       if (changes[key] !== undefined) {
-        fields.push(`${key} = ?`);
+        fields.push(`\`${key}\` = ?`);
         values.push(changes[key]);
       }
-    });
+    }
     if (fields.length === 0) return;
     values.push(id);
     const sql = `UPDATE jobs SET ${fields.join(', ')} WHERE id = ?`;

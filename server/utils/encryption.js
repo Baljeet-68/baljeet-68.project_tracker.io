@@ -1,24 +1,20 @@
-const { USE_ENCRYPTION } = require('../config');
+const bcrypt = require('bcrypt');
+
+const BCRYPT_ROUNDS = 12;
 
 async function hashPassword(password) {
-  return password; // Return plain password
+  if (typeof password !== 'string' || password.length < 8) {
+    throw new Error('Password must be a string with at least 8 characters');
+  }
+  return bcrypt.hash(password, BCRYPT_ROUNDS);
 }
 
 async function comparePassword(password, hash) {
-  return password === hash; // Direct comparison
-}
-
-function encrypt(text) {
-  return text; // Return plain text
-}
-
-function decrypt(text) {
-  return text; // Return plain text
+  if (typeof password !== 'string' || typeof hash !== 'string' || hash.length === 0) return false;
+  return bcrypt.compare(password, hash);
 }
 
 module.exports = {
   hashPassword,
-  comparePassword,
-  encrypt,
-  decrypt
+  comparePassword
 };
