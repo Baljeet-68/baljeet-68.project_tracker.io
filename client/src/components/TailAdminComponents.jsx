@@ -1,6 +1,6 @@
-// Soft UI Card Component
+// Soft UI Card Component - Enhanced with animations
 export const Card = ({ children, className = '', shadow = true }) => {
-  const shadowClass = shadow ? 'shadow-soft-2xl' : ''
+  const shadowClass = shadow ? 'shadow-lg hover:shadow-2xl transition-all duration-300' : ''
   return (
     <div className={`relative flex flex-col min-w-0 break-words bg-white border-0 ${shadowClass} rounded-3xl bg-clip-border overflow-hidden ${className}`}>
       {children}
@@ -9,10 +9,10 @@ export const Card = ({ children, className = '', shadow = true }) => {
 }
 
 export const PageHeader = ({ title, subtitle, actions, className = '' }) => (
-  <Card className={`p-6 mb-6 ${className}`}>
+  <Card className={`p-6 mb-6 bg-gradient-to-r from-slate-50 to-blue-50 border border-slate-200 ${className}`}>
     <div className="flex flex-col md:flex-row justify-between items-center gap-4">
       <div>
-        <h4 className="font-bold text-slate-700 mb-1">{title}</h4>
+        <h4 className="font-bold text-slate-800 mb-1">{title}</h4>
         <p className="text-sm text-slate-500 font-medium">{subtitle}</p>
       </div>
       <div className="flex gap-3">
@@ -22,46 +22,46 @@ export const PageHeader = ({ title, subtitle, actions, className = '' }) => (
   </Card>
 )
 
-// Card Header
+// Card Header - Enhanced with better styling
 export const CardHeader = ({ children, className = '' }) => (
-  <div className={`p-6 pb-0 mb-0 bg-white border-b-0 rounded-t-3xl ${className}`}>
+  <div className={`p-6 pb-3 mb-0 bg-white border-b-0 rounded-t-3xl font-medium text-slate-700 ${className}`}>
     {children}
   </div>
 )
 
-// Card Body
+// Card Body - Enhanced with better spacing
 export const CardBody = ({ children, className = '' }) => (
   <div className={`flex-auto p-6 ${className}`}>
     {children}
   </div>
 )
 
-// Stat Card
+// Stat Card - Enhanced with gradient backgrounds and animations
 export const StatCard = ({ icon: Icon, title, value, change, changeType = 'positive', gradient = 'from-purple-700 to-pink-500', children, className = '' }) => {
   return (
-    <Card className={`p-4 h-full ${className}`}>
-      <div className="flex flex-row -mx-3 items-center">
-        <div className="flex-none w-2/3 max-w-full px-3">
-          <div>
-            <p className="mb-0 font-sans font-semibold leading-normal text-sm text-slate-400 uppercase">{title}</p>
-            <h5 className="mb-0 font-bold text-slate-700">
+    <Card className={`p-5 h-full transition-all duration-300 hover:shadow-lg hover:-translate-y-1 cursor-default ${className}`}>
+      <div className="flex flex-row items-center gap-4">
+        <div className="flex-1">
+          <p className="mb-2 font-sans font-semibold leading-normal text-xs text-slate-500 uppercase tracking-wide">{title}</p>
+          <div className="flex items-end gap-2">
+            <h5 className="mb-0 font-bold text-2xl text-slate-800">
               {value}
-              {change && (
-                <span className={`leading-normal text-sm font-weight-bolder ${changeType === 'positive' ? 'text-lime-500' : 'text-red-600'}`}>
-                  {' '}{changeType === 'positive' ? '+' : '-'}{change}
-                </span>
-              )}
             </h5>
+            {change && (
+              <span className={`leading-normal text-sm font-semibold flex items-center gap-1 ${changeType === 'positive' ? 'text-green-600' : 'text-red-600'}`}>
+                {changeType === 'positive' ? '+' : '-'}{change}
+              </span>
+            )}
           </div>
         </div>
-        <div className="px-3 text-right basis-1/3">
-          <div className={`inline-block w-12 h-12 text-center rounded-xl bg-gradient-to-tl ${gradient} shadow-soft-2xl`}>
-            {Icon && <Icon className="text-white h-full w-full p-3" />}
+        <div className="flex-shrink-0">
+          <div className={`inline-flex items-center justify-center w-14 h-14 text-center rounded-2xl bg-gradient-to-tl ${gradient} shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-110`}>
+            {Icon && <Icon className="text-white h-7 w-7" strokeWidth={2} />}
           </div>
         </div>
       </div>
       {children && (
-        <div className="mt-4">
+        <div className="mt-4 pt-4 border-t border-slate-100">
           {children}
         </div>
       )}
@@ -69,50 +69,50 @@ export const StatCard = ({ icon: Icon, title, value, change, changeType = 'posit
   )
 }
 
-// Badge Component
+// Badge Component - Enhanced
 export const Badge = ({ children, gradient = 'from-slate-600 to-slate-300', size = 'md' }) => {
   const sizeClasses = {
-    sm: 'px-3 py-1.5 text-xxs',
-    md: 'px-4 py-2 text-xs',
-    lg: 'px-5 py-2.5 text-sm',
+    sm: 'px-3 py-1.5 text-xs font-semibold',
+    md: 'px-4 py-2 text-sm font-semibold',
+    lg: 'px-5 py-2.5 text-base font-bold',
   }
 
   return (
-    <span className={`bg-gradient-to-tl ${gradient} ${sizeClasses[size]} rounded-lg inline-block whitespace-nowrap text-center align-baseline font-bold uppercase leading-none text-white shadow-soft-sm`}>
+    <span className={`bg-gradient-to-r ${gradient} ${sizeClasses[size]} rounded-full inline-block whitespace-nowrap text-center align-baseline leading-none text-white shadow-md hover:shadow-lg transition-all duration-200`}>
       {children}
     </span>
   )
 }
 
-// Button Component
-export const Button = ({ 
-  children, 
-  variant = 'primary', 
-  size = 'md', 
-  fullWidth = false, 
+// Button Component - Enhanced with better animations
+export const Button = ({
+  children,
+  variant = 'primary',
+  size = 'md',
+  fullWidth = false,
   className = '',
-  ...props 
+  ...props
 }) => {
   const sizeClasses = {
-    sm: 'px-4 py-2 text-xs',
-    md: 'px-6 py-3 text-xs',
-    lg: 'px-8 py-4 text-sm',
+    sm: 'px-4 py-2 text-xs font-semibold',
+    md: 'px-6 py-3 text-sm font-semibold',
+    lg: 'px-8 py-4 text-base font-bold',
   }
 
   const variantClasses = {
-    primary: 'bg-gradient-to-tl from-purple-700 to-pink-500 text-white hover:scale-102 active:opacity-85',
-    secondary: 'bg-gradient-to-tl from-slate-600 to-slate-300 text-white hover:scale-102 active:opacity-85',
-    danger: 'bg-gradient-to-tl from-red-600 to-rose-400 text-white hover:scale-102 active:opacity-85',
-    success: 'bg-gradient-to-tl from-green-600 to-lime-400 text-white hover:scale-102 active:opacity-85',
-    info: 'bg-gradient-to-tl from-blue-600 to-cyan-400 text-white hover:scale-102 active:opacity-85',
-    outline: 'border border-fuchsia-300 text-fuchsia-300 bg-transparent hover:bg-fuchsia-300 hover:text-white',
+    primary: 'bg-gradient-to-r from-purple-600 to-pink-500 text-white hover:shadow-lg hover:from-purple-700 hover:to-pink-600 active:scale-95',
+    secondary: 'bg-gradient-to-r from-slate-600 to-slate-400 text-white hover:shadow-lg active:scale-95',
+    danger: 'bg-gradient-to-r from-red-600 to-rose-500 text-white hover:shadow-lg active:scale-95',
+    success: 'bg-gradient-to-r from-green-600 to-emerald-500 text-white hover:shadow-lg active:scale-95',
+    info: 'bg-gradient-to-r from-blue-600 to-cyan-500 text-white hover:shadow-lg active:scale-95',
+    outline: 'border-2 border-fuchsia-300 text-fuchsia-600 bg-white hover:bg-fuchsia-50 hover:border-fuchsia-400 active:scale-95',
   }
 
   const widthClass = fullWidth ? 'w-full' : ''
 
   return (
-    <button 
-      className={`inline-flex items-center justify-center font-bold text-center uppercase align-middle transition-all border-0 rounded-lg cursor-pointer shadow-soft-md bg-x-25 bg-150 leading-pro ease-soft-in tracking-tight-soft ${sizeClasses[size]} ${variantClasses[variant]} ${widthClass} ${className}`}
+    <button
+      className={`inline-flex items-center justify-center rounded-xl border-0 cursor-pointer transition-all duration-200 ease-in-out ${sizeClasses[size]} ${variantClasses[variant]} ${widthClass} ${className}`}
       {...props}
     >
       {children}
@@ -120,7 +120,7 @@ export const Button = ({
   )
 }
 
-// Loading Skeleton
+// Loading Skeleton - Enhanced
 export const Skeleton = ({ className = '' }) => (
-  <div className={`animate-pulse bg-gray-200 rounded-2xl ${className}`} />
+  <div className={`animate-pulse bg-gradient-to-r from-slate-200 to-slate-100 rounded-2xl ${className}`} />
 )

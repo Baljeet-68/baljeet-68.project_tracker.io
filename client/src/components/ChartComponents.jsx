@@ -2,7 +2,7 @@ import React from 'react'
 import Chart from 'react-apexcharts'
 import { Card, CardHeader, CardBody } from './TailAdminComponents'
 
-// Line Chart Component
+// Line Chart Component - Enhanced
 export const LineChart = ({ title, series, categories, height = 300, colors }) => {
   const options = {
     chart: {
@@ -14,17 +14,30 @@ export const LineChart = ({ title, series, categories, height = 300, colors }) =
       sparkline: {
         enabled: false,
       },
+      animations: {
+        enabled: true,
+        speed: 800,
+        animateGradually: {
+          enabled: true,
+          delay: 150
+        },
+        dynamicAnimation: {
+          enabled: true,
+          speed: 150
+        }
+      }
     },
     markers: {
-      size: 4,
-      strokeWidth: 0,
+      size: 5,
+      strokeWidth: 2,
+      strokeColors: '#ffffff',
       hover: {
-        size: 6,
+        size: 7,
       }
     },
     grid: {
       show: true,
-      borderColor: '#f1f5f9',
+      borderColor: '#e2e8f0',
       xaxis: {
         lines: {
           show: false,
@@ -33,12 +46,13 @@ export const LineChart = ({ title, series, categories, height = 300, colors }) =
       yaxis: {
         lines: {
           show: true,
+          offsetX: -5
         },
       },
       padding: {
-        top: 0,
-        right: 0,
-        bottom: 0,
+        top: 10,
+        right: 10,
+        bottom: 10,
         left: 0,
       },
     },
@@ -50,6 +64,13 @@ export const LineChart = ({ title, series, categories, height = 300, colors }) =
       axisTicks: {
         show: false,
       },
+      labels: {
+        style: {
+          colors: '#64748b',
+          fontSize: '12px',
+          fontWeight: 500
+        }
+      }
     },
     yaxis: {
       show: true,
@@ -59,17 +80,31 @@ export const LineChart = ({ title, series, categories, height = 300, colors }) =
       axisTicks: {
         show: false,
       },
+      labels: {
+        style: {
+          colors: '#64748b',
+          fontSize: '12px'
+        }
+      }
     },
     tooltip: {
       theme: 'light',
       style: {
-        fontSize: '12px',
+        fontSize: '13px',
+        fontFamily: 'Inter, sans-serif'
       },
+      y: {
+        formatter: (val) => `${val.toLocaleString()}`
+      },
+      x: {
+        formatter: (val) => `${val}`
+      }
     },
     colors: colors || ['#0ea5e9'],
     stroke: {
       width: 3,
       curve: 'smooth',
+      lineCap: 'round'
     },
   }
 
@@ -78,9 +113,9 @@ export const LineChart = ({ title, series, categories, height = 300, colors }) =
   if (!title) return chartContent;
 
   return (
-    <Card>
+    <Card className="bg-gradient-to-br from-white to-blue-50">
       <CardHeader>
-        <h3 className="text-base font-semibold text-dark-900">{title}</h3>
+        <h3 className="text-base font-semibold text-slate-800">{title}</h3>
       </CardHeader>
       <CardBody>
         {chartContent}
@@ -89,7 +124,7 @@ export const LineChart = ({ title, series, categories, height = 300, colors }) =
   )
 }
 
-// Bar Chart Component
+// Bar Chart Component - Enhanced
 export const BarChart = ({ title, series, categories, height = 300, colors }) => {
   const options = {
     chart: {
@@ -98,10 +133,22 @@ export const BarChart = ({ title, series, categories, height = 300, colors }) =>
       toolbar: {
         show: false,
       },
+      animations: {
+        enabled: true,
+        speed: 800,
+        animateGradually: {
+          enabled: true,
+          delay: 150
+        },
+        dynamicAnimation: {
+          enabled: true,
+          speed: 150
+        }
+      }
     },
     grid: {
       show: true,
-      borderColor: '#f1f5f9',
+      borderColor: '#e2e8f0',
       xaxis: {
         lines: {
           show: false,
@@ -113,9 +160,9 @@ export const BarChart = ({ title, series, categories, height = 300, colors }) =>
         },
       },
       padding: {
-        top: 0,
-        right: 0,
-        bottom: 0,
+        top: 10,
+        right: 10,
+        bottom: 10,
         left: 0,
       },
     },
@@ -127,6 +174,13 @@ export const BarChart = ({ title, series, categories, height = 300, colors }) =>
       axisTicks: {
         show: false,
       },
+      labels: {
+        style: {
+          colors: '#64748b',
+          fontSize: '12px',
+          fontWeight: 500
+        }
+      }
     },
     yaxis: {
       show: true,
@@ -136,23 +190,49 @@ export const BarChart = ({ title, series, categories, height = 300, colors }) =>
       axisTicks: {
         show: false,
       },
+      labels: {
+        style: {
+          colors: '#64748b',
+          fontSize: '12px'
+        }
+      }
     },
     tooltip: {
       theme: 'light',
       style: {
-        fontSize: '12px',
+        fontSize: '13px',
+        fontFamily: 'Inter, sans-serif'
       },
+      y: {
+        formatter: (val) => `${val.toLocaleString()}`
+      }
     },
     colors: colors || ['#0ea5e9', '#10b981', '#f59e0b'],
     plotOptions: {
       bar: {
-        borderRadius: 2,
-        columnWidth: '55%',
+        borderRadius: 8,
+        borderRadiusApplication: 'end',
+        columnWidth: '65%',
         dataLabels: {
           position: 'top',
         },
+        distributed: false
       },
     },
+    states: {
+      hover: {
+        filter: {
+          type: 'darken',
+          value: 0.15
+        }
+      },
+      active: {
+        filter: {
+          type: 'darken',
+          value: 0.15
+        }
+      }
+    }
   }
 
   const chartContent = <Chart type="bar" series={series} options={options} height={height} />
@@ -160,9 +240,9 @@ export const BarChart = ({ title, series, categories, height = 300, colors }) =>
   if (!title) return chartContent;
 
   return (
-    <Card>
+    <Card className="bg-gradient-to-br from-white to-green-50">
       <CardHeader>
-        <h3 className="text-base font-semibold text-dark-900">{title}</h3>
+        <h3 className="text-base font-semibold text-slate-800">{title}</h3>
       </CardHeader>
       <CardBody>
         {chartContent}
@@ -171,7 +251,7 @@ export const BarChart = ({ title, series, categories, height = 300, colors }) =>
   )
 }
 
-// Pie Chart Component
+// Pie Chart Component - Enhanced
 export const PieChart = ({ title, series, labels, height = 300, colors }) => {
   const options = {
     chart: {
@@ -179,36 +259,41 @@ export const PieChart = ({ title, series, labels, height = 300, colors }) => {
       toolbar: {
         show: false,
       },
+      animations: {
+        enabled: true,
+        speed: 800
+      }
     },
     labels: labels || [],
     colors: colors || ['#FF5733', '#FFC300', '#FF33FF', '#8B5CF6', '#0EA5E9'],
     stroke: {
       show: true,
-      width: 4,
-      colors: ['#fff']
+      width: 3,
+      colors: ['#ffffff']
     },
-    // Disable slice labels so we only show the clean
-    // donut center label (total projects) and avoid
-    // stray badges overlapping the ring for single values.
     dataLabels: {
       enabled: false,
     },
     tooltip: {
       theme: 'light',
       style: {
-        fontSize: '12px',
+        fontSize: '13px',
+        fontFamily: 'Inter, sans-serif'
       },
+      y: {
+        formatter: (val) => `${val.toLocaleString()}`
+      }
     },
     fill: {
       type: 'gradient',
       gradient: {
         shade: 'light',
         type: "vertical",
-        shadeIntensity: 0.5,
-        gradientToColors: undefined, // optional, if not defined - uses the opposite shade
+        shadeIntensity: 0.3,
+        gradientToColors: undefined,
         inverseColors: true,
         opacityFrom: 1,
-        opacityTo: 1,
+        opacityTo: 0.8,
         stops: [0, 50, 100],
         colorStops: []
       }
@@ -217,21 +302,21 @@ export const PieChart = ({ title, series, labels, height = 300, colors }) => {
       show: true,
       position: 'left',
       verticalAlign: 'middle',
-      fontSize: '14px',
+      fontSize: '13px',
       fontFamily: 'Inter, sans-serif',
-      fontWeight: 500,
+      fontWeight: 600,
       labels: {
         colors: '#64748b',
       },
       markers: {
-        width: 12,
-        height: 12,
-        radius: 4,
-        offsetX: -6
+        width: 14,
+        height: 14,
+        radius: 5,
+        offsetX: -8
       },
       itemMargin: {
-        horizontal: 0,
-        vertical: 12
+        horizontal: 5,
+        vertical: 14
       },
       containerMargin: {
         left: 20,
@@ -246,27 +331,29 @@ export const PieChart = ({ title, series, labels, height = 300, colors }) => {
         offsetX: 40,
         donut: {
           size: '75%',
-          borderRadius: 10,
+          borderRadius: 12,
           labels: {
             show: true,
             name: {
               show: true,
               fontSize: '14px',
               fontWeight: 600,
-              offsetY: -10
+              offsetY: -10,
+              color: '#64748b'
             },
             value: {
               show: true,
-              fontSize: '24px',
+              fontSize: '26px',
               fontWeight: 700,
               offsetY: 10,
+              color: '#1e293b',
               formatter: (val) => val
             },
             total: {
               show: true,
-              label: 'Projects',
+              label: 'Total',
               fontSize: '12px',
-              fontWeight: 500,
+              fontWeight: 600,
               color: '#64748b',
               formatter: function (w) {
                 return w.globals.seriesTotals.reduce((a, b) => a + b, 0)
@@ -296,9 +383,9 @@ export const PieChart = ({ title, series, labels, height = 300, colors }) => {
   if (!title) return chartContent;
 
   return (
-    <Card className="h-full overflow-visible">
+    <Card className="h-full overflow-visible bg-gradient-to-br from-white to-purple-50">
       <CardHeader>
-        <h3 className="text-base font-semibold text-dark-900">{title}</h3>
+        <h3 className="text-base font-semibold text-slate-800">{title}</h3>
       </CardHeader>
       <CardBody className="flex justify-center overflow-visible">
         <div className="w-full overflow-visible pb-2">
@@ -309,7 +396,7 @@ export const PieChart = ({ title, series, labels, height = 300, colors }) => {
   )
 }
 
-// Area Chart Component
+// Area Chart Component - Enhanced
 export const AreaChart = ({ title, series, categories, height = 300, colors }) => {
   const options = {
     chart: {
@@ -321,17 +408,26 @@ export const AreaChart = ({ title, series, categories, height = 300, colors }) =
       sparkline: {
         enabled: false,
       },
+      animations: {
+        enabled: true,
+        speed: 800,
+        animateGradually: {
+          enabled: true,
+          delay: 150
+        }
+      }
     },
     markers: {
-      size: 4,
-      strokeWidth: 0,
+      size: 5,
+      strokeWidth: 2,
+      strokeColors: '#ffffff',
       hover: {
-        size: 6,
+        size: 7,
       }
     },
     grid: {
       show: true,
-      borderColor: '#f1f5f9',
+      borderColor: '#e2e8f0',
       xaxis: {
         lines: {
           show: false,
@@ -343,9 +439,9 @@ export const AreaChart = ({ title, series, categories, height = 300, colors }) =
         },
       },
       padding: {
-        top: 0,
-        right: 0,
-        bottom: 0,
+        top: 10,
+        right: 10,
+        bottom: 10,
         left: 0,
       },
     },
@@ -357,6 +453,13 @@ export const AreaChart = ({ title, series, categories, height = 300, colors }) =
       axisTicks: {
         show: false,
       },
+      labels: {
+        style: {
+          colors: '#64748b',
+          fontSize: '12px',
+          fontWeight: 500
+        }
+      }
     },
     yaxis: {
       show: true,
@@ -366,25 +469,37 @@ export const AreaChart = ({ title, series, categories, height = 300, colors }) =
       axisTicks: {
         show: false,
       },
+      labels: {
+        style: {
+          colors: '#64748b',
+          fontSize: '12px'
+        }
+      }
     },
     tooltip: {
       theme: 'light',
       style: {
-        fontSize: '12px',
+        fontSize: '13px',
+        fontFamily: 'Inter, sans-serif'
       },
+      y: {
+        formatter: (val) => `${val.toLocaleString()}`
+      }
     },
     colors: colors || ['#0ea5e9'],
     fill: {
       type: 'gradient',
       gradient: {
         shade: 'light',
-        opacityFrom: 0.6,
+        opacityFrom: 0.7,
         opacityTo: 0.1,
+        shadeIntensity: 0.2
       },
     },
     stroke: {
       width: 3,
       curve: 'smooth',
+      lineCap: 'round'
     },
   }
 
@@ -393,9 +508,9 @@ export const AreaChart = ({ title, series, categories, height = 300, colors }) =
   if (!title) return chartContent;
 
   return (
-    <Card>
+    <Card className="bg-gradient-to-br from-white to-indigo-50">
       <CardHeader>
-        <h3 className="text-base font-semibold text-dark-900">{title}</h3>
+        <h3 className="text-base font-semibold text-slate-800">{title}</h3>
       </CardHeader>
       <CardBody>
         {chartContent}
@@ -404,13 +519,13 @@ export const AreaChart = ({ title, series, categories, height = 300, colors }) =
   )
 }
 
-// Pareto Chart Component
+// Pareto Chart Component - Enhanced
 export const ParetoChart = ({ title, data = [], height = 350 }) => {
   // Sort data in descending order by value
   const sortedData = [...data].sort((a, b) => b.value - a.value);
   const labels = sortedData.map(d => d.label);
   const values = sortedData.map(d => d.value);
-  
+
   // Calculate cumulative percentages
   const total = values.reduce((a, b) => a + b, 0);
   let cumulative = 0;
@@ -439,11 +554,16 @@ export const ParetoChart = ({ title, data = [], height = 350 }) => {
       toolbar: {
         show: false
       },
-      fontFamily: 'Inter, sans-serif'
+      fontFamily: 'Inter, sans-serif',
+      animations: {
+        enabled: true,
+        speed: 800
+      }
     },
     stroke: {
       width: [0, 3],
-      curve: 'smooth'
+      curve: 'smooth',
+      lineCap: 'round'
     },
     dataLabels: {
       enabled: true,
@@ -452,6 +572,7 @@ export const ParetoChart = ({ title, data = [], height = 350 }) => {
       offsetY: -10,
       style: {
         fontSize: '12px',
+        fontWeight: 600,
         colors: ['#10b981']
       }
     },
@@ -463,12 +584,14 @@ export const ParetoChart = ({ title, data = [], height = 350 }) => {
           text: 'Number of Issues',
           style: {
             color: '#cb0c9f',
-            fontWeight: 600
+            fontWeight: 600,
+            fontSize: '12px'
           }
         },
         labels: {
           style: {
-            colors: '#cb0c9f'
+            colors: '#cb0c9f',
+            fontSize: '12px'
           }
         }
       },
@@ -478,7 +601,8 @@ export const ParetoChart = ({ title, data = [], height = 350 }) => {
           text: 'Cumulative Percentage',
           style: {
             color: '#10b981',
-            fontWeight: 600
+            fontWeight: 600,
+            fontSize: '12px'
           }
         },
         max: 100,
@@ -486,7 +610,8 @@ export const ParetoChart = ({ title, data = [], height = 350 }) => {
         labels: {
           formatter: (val) => `${val}%`,
           style: {
-            colors: '#10b981'
+            colors: '#10b981',
+            fontSize: '12px'
           }
         }
       }
@@ -495,8 +620,9 @@ export const ParetoChart = ({ title, data = [], height = 350 }) => {
       type: 'category',
       labels: {
         style: {
-          fontSize: '11px',
-          fontWeight: 500
+          fontSize: '12px',
+          fontWeight: 500,
+          colors: '#64748b'
         }
       }
     },
@@ -515,17 +641,27 @@ export const ParetoChart = ({ title, data = [], height = 350 }) => {
       position: 'top',
       horizontalAlign: 'right',
       fontFamily: 'Inter, sans-serif',
-      fontWeight: 500
+      fontWeight: 600,
+      fontSize: '13px',
+      labels: {
+        colors: '#64748b'
+      }
     },
     grid: {
-      borderColor: '#f1f5f9'
+      borderColor: '#e2e8f0'
+    },
+    plotOptions: {
+      bar: {
+        borderRadius: 8,
+        columnWidth: '70%'
+      }
     }
   };
 
   return (
-    <Card className="h-full">
+    <Card className="h-full bg-gradient-to-br from-white to-pink-50">
       <CardHeader className="flex justify-between items-center">
-        <h3 className="text-base font-semibold text-dark-900">{title}</h3>
+        <h3 className="text-base font-semibold text-slate-800">{title}</h3>
       </CardHeader>
       <CardBody>
         <div className="w-full">
