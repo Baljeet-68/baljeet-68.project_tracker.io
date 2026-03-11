@@ -41,6 +41,7 @@ async function collectLeaveTasks(req) {
       tasks.push({
         id: buildTaskId('leave-approve', leave.id),
         type: 'leave_approval',
+        category: 'leaves',
         title: 'Leave Approval',
         description: `${leave.userName || 'Employee'} requested ${leave.type || 'Leave'}`,
         module: 'leaves',
@@ -58,6 +59,7 @@ async function collectLeaveTasks(req) {
       tasks.push({
         id: buildTaskId('leave-status', leave.id),
         type: 'leave_status',
+        category: 'leaves',
         title: `Leave ${leave.status}`,
         description: `Your ${leave.type || 'leave'} request has been ${String(leave.status).toLowerCase()}.`,
         module: 'leaves',
@@ -100,6 +102,7 @@ async function collectBugTasks(req) {
       tasks.push({
         id: buildTaskId('bug-assigned', bug.id),
         type: 'bug_assigned',
+        category: 'bugs',
         title: `Bug #${bug.bugNumber || bug.id}`,
         description: bug.description || 'Bug assigned to you',
         module: 'bugs',
@@ -119,6 +122,7 @@ async function collectBugTasks(req) {
       tasks.push({
         id: buildTaskId('bug-verify', bug.id),
         type: 'bug_verification',
+        category: 'bugs',
         title: `Verify Bug #${bug.bugNumber || bug.id}`,
         description: bug.description || 'Verify resolved bug',
         module: 'bugs',
@@ -141,6 +145,7 @@ async function collectBugTasks(req) {
           tasks.push({
             id: buildTaskId('bug-deadline', bug.id),
             type: 'bug_deadline',
+            category: 'bugs',
             title: `Bug Deadline Approaching`,
             description: `Bug #${bug.bugNumber || bug.id} deadline is near.`,
             module: 'bugs',
@@ -175,6 +180,7 @@ async function collectProjectTasks(req) {
       tasks.push({
         id: buildTaskId('project', project.id),
         type: 'project_assignment',
+        category: 'projects',
         title: project.name || 'Project',
         description: `You have work on project "${project.name || project.id}".`,
         module: 'projects',
@@ -198,6 +204,7 @@ async function collectScreenTasks(req) {
       tasks.push({
         id: buildTaskId('screen', screen.id),
         type: 'screen_assignment',
+        category: 'projects',
         title: screen.title || 'Screen Task',
         description: screen.module
           ? `Work on module "${screen.module}".`
@@ -225,6 +232,7 @@ async function collectHRTasks(req) {
       tasks.push({
         id: buildTaskId('application', app.id),
         type: 'application_review',
+        category: 'hr',
         title: 'New Job Application',
         description: `${app.fullName || 'Candidate'} applied for job ${app.jobId || ''}`.trim(),
         module: 'careers',
@@ -260,6 +268,7 @@ async function collectNotificationTasks(req) {
     tasks.push({
       id: buildTaskId('notification', n.id),
       type: n.type,
+      category: 'notifications',
       title: n.title || 'Notification',
       description: n.message || '',
       module: 'notifications',

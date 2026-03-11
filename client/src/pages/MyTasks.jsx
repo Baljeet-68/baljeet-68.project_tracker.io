@@ -6,17 +6,24 @@ import { Table } from '../components/FormComponents'
 import { API_BASE_URL } from '../apiConfig'
 import { authFetch } from '../auth'
 
-function groupByPriority(tasks) {
+function groupByCategory(tasks) {
   const groups = {
-    high: [],
-    medium: [],
-    low: []
+    projects: [],
+    leaves: [],
+    bugs: [],
+    hr: [],
+    notifications: []
   }
+
   tasks.forEach((t) => {
-    if (t.priority === 'high') groups.high.push(t)
-    else if (t.priority === 'medium') groups.medium.push(t)
-    else groups.low.push(t)
+    if (t.category === 'projects') groups.projects.push(t)
+    else if (t.category === 'leaves') groups.leaves.push(t)
+    else if (t.category === 'bugs') groups.bugs.push(t)
+    else if (t.category === 'hr') groups.hr.push(t)
+    else if (t.category === 'notifications') groups.notifications.push(t)
+    else groups.notifications.push(t) // fallback
   })
+
   return groups
 }
 
@@ -54,7 +61,7 @@ export default function MyTasks() {
     }
   }, [])
 
-  const grouped = groupByPriority(tasks)
+  const grouped = groupByCategory(tasks)
 
   const columns = [
     {
@@ -72,6 +79,23 @@ export default function MyTasks() {
       )
     },
     {
+      key: 'priority',
+      label: 'Priority',
+      render: (_, row) => {
+        const priorityColors = {
+          high: 'bg-red-100 text-red-800',
+          medium: 'bg-yellow-100 text-yellow-800',
+          low: 'bg-green-100 text-green-800'
+        }
+        const color = priorityColors[row.priority] || 'bg-gray-100 text-gray-800'
+        return (
+          <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium capitalize ${color}`}>
+            {row.priority}
+          </span>
+        )
+      }
+    },
+    {
       key: 'module',
       label: 'Module',
       render: (_, row) => (
@@ -87,12 +111,12 @@ export default function MyTasks() {
         const d = row.createdAt ? new Date(row.createdAt) : null
         const label = d && !isNaN(d.getTime())
           ? d.toLocaleString(undefined, {
-              year: 'numeric',
-              month: 'short',
-              day: '2-digit',
-              hour: '2-digit',
-              minute: '2-digit'
-            })
+            year: 'numeric',
+            month: 'short',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit'
+          })
           : '-'
         return <span className="text-xs text-slate-500">{label}</span>
       }
@@ -116,7 +140,7 @@ export default function MyTasks() {
     }
   ]
 
-  const renderSection = (title, items, tone) => (
+  const renderSection = (title, items, category) => (
     <Card className="mb-6">
       <CardBody>
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-4">
@@ -127,7 +151,7 @@ export default function MyTasks() {
         </div>
         {items.length === 0 ? (
           <div className="text-xs text-slate-500 py-6 text-center">
-            No {tone} tasks right now.
+            No {category} tasks right now.
           </div>
         ) : (
           <div className="overflow-x-auto">
@@ -167,9 +191,11 @@ export default function MyTasks() {
 
       {!loading && !error && (
         <>
-          {renderSection('High Priority', grouped.high, 'high priority')}
-          {renderSection('Medium Priority', grouped.medium, 'medium priority')}
-          {renderSection('Low Priority', grouped.low, 'low priority')}
+          {renderSection('Project Tasks', grouped.projects, 'project')}
+          {renderSection('Leave Management', grouped.leaves, 'leave')}
+          {renderSection('Bug Management', grouped.bugs, 'bug')}
+          {renderSection('HR Tasks', grouped.hr, 'HR')}
+          {renderSection('Notifications', grouped.notifications, 'notification')}
         </>
       )}
     </PageContainer>
