@@ -1243,8 +1243,8 @@ export default function ProjectPage() {
               )}
 
               {tabIndex === 1 && (
-                <div>
-                  <div className="flex justify-between items-center mb-4">
+              <div>
+                  <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-4">
                     <h6 className="font-bold mb-0">Screens & Tasks</h6>
                     {user?.role === 'admin' && (
                       <Button size="sm" onClick={() => { setEditingScreen(null); setScreenForm({ title: '', module: '', assigneeId: '', plannedDeadline: '', notes: '' }); setScreenDialog(true); }}>
@@ -1258,7 +1258,7 @@ export default function ProjectPage() {
 
               {tabIndex === 2 && (
                 <div>
-                  <div className="flex justify-between items-center mb-4">
+                  <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-4">
                     <h6 className="font-bold mb-0">Project Milestones</h6>
                     {user?.role === 'admin' && (
                       <Button size="sm" onClick={openAddMilestone}>
@@ -1316,7 +1316,7 @@ export default function ProjectPage() {
 
               {tabIndex === 3 && (
                 <div>
-                  <div className="flex justify-between items-center mb-4">
+                  <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-4">
                     <h6 className="font-bold mb-0">Bug Tracker</h6>
                     {(user?.role === 'admin' || user?.role === 'tester' || user?.role === 'developer') && (
                       <Button size="sm" onClick={() => setBugDialog(true)}>

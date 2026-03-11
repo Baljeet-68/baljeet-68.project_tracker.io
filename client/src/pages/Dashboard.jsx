@@ -304,7 +304,7 @@ export default function Dashboard() {
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         <div className="lg:col-span-7">
           <Card className="h-full">
-            <CardHeader className="flex justify-between items-center">
+            <CardHeader className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
               <div>
                 <h6 className="font-bold">Bugs Trend</h6>
                 <p className="leading-normal text-sm">
@@ -325,7 +325,7 @@ export default function Dashboard() {
                 </div>
               ) : null}
 
-              <div className={!hasTrendData ? 'opacity-20' : ''}>
+              <div className={`w-full overflow-hidden ${!hasTrendData ? 'opacity-20' : ''}`}>
                 <AreaChart
                   series={bugTrendSeries}
                   categories={bugTrendCategories}
@@ -349,7 +349,7 @@ export default function Dashboard() {
                 </div>
               ) : null}
 
-              <div className={!hasStatusData ? 'opacity-0' : ''}>
+              <div className={`w-full overflow-hidden ${!hasStatusData ? 'opacity-0' : ''}`}>
                 <PieChart
                   labels={statusLabels}
                   series={statusValues}
@@ -372,11 +372,13 @@ export default function Dashboard() {
                   <p className="text-gray-500 font-medium">No data available for this year</p>
                 </div>
               ) : (
-                <ParetoChart
-                  title="Module-wise Issue Analysis (Pareto)"
-                  data={projectIssuesData}
-                  height={350}
-                />
+                <div className="w-full overflow-hidden">
+                  <ParetoChart
+                    title="Module-wise Issue Analysis (Pareto)"
+                    data={projectIssuesData}
+                    height={350}
+                  />
+                </div>
               )}
             </CardBody>
           </Card>
@@ -396,7 +398,7 @@ export default function Dashboard() {
                 </div>
               ) : null}
 
-              <div className={!hasProgressData ? 'opacity-0' : ''}>
+              <div className={`w-full overflow-hidden ${!hasProgressData ? 'opacity-0' : ''}`}>
                 <BarChart
                   series={projectProgressData}
                   categories={projectProgressCategories}
