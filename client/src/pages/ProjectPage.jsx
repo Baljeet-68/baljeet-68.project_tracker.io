@@ -1006,1151 +1006,1115 @@ export default function ProjectPage() {
                 onClick={() => showAttachmentPreview(att, b)}
                 className="w-8 h-8 rounded-full border-2 border-white bg-slate-100 flex items-center justify-center text-slate-500 hover:text-fuchsia-600 hover:border-fuchsia-200 transition-all shadow-sm"
                 title={att.name || 'Attachment'}
-              </button>
-        ))
-      }
+              ></button>
+            ))
+            }
           </div >
         )
-}
+      }
     }
   ]
 
-const projectTaskColumns = [
-  { key: 'title', label: 'Task' },
-  {
-    key: 'module',
-    label: 'Module',
-    render: (_, row) => (
-      <span className="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-700 capitalize">
-        {row.module}
-      </span>
-    )
-  },
-  {
-    key: 'priority',
-    label: 'Priority',
-    render: (_, row) => {
-      const priorityColors = {
-        high: 'bg-red-100 text-red-800',
-        medium: 'bg-yellow-100 text-yellow-800',
-        low: 'bg-green-100 text-green-800'
-      };
-      const color = priorityColors[row.priority] || 'bg-gray-100 text-gray-800';
-      return (
-        <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium capitalize ${color}`}>
-          {row.priority}
+  const projectTaskColumns = [
+    { key: 'title', label: 'Task' },
+    {
+      key: 'module',
+      label: 'Module',
+      render: (_, row) => (
+        <span className="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-700 capitalize">
+          {row.module}
         </span>
-      );
-    }
-  },
-  {
-    key: 'createdAt',
-    label: 'Created',
-    render: (_, row) => {
-      const d = row.createdAt ? new Date(row.createdAt) : null;
-      const label = d && !isNaN(d.getTime())
-        ? d.toLocaleString(undefined, {
-          year: 'numeric',
-          month: 'short',
-          day: '2-digit',
-          hour: '2-digit',
-          minute: '2-digit'
-        })
-        : '-';
-      return <span className="text-xs text-slate-500">{label}</span>;
-    }
-  },
-  {
-    key: 'action',
-    label: 'Action',
-    render: (_, row) => (
-      <button
-        type="button"
-        onClick={() => {
-          if (row.actionUrl) {
-            nav(row.actionUrl);
-          }
-        }}
-        className="inline-flex items-center rounded-lg border border-indigo-500 px-3 py-1.5 text-xs font-semibold text-indigo-600 hover:bg-indigo-50 transition-colors"
-      >
-        Open
-      </button>
-    )
-  }
-]
-  >
-  { isImageFile(att.type) ? < ImageIcon size = { 14} /> : <Paperclip size={14} />}
-              </button >
-            ))}
-          </div >
-        )
+      )
+    },
+    {
+      key: 'priority',
+      label: 'Priority',
+      render: (_, row) => {
+        const priorityColors = {
+          high: 'bg-red-100 text-red-800',
+          medium: 'bg-yellow-100 text-yellow-800',
+          low: 'bg-green-100 text-green-800'
+        };
+        const color = priorityColors[row.priority] || 'bg-gray-100 text-gray-800';
+        return (
+          <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium capitalize ${color}`}>
+            {row.priority}
+          </span>
+        );
       }
     },
-{
-  key: 'deadline',
-    label: 'Deadline',
-      render: (val, b) => (
-        <div className="flex items-center gap-2">
-          <span>{formatDateDisplay(val)}</span>
-          {(user?.role === 'admin' || (user?.role === 'developer' && b.assignedDeveloperId === user.id)) && (
-            <button onClick={() => openBugEdit(b)} className="text-slate-400 hover:text-blue-500 transition-colors">
-              <Edit size={14} />
-            </button>
-          )}
-        </div>
+    {
+      key: 'createdAt',
+      label: 'Created',
+      render: (_, row) => {
+        const d = row.createdAt ? new Date(row.createdAt) : null;
+        const label = d && !isNaN(d.getTime())
+          ? d.toLocaleString(undefined, {
+            year: 'numeric',
+            month: 'short',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit'
+          })
+          : '-';
+        return <span className="text-xs text-slate-500">{label}</span>;
+      }
+    },
+    {
+      key: 'action',
+      label: 'Action',
+      render: (_, row) => (
+        <button
+          type="button"
+          onClick={() => {
+            if (row.actionUrl) {
+              nav(row.actionUrl);
+            }
+          }}
+          className="inline-flex items-center rounded-lg border border-indigo-500 px-3 py-1.5 text-xs font-semibold text-indigo-600 hover:bg-indigo-50 transition-colors"
+        >
+          Open
+        </button>
       )
-},
-{
-  key: 'actions',
-    label: 'Actions',
-      render: (_, b) => (
-        <div className="flex gap-2">
-          {(user?.role === 'admin' || user?.role === 'tester') && (
-            <button onClick={() => handleDeleteBug(b.id)} className="text-slate-400 hover:text-red-500 transition-colors">
-              <Trash2 size={16} />
-            </button>
-          )}
-        </div>
-      )
-}
+    }
   ]
 
-return (
-  <PageContainer>
-    <div className="container-fluid py-4">
-      {/* Breadcrumbs */}
-      <nav className="mb-6 px-4">
-        <ol className="flex flex-wrap pt-1 mr-12 bg-transparent rounded-lg sm:mr-16">
-          <li className="leading-normal text-sm">
-            <Link className="opacity-50 text-slate-700 font-medium" to="/dashboard">Pages</Link>
-          </li>
-          <li className="text-sm pl-2 capitalize leading-normal text-slate-700 font-bold before:float-left before:pr-2 before:text-gray-300 before:content-['/']">
-            Project Details
-          </li>
-        </ol>
-      </nav>
+  return (
+    <PageContainer>
+      <div className="container-fluid py-4">
+        {/* Breadcrumbs */}
+        <nav className="mb-6 px-4">
+          <ol className="flex flex-wrap pt-1 mr-12 bg-transparent rounded-lg sm:mr-16">
+            <li className="leading-normal text-sm">
+              <Link className="opacity-50 text-slate-700 font-medium" to="/dashboard">Pages</Link>
+            </li>
+            <li className="text-sm pl-2 capitalize leading-normal text-slate-700 font-bold before:float-left before:pr-2 before:text-gray-300 before:content-['/']">
+              Project Details
+            </li>
+          </ol>
+        </nav>
 
-      <div className="flex flex-wrap -mx-3">
-        {/* Header Section */}
-        <div className="w-full max-w-full px-3">
-          <PageHeader
-            title={project?.name || 'Project'}
-            subtitle={<>Client: {project?.client || '—'}</>}
-            actions={project?.status ? (
-              <Badge gradient={getStatusGradient(project?.status)} size="lg">
-                {project?.status}
-              </Badge>
-            ) : null}
-          />
-        </div>
-
-        {/* Stats Row */}
-        <div className="w-full max-w-full px-3 mb-6 lg:w-3/12">
-          <StatCard
-            title="Team"
-            value={`${project?.developerNames?.length || 0} Developers`}
-            icon={Users}
-            gradient="from-blue-600 to-cyan-400"
-          />
-        </div>
-
-        <div className="w-full max-w-full px-3 mb-6 lg:w-3/12">
-          <StatCard
-            title="Bugs"
-            value={`${project?.openBugsCount || 0} Open Bugs`}
-            icon={AlertCircle}
-            gradient="from-red-600 to-rose-400"
-          />
-        </div>
-
-        <div className="w-full max-w-full px-3 mb-6 lg:w-3/12">
-          <StatCard
-            title="Progress"
-            value={`${project?.completedScreensCount || 0} / ${screensList.length} Done`}
-            icon={CheckCircle}
-            gradient="from-green-600 to-lime-400"
-          >
-            <ProgressBar
-              value={project?.completedScreensCount || 0}
-              max={screensList.length || 1}
-              showLabel={false}
-              gradient="from-green-600 to-lime-400"
+        <div className="flex flex-wrap -mx-3">
+          {/* Header Section */}
+          <div className="w-full max-w-full px-3">
+            <PageHeader
+              title={project?.name || 'Project'}
+              subtitle={<>Client: {project?.client || '—'}</>}
+              actions={project?.status ? (
+                <Badge gradient={getStatusGradient(project?.status)} size="lg">
+                  {project?.status}
+                </Badge>
+              ) : null}
             />
-          </StatCard>
-        </div>
+          </div>
 
-        <div className="w-full max-w-full px-3 mb-6 lg:w-3/12">
-          <StatCard
-            title="Deadlines"
-            value={`${project?.upcomingDeadlines || 0} Upcoming`}
-            icon={Clock}
-            gradient="from-orange-500 to-yellow-400"
-          />
-        </div>
+          {/* Stats Row */}
+          <div className="w-full max-w-full px-3 mb-6 lg:w-3/12">
+            <StatCard
+              title="Team"
+              value={`${project?.developerNames?.length || 0} Developers`}
+              icon={Users}
+              gradient="from-blue-600 to-cyan-400"
+            />
+          </div>
 
-        {/* Project Tasks Section */}
-        <div className="w-full max-w-full px-3 mb-6">
-          <Card className="mb-6">
-            <CardHeader className="p-4 pb-0">
-              <h6 className="font-bold mb-0">Project Tasks</h6>
-            </CardHeader>
-            <CardBody className="p-4">
-              {tasksLoading ? (
-                <div className="py-6 text-center">
-                  <Loader />
-                </div>
-              ) : projectTasks.length === 0 ? (
-                <div className="py-6 text-center text-xs text-slate-500">
-                  No tasks found for this project.
-                </div>
-              ) : (
-                <div className="overflow-x-auto">
-                  <Table columns={projectTaskColumns} data={projectTasks} pagination={true} pageSize={10} />
-                </div>
-              )}
-            </CardBody>
-          </Card>
-        </div>
+          <div className="w-full max-w-full px-3 mb-6 lg:w-3/12">
+            <StatCard
+              title="Bugs"
+              value={`${project?.openBugsCount || 0} Open Bugs`}
+              icon={AlertCircle}
+              gradient="from-red-600 to-rose-400"
+            />
+          </div>
 
-        {/* Tabs Section */}
-        <div className="w-full max-w-full px-3">
-          <Card className="mb-6">
-            <CardHeader className="p-4 pb-0">
-              <div className="flex flex-wrap -mx-3">
-                <div className="flex items-center w-full max-w-full px-3 shrink-0 md:w-8/12 md:flex-none">
-                  <ul className="flex flex-wrap p-1 list-none bg-gray-50 rounded-xl" role="tablist">
-                    {['Overview', 'Screens', 'Milestones', 'Bugs', 'Activity', 'Project Docs'].map((tab, idx) => (
-                      <li key={tab} className="flex-auto text-center">
-                        <button
-                          onClick={() => setTabIndex(idx)}
-                          className={`z-30 block w-full px-4 py-2 mb-0 transition-all border-0 rounded-lg cursor-pointer text-slate-700 bg-inherit text-sm font-bold ${tabIndex === idx ? 'bg-white shadow-soft-md' : 'opacity-60 hover:opacity-100'}`}
-                        >
-                          {tab}
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              </div>
-            </CardHeader>
+          <div className="w-full max-w-full px-3 mb-6 lg:w-3/12">
+            <StatCard
+              title="Progress"
+              value={`${project?.completedScreensCount || 0} / ${screensList.length} Done`}
+              icon={CheckCircle}
+              gradient="from-green-600 to-lime-400"
+            >
+              <ProgressBar
+                value={project?.completedScreensCount || 0}
+                max={screensList.length || 1}
+                showLabel={false}
+                gradient="from-green-600 to-lime-400"
+              />
+            </StatCard>
+          </div>
 
-            <CardBody className="p-6">
-              {/* Tab Content */}
-              {tabIndex === 0 && (
+          <div className="w-full max-w-full px-3 mb-6 lg:w-3/12">
+            <StatCard
+              title="Deadlines"
+              value={`${project?.upcomingDeadlines || 0} Upcoming`}
+              icon={Clock}
+              gradient="from-orange-500 to-yellow-400"
+            />
+          </div>
+
+          {/* Project Tasks Section */}
+          <div className="w-full max-w-full px-3 mb-6">
+            <Card className="mb-6">
+              <CardHeader className="p-4 pb-0">
+                <h6 className="font-bold mb-0">Project Tasks</h6>
+              </CardHeader>
+              <CardBody className="p-4">
+                {tasksLoading ? (
+                  <div className="py-6 text-center">
+                    <Loader />
+                  </div>
+                ) : projectTasks.length === 0 ? (
+                  <div className="py-6 text-center text-xs text-slate-500">
+                    No tasks found for this project.
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <Table columns={projectTaskColumns} data={projectTasks} pagination={true} pageSize={10} />
+                  </div>
+                )}
+              </CardBody>
+            </Card>
+          </div>
+
+          {/* Tabs Section */}
+          <div className="w-full max-w-full px-3">
+            <Card className="mb-6">
+              <CardHeader className="p-4 pb-0">
                 <div className="flex flex-wrap -mx-3">
-                  <div className="w-full max-w-full px-3 lg:w-7/12">
-                    <div className="mb-8">
-                      <h6 className="mb-4 font-bold text-slate-700 flex items-center">
-                        <div className="w-8 h-8 rounded-lg bg-fuchsia-100 text-fuchsia-600 flex items-center justify-center mr-3">
-                          <CheckCircle size={18} />
+                  <div className="flex items-center w-full max-w-full px-3 shrink-0 md:w-8/12 md:flex-none">
+                    <ul className="flex flex-wrap p-1 list-none bg-gray-50 rounded-xl" role="tablist">
+                      {['Overview', 'Screens', 'Milestones', 'Bugs', 'Activity', 'Project Docs'].map((tab, idx) => (
+                        <li key={tab} className="flex-auto text-center">
+                          <button
+                            onClick={() => setTabIndex(idx)}
+                            className={`z-30 block w-full px-4 py-2 mb-0 transition-all border-0 rounded-lg cursor-pointer text-slate-700 bg-inherit text-sm font-bold ${tabIndex === idx ? 'bg-white shadow-soft-md' : 'opacity-60 hover:opacity-100'}`}
+                          >
+                            {tab}
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+              </CardHeader>
+
+              <CardBody className="p-6">
+                {/* Tab Content */}
+                {tabIndex === 0 && (
+                  <div className="flex flex-wrap -mx-3">
+                    <div className="w-full max-w-full px-3 lg:w-7/12">
+                      <div className="mb-8">
+                        <h6 className="mb-4 font-bold text-slate-700 flex items-center">
+                          <div className="w-8 h-8 rounded-lg bg-fuchsia-100 text-fuchsia-600 flex items-center justify-center mr-3">
+                            <CheckCircle size={18} />
+                          </div>
+                          Project Summary
+                        </h6>
+                        <div className="p-5 bg-gradient-to-tr from-slate-800 to-slate-900 rounded-2xl shadow-soft-xl">
+                          <p className="text-sm leading-relaxed text-white font-medium italic">
+                            "{generateProjectSummary()}"
+                          </p>
                         </div>
-                        Project Summary
-                      </h6>
-                      <div className="p-5 bg-gradient-to-tr from-slate-800 to-slate-900 rounded-2xl shadow-soft-xl">
-                        <p className="text-sm leading-relaxed text-white font-medium italic">
-                          "{generateProjectSummary()}"
-                        </p>
+                      </div>
+
+                      <h6 className="mb-4 font-bold text-slate-700">Project Description</h6>
+                      <p className="text-sm leading-normal text-slate-600 bg-gray-50 p-4 rounded-xl">
+                        {project?.description || 'No description provided.'}
+                      </p>
+
+                      <div className="mt-8">
+                        <h6 className="mb-4 font-bold text-slate-700">Timeline & Settings</h6>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div className="p-4 bg-gray-50 rounded-xl border border-gray-100">
+                            <p className="text-xs font-bold uppercase text-slate-400 mb-2">Start Date</p>
+                            <p className="font-bold text-slate-700">{formatDateDisplay(project?.startDate)}</p>
+                          </div>
+                          <div className="p-4 bg-gray-50 rounded-xl border border-gray-100">
+                            <p className="text-xs font-bold uppercase text-slate-400 mb-2">Target End Date</p>
+                            <p className="font-bold text-slate-700">{formatDateDisplay(project?.endDate)}</p>
+                          </div>
+                        </div>
+
+                        {user?.role === 'admin' && (
+                          <div className="mt-6 p-4 border border-dashed border-gray-300 rounded-xl bg-gray-50/50">
+                            <p className="text-sm font-bold text-slate-700 mb-4">Update Project Settings</p>
+                            <div className="flex flex-wrap gap-4 items-end">
+                              <InputGroup
+                                label="Start"
+                                type="date"
+                                value={projectStart}
+                                onChange={(e) => setProjectStart(e.target.value)}
+                                className="mb-0"
+                              />
+                              <InputGroup
+                                label="End"
+                                type="date"
+                                value={projectEnd}
+                                onChange={(e) => setProjectEnd(e.target.value)}
+                                className="mb-0"
+                              />
+                              <Select
+                                label="Status"
+                                value={projectStatus}
+                                onChange={(e) => setProjectStatus(e.target.value)}
+                                options={[
+                                  { value: 'Planning', label: 'Planning' },
+                                  { value: 'Active', label: 'Active' },
+                                  { value: 'Running', label: 'Running' },
+                                  { value: 'On Hold', label: 'On Hold' },
+                                  { value: 'Maintenance', label: 'Maintenance' },
+                                  { value: 'Completed', label: 'Completed' },
+                                  { value: 'Done', label: 'Done' },
+                                  { value: 'Critical', label: 'Critical' }
+                                ]}
+                                className="mb-0"
+                              />
+                              <Button size="sm" onClick={handleUpdateProjectSettings}>Save Changes</Button>
+                            </div>
+                          </div>
+                        )}
                       </div>
                     </div>
 
-                    <h6 className="mb-4 font-bold text-slate-700">Project Description</h6>
-                    <p className="text-sm leading-normal text-slate-600 bg-gray-50 p-4 rounded-xl">
-                      {project?.description || 'No description provided.'}
-                    </p>
-
-                    <div className="mt-8">
-                      <h6 className="mb-4 font-bold text-slate-700">Timeline & Settings</h6>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="p-4 bg-gray-50 rounded-xl border border-gray-100">
-                          <p className="text-xs font-bold uppercase text-slate-400 mb-2">Start Date</p>
-                          <p className="font-bold text-slate-700">{formatDateDisplay(project?.startDate)}</p>
-                        </div>
-                        <div className="p-4 bg-gray-50 rounded-xl border border-gray-100">
-                          <p className="text-xs font-bold uppercase text-slate-400 mb-2">Target End Date</p>
-                          <p className="font-bold text-slate-700">{formatDateDisplay(project?.endDate)}</p>
+                    <div className="w-full max-w-full px-3 mt-6 lg:w-5/12 lg:mt-0">
+                      <h6 className="mb-4 font-bold text-slate-700">Team Members</h6>
+                      <div className="flex flex-col gap-4">
+                        {project?.developerNames?.map(dev => (
+                          <div key={dev.id} className="flex items-center justify-between p-4 bg-white border border-gray-100 rounded-2xl shadow-soft-sm">
+                            <div className="flex items-center">
+                              <div className="w-12 h-12 rounded-xl bg-gradient-to-tl from-slate-600 to-slate-300 flex items-center justify-center text-white font-bold mr-4 shadow-soft-md">
+                                {dev.name?.split(' ').map(n => n[0]).slice(0, 2).join('')}
+                              </div>
+                              <div>
+                                <p className="text-sm font-bold mb-0 text-slate-700">{dev.name}</p>
+                                <p className="text-xs text-slate-500 mb-0">Developer</p>
+                              </div>
+                            </div>
+                            <Badge gradient="from-green-600 to-lime-400" size="sm">Active</Badge>
+                          </div>
+                        ))}
+                        <div className="flex items-center justify-between p-4 bg-white border-l-4 border-fuchsia-500 rounded-2xl shadow-soft-md">
+                          <div className="flex items-center">
+                            <div className="w-12 h-12 rounded-xl bg-gradient-to-tl from-purple-700 to-pink-500 flex items-center justify-center text-white font-bold mr-4 shadow-soft-lg">
+                              {project?.testerName?.split(' ').map(n => n[0]).slice(0, 2).join('')}
+                            </div>
+                            <div>
+                              <p className="text-sm font-bold mb-0 text-slate-700">{project?.testerName || 'Unassigned'}</p>
+                              <p className="text-xs text-slate-500 mb-0">QA Tester</p>
+                            </div>
+                          </div>
+                          <Badge gradient="from-purple-700 to-pink-500" size="sm">Tester</Badge>
                         </div>
                       </div>
+                    </div>
+                  </div>
+                )}
 
+                {tabIndex === 1 && (
+                  <div>
+                    <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-4">
+                      <h6 className="font-bold mb-0">Screens & Tasks</h6>
                       {user?.role === 'admin' && (
-                        <div className="mt-6 p-4 border border-dashed border-gray-300 rounded-xl bg-gray-50/50">
-                          <p className="text-sm font-bold text-slate-700 mb-4">Update Project Settings</p>
-                          <div className="flex flex-wrap gap-4 items-end">
-                            <InputGroup
-                              label="Start"
-                              type="date"
-                              value={projectStart}
-                              onChange={(e) => setProjectStart(e.target.value)}
-                              className="mb-0"
-                            />
-                            <InputGroup
-                              label="End"
-                              type="date"
-                              value={projectEnd}
-                              onChange={(e) => setProjectEnd(e.target.value)}
-                              className="mb-0"
-                            />
-                            <Select
-                              label="Status"
-                              value={projectStatus}
-                              onChange={(e) => setProjectStatus(e.target.value)}
-                              options={[
-                                { value: 'Planning', label: 'Planning' },
-                                { value: 'Active', label: 'Active' },
-                                { value: 'Running', label: 'Running' },
-                                { value: 'On Hold', label: 'On Hold' },
-                                { value: 'Maintenance', label: 'Maintenance' },
-                                { value: 'Completed', label: 'Completed' },
-                                { value: 'Done', label: 'Done' },
-                                { value: 'Critical', label: 'Critical' }
-                              ]}
-                              className="mb-0"
-                            />
-                            <Button size="sm" onClick={handleUpdateProjectSettings}>Save Changes</Button>
+                        <Button size="sm" onClick={() => { setEditingScreen(null); setScreenForm({ title: '', module: '', assigneeId: '', plannedDeadline: '', notes: '' }); setScreenDialog(true); }}>
+                          <Plus size={14} className="mr-2" /> New Screen
+                        </Button>
+                      )}
+                    </div>
+                    <Table columns={screenColumns} data={screensList} pagination={true} pageSize={10} />
+                  </div>
+                )}
+
+                {tabIndex === 2 && (
+                  <div>
+                    <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-4">
+                      <h6 className="font-bold mb-0">Project Milestones</h6>
+                      {user?.role === 'admin' && (
+                        <Button size="sm" onClick={openAddMilestone}>
+                          <Plus size={14} className="mr-2" /> New Milestone
+                        </Button>
+                      )}
+                    </div>
+                    <Table
+                      columns={[
+                        { key: 'milestoneNumber', label: 'Milestone #' },
+                        {
+                          key: 'module',
+                          label: 'Modules',
+                          render: (val) => (
+                            <div className="flex flex-wrap gap-2 max-w-[200px]">
+                              {val ? val.split(',').map((m, idx) => (
+                                <Badge key={idx} gradient="from-blue-600 to-cyan-400" size="sm">{m.trim()}</Badge>
+                              )) : <span className="text-slate-400 italic text-xs">No modules</span>}
+                            </div>
+                          )
+                        },
+                        { key: 'timeline', label: 'Timeline', render: (val) => formatDateDisplay(val) },
+                        {
+                          key: 'status',
+                          label: 'Status',
+                          render: (status) => (
+                            <Badge gradient={getStatusGradient(status)} size="sm">
+                              {status || 'Pending'}
+                            </Badge>
+                          )
+                        },
+                        {
+                          key: 'actions',
+                          label: 'Actions',
+                          render: (_, m) => (
+                            <div className="flex gap-2">
+                              <button onClick={() => openEditMilestone(m)} className="text-blue-500 hover:text-blue-700 transition-colors">
+                                <Edit size={16} />
+                              </button>
+                              {user?.role === 'admin' && (
+                                <button onClick={() => handleDeleteMilestone(m.id)} className="text-red-500 hover:text-red-700 transition-colors">
+                                  <Trash2 size={16} />
+                                </button>
+                              )}
+                            </div>
+                          )
+                        }
+                      ]}
+                      data={milestonesList}
+                      pagination={true}
+                      pageSize={10}
+                    />
+                  </div>
+                )}
+
+                {tabIndex === 3 && (
+                  <div>
+                    <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-4">
+                      <h6 className="font-bold mb-0">Bug Tracker</h6>
+                      {(user?.role === 'admin' || user?.role === 'tester' || user?.role === 'developer') && (
+                        <Button size="sm" onClick={() => setBugDialog(true)}>
+                          <Plus size={14} className="mr-2" /> Report Bug
+                        </Button>
+                      )}
+                    </div>
+
+                    {/* Bug Filters */}
+                    <div className="flex flex-wrap gap-4 mb-6 p-4 bg-gray-50 rounded-xl">
+                      <div className="w-full md:w-auto min-w-[150px]">
+                        <Select
+                          label="Status"
+                          options={[
+                            { value: '', label: 'All Statuses' },
+                            { value: 'Open', label: 'Open' },
+                            { value: 'In Progress', label: 'In Progress' },
+                            { value: 'Resolved', label: 'Resolved' },
+                            { value: 'Closed', label: 'Closed' }
+                          ]}
+                          value={bugFilters.status}
+                          onChange={(e) => setBugFilters(prev => ({ ...prev, status: e.target.value }))}
+                          className="mb-0"
+                        />
+                      </div>
+                      <div className="w-full md:w-auto min-w-[150px]">
+                        <Select
+                          label="Severity"
+                          options={[
+                            { value: '', label: 'All Severities' },
+                            { value: 'low', label: 'Low' },
+                            { value: 'medium', label: 'Medium' },
+                            { value: 'high', label: 'High' },
+                            { value: 'critical', label: 'Critical' }
+                          ]}
+                          value={bugFilters.severity}
+                          onChange={(e) => setBugFilters(prev => ({ ...prev, severity: e.target.value }))}
+                          className="mb-0"
+                        />
+                      </div>
+                      <div className="w-full md:w-auto min-w-[150px]">
+                        <Select
+                          label="Assignee"
+                          options={[
+                            { value: '', label: 'All Developers' },
+                            ...(project?.developerNames?.map(d => ({ value: d.id, label: d.name })) || [])
+                          ]}
+                          value={bugFilters.assignee}
+                          onChange={(e) => setBugFilters(prev => ({ ...prev, assignee: e.target.value }))}
+                          className="mb-0"
+                        />
+                      </div>
+                    </div>
+
+                    <Table columns={bugColumns} data={filteredBugs} pagination={true} pageSize={10} />
+                  </div>
+                )}
+
+                {tabIndex === 4 && (
+                  <div>
+                    <div className="flex items-center justify-between mb-8">
+                      <h6 className="font-bold text-slate-700 uppercase text-xs tracking-wider">Project Activity Feed</h6>
+                      <button
+                        onClick={loadData}
+                        className="p-2 rounded-lg hover:bg-slate-50 text-slate-400 hover:text-fuchsia-600 transition-all flex items-center gap-2 text-xs font-bold"
+                        title="Refresh Activity"
+                      >
+                        <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
+                        REFRESH
+                      </button>
+                    </div>
+
+                    <div className="relative flex flex-col gap-10 before:absolute before:top-0 before:left-5 before:h-full before:w-0.5 before:bg-slate-100 pb-4">
+                      {activityList.length === 0 ? (
+                        <div className="flex flex-col items-center justify-center py-16 text-center">
+                          <div className="w-20 h-20 rounded-full bg-slate-50 flex items-center justify-center text-slate-300 mb-6 border-4 border-white shadow-soft-sm">
+                            <Activity size={36} />
                           </div>
+                          <h6 className="text-slate-800 font-bold mb-1">No Activity Yet</h6>
+                          <p className="text-slate-500 text-sm max-w-xs">Events related to this project will appear here as they happen.</p>
                         </div>
+                      ) : (
+                        [...activityList].reverse().map((act, idx) => {
+                          const { description, icon, gradient } = getActivityDetails(act);
+                          const isLast = idx === activityList.length - 1;
+
+                          return (
+                            <div key={idx} className="relative flex items-start ml-0 group animate-fadeIn">
+                              {/* Timeline Point & Icon */}
+                              <div className={`absolute left-0 top-0 w-10 h-10 rounded-xl bg-gradient-to-tl ${gradient} shadow-soft-md flex items-center justify-center text-white z-10 group-hover:scale-110 transition-transform duration-300`}>
+                                {icon}
+                              </div>
+
+                              <div className="flex-auto ml-14">
+                                <div className="bg-white rounded-2xl p-4 border border-slate-100 shadow-soft-sm group-hover:shadow-soft-md transition-all duration-300 group-hover:border-fuchsia-100">
+                                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
+                                    <div className="flex items-center gap-2">
+                                      <div className="w-7 h-7 rounded-lg bg-slate-50 flex items-center justify-center text-slate-500 text-[10px] font-bold border border-slate-100">
+                                        {act.createdByName?.charAt(0) || 'U'}
+                                      </div>
+                                      <p className="text-xs text-slate-500 mb-0 font-medium">
+                                        <span className="text-slate-800 font-bold">{act.createdByName}</span>
+                                      </p>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                      <Clock size={10} className="text-slate-400" />
+                                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                                        {new Date(act.createdAt).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}
+                                      </p>
+                                    </div>
+                                  </div>
+
+                                  <p className="text-sm font-bold text-slate-700 mb-0 leading-relaxed">
+                                    {description}
+                                  </p>
+
+                                  {/* Detailed Changes Preview */}
+                                  {act.changes && (
+                                    <div className="mt-3 pt-3 border-t border-slate-50">
+                                      {act.entityType === 'bug' && act.action === 'status_change' && (
+                                        <div className="flex items-center gap-2">
+                                          <Badge gradient={getStatusGradient(act.changes.oldStatus)} size="sm">{act.changes.oldStatus}</Badge>
+                                          <ChevronRight size={12} className="text-slate-300" />
+                                          <Badge gradient={getStatusGradient(act.changes.newStatus || act.changes.status)} size="sm">{act.changes.newStatus || act.changes.status}</Badge>
+                                        </div>
+                                      )}
+
+                                      {act.entityType === 'screen' && act.action === 'status_change' && (
+                                        <div className="flex items-center gap-2">
+                                          <Badge gradient={getStatusGradient(act.changes.oldStatus)} size="sm">{act.changes.oldStatus}</Badge>
+                                          <ChevronRight size={12} className="text-slate-300" />
+                                          <Badge gradient={getStatusGradient(act.changes.newStatus || act.changes.status)} size="sm">{act.changes.newStatus || act.changes.status}</Badge>
+                                        </div>
+                                      )}
+
+                                      {act.action === 'deadline_updated' && (
+                                        <div className="flex items-center gap-2 text-[11px] font-bold text-slate-500">
+                                          <Calendar size={12} className="text-fuchsia-500" />
+                                          <span>New Deadline:</span>
+                                          <span className="text-slate-700 bg-slate-50 px-2 py-0.5 rounded border border-slate-100">
+                                            {formatDateDisplay(act.changes.deadline || act.changes.plannedDeadline)}
+                                          </span>
+                                        </div>
+                                      )}
+
+                                      {act.entityType === 'milestone' && act.action === 'created' && act.changes.module && (
+                                        <div className="flex flex-wrap gap-1 mt-1">
+                                          {act.changes.module.split(',').map((m, i) => (
+                                            <span key={i} className="text-[10px] px-2 py-0.5 bg-indigo-50 text-indigo-600 rounded-full font-bold border border-indigo-100">
+                                              {m.trim()}
+                                            </span>
+                                          ))}
+                                        </div>
+                                      )}
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })
                       )}
                     </div>
                   </div>
+                )}
 
-                  <div className="w-full max-w-full px-3 mt-6 lg:w-5/12 lg:mt-0">
-                    <h6 className="mb-4 font-bold text-slate-700">Team Members</h6>
-                    <div className="flex flex-col gap-4">
-                      {project?.developerNames?.map(dev => (
-                        <div key={dev.id} className="flex items-center justify-between p-4 bg-white border border-gray-100 rounded-2xl shadow-soft-sm">
-                          <div className="flex items-center">
-                            <div className="w-12 h-12 rounded-xl bg-gradient-to-tl from-slate-600 to-slate-300 flex items-center justify-center text-white font-bold mr-4 shadow-soft-md">
-                              {dev.name?.split(' ').map(n => n[0]).slice(0, 2).join('')}
-                            </div>
-                            <div>
-                              <p className="text-sm font-bold mb-0 text-slate-700">{dev.name}</p>
-                              <p className="text-xs text-slate-500 mb-0">Developer</p>
-                            </div>
-                          </div>
-                          <Badge gradient="from-green-600 to-lime-400" size="sm">Active</Badge>
-                        </div>
-                      ))}
-                      <div className="flex items-center justify-between p-4 bg-white border-l-4 border-fuchsia-500 rounded-2xl shadow-soft-md">
-                        <div className="flex items-center">
-                          <div className="w-12 h-12 rounded-xl bg-gradient-to-tl from-purple-700 to-pink-500 flex items-center justify-center text-white font-bold mr-4 shadow-soft-lg">
-                            {project?.testerName?.split(' ').map(n => n[0]).slice(0, 2).join('')}
-                          </div>
-                          <div>
-                            <p className="text-sm font-bold mb-0 text-slate-700">{project?.testerName || 'Unassigned'}</p>
-                            <p className="text-xs text-slate-500 mb-0">QA Tester</p>
-                          </div>
-                        </div>
-                        <Badge gradient="from-purple-700 to-pink-500" size="sm">Tester</Badge>
+                {tabIndex === 5 && (
+                  <div className="animate-fadeIn">
+                    <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mb-8">
+                      <div>
+                        <h6 className="font-bold text-slate-700 uppercase text-xs tracking-wider mb-1">Project Documents</h6>
+                        <p className="text-xs text-slate-500">Manage and share project-related files and documentation.</p>
                       </div>
+                      <button
+                        onClick={() => setDocumentDialog(true)}
+                        className="inline-flex items-center gap-2 px-6 py-3 font-bold text-center text-white uppercase align-middle transition-all bg-gradient-to-tl from-purple-700 to-pink-500 rounded-xl cursor-pointer text-xs shadow-soft-md hover:shadow-soft-lg active:opacity-85"
+                      >
+                        <Plus size={16} strokeWidth={3} />
+                        Upload Document
+                      </button>
                     </div>
-                  </div>
-                </div>
-              )}
 
-              {tabIndex === 1 && (
-                <div>
-                  <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-4">
-                    <h6 className="font-bold mb-0">Screens & Tasks</h6>
-                    {user?.role === 'admin' && (
-                      <Button size="sm" onClick={() => { setEditingScreen(null); setScreenForm({ title: '', module: '', assigneeId: '', plannedDeadline: '', notes: '' }); setScreenDialog(true); }}>
-                        <Plus size={14} className="mr-2" /> New Screen
-                      </Button>
-                    )}
-                  </div>
-                  <Table columns={screenColumns} data={screensList} pagination={true} pageSize={10} />
-                </div>
-              )}
-
-              {tabIndex === 2 && (
-                <div>
-                  <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-4">
-                    <h6 className="font-bold mb-0">Project Milestones</h6>
-                    {user?.role === 'admin' && (
-                      <Button size="sm" onClick={openAddMilestone}>
-                        <Plus size={14} className="mr-2" /> New Milestone
-                      </Button>
-                    )}
-                  </div>
-                  <Table
-                    columns={[
-                      { key: 'milestoneNumber', label: 'Milestone #' },
-                      {
-                        key: 'module',
-                        label: 'Modules',
-                        render: (val) => (
-                          <div className="flex flex-wrap gap-2 max-w-[200px]">
-                            {val ? val.split(',').map((m, idx) => (
-                              <Badge key={idx} gradient="from-blue-600 to-cyan-400" size="sm">{m.trim()}</Badge>
-                            )) : <span className="text-slate-400 italic text-xs">No modules</span>}
-                          </div>
-                        )
-                      },
-                      { key: 'timeline', label: 'Timeline', render: (val) => formatDateDisplay(val) },
-                      {
-                        key: 'status',
-                        label: 'Status',
-                        render: (status) => (
-                          <Badge gradient={getStatusGradient(status)} size="sm">
-                            {status || 'Pending'}
-                          </Badge>
-                        )
-                      },
-                      {
-                        key: 'actions',
-                        label: 'Actions',
-                        render: (_, m) => (
-                          <div className="flex gap-2">
-                            <button onClick={() => openEditMilestone(m)} className="text-blue-500 hover:text-blue-700 transition-colors">
-                              <Edit size={16} />
-                            </button>
-                            {user?.role === 'admin' && (
-                              <button onClick={() => handleDeleteMilestone(m.id)} className="text-red-500 hover:text-red-700 transition-colors">
-                                <Trash2 size={16} />
-                              </button>
-                            )}
-                          </div>
-                        )
-                      }
-                    ]}
-                    data={milestonesList}
-                    pagination={true}
-                    pageSize={10}
-                  />
-                </div>
-              )}
-
-              {tabIndex === 3 && (
-                <div>
-                  <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-4">
-                    <h6 className="font-bold mb-0">Bug Tracker</h6>
-                    {(user?.role === 'admin' || user?.role === 'tester' || user?.role === 'developer') && (
-                      <Button size="sm" onClick={() => setBugDialog(true)}>
-                        <Plus size={14} className="mr-2" /> Report Bug
-                      </Button>
-                    )}
-                  </div>
-
-                  {/* Bug Filters */}
-                  <div className="flex flex-wrap gap-4 mb-6 p-4 bg-gray-50 rounded-xl">
-                    <div className="w-full md:w-auto min-w-[150px]">
-                      <Select
-                        label="Status"
-                        options={[
-                          { value: '', label: 'All Statuses' },
-                          { value: 'Open', label: 'Open' },
-                          { value: 'In Progress', label: 'In Progress' },
-                          { value: 'Resolved', label: 'Resolved' },
-                          { value: 'Closed', label: 'Closed' }
-                        ]}
-                        value={bugFilters.status}
-                        onChange={(e) => setBugFilters(prev => ({ ...prev, status: e.target.value }))}
-                        className="mb-0"
-                      />
-                    </div>
-                    <div className="w-full md:w-auto min-w-[150px]">
-                      <Select
-                        label="Severity"
-                        options={[
-                          { value: '', label: 'All Severities' },
-                          { value: 'low', label: 'Low' },
-                          { value: 'medium', label: 'Medium' },
-                          { value: 'high', label: 'High' },
-                          { value: 'critical', label: 'Critical' }
-                        ]}
-                        value={bugFilters.severity}
-                        onChange={(e) => setBugFilters(prev => ({ ...prev, severity: e.target.value }))}
-                        className="mb-0"
-                      />
-                    </div>
-                    <div className="w-full md:w-auto min-w-[150px]">
-                      <Select
-                        label="Assignee"
-                        options={[
-                          { value: '', label: 'All Developers' },
-                          ...(project?.developerNames?.map(d => ({ value: d.id, label: d.name })) || [])
-                        ]}
-                        value={bugFilters.assignee}
-                        onChange={(e) => setBugFilters(prev => ({ ...prev, assignee: e.target.value }))}
-                        className="mb-0"
-                      />
-                    </div>
-                  </div>
-
-                  <Table columns={bugColumns} data={filteredBugs} pagination={true} pageSize={10} />
-                </div>
-              )}
-
-              {tabIndex === 4 && (
-                <div>
-                  <div className="flex items-center justify-between mb-8">
-                    <h6 className="font-bold text-slate-700 uppercase text-xs tracking-wider">Project Activity Feed</h6>
-                    <button
-                      onClick={loadData}
-                      className="p-2 rounded-lg hover:bg-slate-50 text-slate-400 hover:text-fuchsia-600 transition-all flex items-center gap-2 text-xs font-bold"
-                      title="Refresh Activity"
-                    >
-                      <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
-                      REFRESH
-                    </button>
-                  </div>
-
-                  <div className="relative flex flex-col gap-10 before:absolute before:top-0 before:left-5 before:h-full before:w-0.5 before:bg-slate-100 pb-4">
-                    {activityList.length === 0 ? (
-                      <div className="flex flex-col items-center justify-center py-16 text-center">
-                        <div className="w-20 h-20 rounded-full bg-slate-50 flex items-center justify-center text-slate-300 mb-6 border-4 border-white shadow-soft-sm">
-                          <Activity size={36} />
-                        </div>
-                        <h6 className="text-slate-800 font-bold mb-1">No Activity Yet</h6>
-                        <p className="text-slate-500 text-sm max-w-xs">Events related to this project will appear here as they happen.</p>
-                      </div>
-                    ) : (
-                      [...activityList].reverse().map((act, idx) => {
-                        const { description, icon, gradient } = getActivityDetails(act);
-                        const isLast = idx === activityList.length - 1;
-
-                        return (
-                          <div key={idx} className="relative flex items-start ml-0 group animate-fadeIn">
-                            {/* Timeline Point & Icon */}
-                            <div className={`absolute left-0 top-0 w-10 h-10 rounded-xl bg-gradient-to-tl ${gradient} shadow-soft-md flex items-center justify-center text-white z-10 group-hover:scale-110 transition-transform duration-300`}>
-                              {icon}
-                            </div>
-
-                            <div className="flex-auto ml-14">
-                              <div className="bg-white rounded-2xl p-4 border border-slate-100 shadow-soft-sm group-hover:shadow-soft-md transition-all duration-300 group-hover:border-fuchsia-100">
-                                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
-                                  <div className="flex items-center gap-2">
-                                    <div className="w-7 h-7 rounded-lg bg-slate-50 flex items-center justify-center text-slate-500 text-[10px] font-bold border border-slate-100">
-                                      {act.createdByName?.charAt(0) || 'U'}
-                                    </div>
-                                    <p className="text-xs text-slate-500 mb-0 font-medium">
-                                      <span className="text-slate-800 font-bold">{act.createdByName}</span>
-                                    </p>
-                                  </div>
-                                  <div className="flex items-center gap-2">
-                                    <Clock size={10} className="text-slate-400" />
-                                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                                      {new Date(act.createdAt).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}
-                                    </p>
-                                  </div>
-                                </div>
-
-                                <p className="text-sm font-bold text-slate-700 mb-0 leading-relaxed">
-                                  {description}
-                                </p>
-
-                                {/* Detailed Changes Preview */}
-                                {act.changes && (
-                                  <div className="mt-3 pt-3 border-t border-slate-50">
-                                    {act.entityType === 'bug' && act.action === 'status_change' && (
-                                      <div className="flex items-center gap-2">
-                                        <Badge gradient={getStatusGradient(act.changes.oldStatus)} size="sm">{act.changes.oldStatus}</Badge>
-                                        <ChevronRight size={12} className="text-slate-300" />
-                                        <Badge gradient={getStatusGradient(act.changes.newStatus || act.changes.status)} size="sm">{act.changes.newStatus || act.changes.status}</Badge>
-                                      </div>
-                                    )}
-
-                                    {act.entityType === 'screen' && act.action === 'status_change' && (
-                                      <div className="flex items-center gap-2">
-                                        <Badge gradient={getStatusGradient(act.changes.oldStatus)} size="sm">{act.changes.oldStatus}</Badge>
-                                        <ChevronRight size={12} className="text-slate-300" />
-                                        <Badge gradient={getStatusGradient(act.changes.newStatus || act.changes.status)} size="sm">{act.changes.newStatus || act.changes.status}</Badge>
-                                      </div>
-                                    )}
-
-                                    {act.action === 'deadline_updated' && (
-                                      <div className="flex items-center gap-2 text-[11px] font-bold text-slate-500">
-                                        <Calendar size={12} className="text-fuchsia-500" />
-                                        <span>New Deadline:</span>
-                                        <span className="text-slate-700 bg-slate-50 px-2 py-0.5 rounded border border-slate-100">
-                                          {formatDateDisplay(act.changes.deadline || act.changes.plannedDeadline)}
-                                        </span>
-                                      </div>
-                                    )}
-
-                                    {act.entityType === 'milestone' && act.action === 'created' && act.changes.module && (
-                                      <div className="flex flex-wrap gap-1 mt-1">
-                                        {act.changes.module.split(',').map((m, i) => (
-                                          <span key={i} className="text-[10px] px-2 py-0.5 bg-indigo-50 text-indigo-600 rounded-full font-bold border border-indigo-100">
-                                            {m.trim()}
-                                          </span>
-                                        ))}
-                                      </div>
-                                    )}
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-                        );
-                      })
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {tabIndex === 5 && (
-                <div className="animate-fadeIn">
-                  <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mb-8">
-                    <div>
-                      <h6 className="font-bold text-slate-700 uppercase text-xs tracking-wider mb-1">Project Documents</h6>
-                      <p className="text-xs text-slate-500">Manage and share project-related files and documentation.</p>
-                    </div>
-                    <button
-                      onClick={() => setDocumentDialog(true)}
-                      className="inline-flex items-center gap-2 px-6 py-3 font-bold text-center text-white uppercase align-middle transition-all bg-gradient-to-tl from-purple-700 to-pink-500 rounded-xl cursor-pointer text-xs shadow-soft-md hover:shadow-soft-lg active:opacity-85"
-                    >
-                      <Plus size={16} strokeWidth={3} />
-                      Upload Document
-                    </button>
-                  </div>
-
-                  <div className="overflow-x-auto">
-                    <table className="w-full mb-0 align-top border-collapse border-spacing-0 text-slate-500">
-                      <thead className="align-bottom">
-                        <tr>
-                          <th
-                            className="px-6 py-3 font-bold text-left uppercase align-middle bg-transparent border-b border-slate-100 shadow-none text-[10px] tracking-wider opacity-70 text-slate-700 cursor-pointer hover:text-fuchsia-600 transition-colors"
-                            onClick={() => handleDocSort('title')}
-                          >
-                            <div className="flex items-center gap-1">
-                              Document
-                              {docSort.column === 'title' && (docSort.direction === 'asc' ? '↑' : '↓')}
-                            </div>
-                          </th>
-                          <th className="px-6 py-3 font-bold text-left uppercase align-middle bg-transparent border-b border-slate-100 shadow-none text-[10px] tracking-wider opacity-70 text-slate-700">Description</th>
-                          <th
-                            className="px-6 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-slate-100 shadow-none text-[10px] tracking-wider opacity-70 text-slate-700 cursor-pointer hover:text-fuchsia-600 transition-colors"
-                            onClick={() => handleDocSort('createdAt')}
-                          >
-                            <div className="flex items-center justify-center gap-1">
-                              Uploaded Date
-                              {docSort.column === 'createdAt' && (docSort.direction === 'asc' ? '↑' : '↓')}
-                            </div>
-                          </th>
-                          <th className="px-6 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-slate-100 shadow-none text-[10px] tracking-wider opacity-70 text-slate-700">Actions</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {docsLoading ? (
-                          // Skeleton Loading
-                          [...Array(3)].map((_, i) => (
-                            <tr key={i} className="animate-pulse">
-                              <td className="p-4 border-b border-slate-50">
-                                <div className="flex items-center gap-4">
-                                  <div className="w-10 h-10 bg-slate-100 rounded-xl"></div>
-                                  <div className="flex-1 space-y-2">
-                                    <div className="h-4 bg-slate-100 rounded w-24"></div>
-                                    <div className="h-3 bg-slate-100 rounded w-32"></div>
-                                  </div>
-                                </div>
-                              </td>
-                              <td className="p-4 border-b border-slate-50">
-                                <div className="h-4 bg-slate-100 rounded w-full max-w-xs"></div>
-                              </td>
-                              <td className="p-4 border-b border-slate-50">
-                                <div className="h-4 bg-slate-100 rounded w-16 mx-auto"></div>
-                              </td>
-                              <td className="p-4 border-b border-slate-50">
-                                <div className="flex justify-center gap-2">
-                                  <div className="w-8 h-8 bg-slate-100 rounded-lg"></div>
-                                  <div className="w-8 h-8 bg-slate-100 rounded-lg"></div>
-                                </div>
-                              </td>
-                            </tr>
-                          ))
-                        ) : sortedDocuments.length === 0 ? (
+                    <div className="overflow-x-auto">
+                      <table className="w-full mb-0 align-top border-collapse border-spacing-0 text-slate-500">
+                        <thead className="align-bottom">
                           <tr>
-                            <td colSpan="4" className="p-12 text-center">
-                              <div className="flex flex-col items-center justify-center">
-                                <div className="w-16 h-16 rounded-2xl bg-slate-50 flex items-center justify-center text-slate-300 mb-4">
-                                  <FileText size={32} />
-                                </div>
-                                <p className="text-sm font-bold text-slate-400">No documents found for this project</p>
-                                <p className="text-xs text-slate-400 mt-1">Upload files to share them with the team.</p>
+                            <th
+                              className="px-6 py-3 font-bold text-left uppercase align-middle bg-transparent border-b border-slate-100 shadow-none text-[10px] tracking-wider opacity-70 text-slate-700 cursor-pointer hover:text-fuchsia-600 transition-colors"
+                              onClick={() => handleDocSort('title')}
+                            >
+                              <div className="flex items-center gap-1">
+                                Document
+                                {docSort.column === 'title' && (docSort.direction === 'asc' ? '↑' : '↓')}
                               </div>
-                            </td>
+                            </th>
+                            <th className="px-6 py-3 font-bold text-left uppercase align-middle bg-transparent border-b border-slate-100 shadow-none text-[10px] tracking-wider opacity-70 text-slate-700">Description</th>
+                            <th
+                              className="px-6 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-slate-100 shadow-none text-[10px] tracking-wider opacity-70 text-slate-700 cursor-pointer hover:text-fuchsia-600 transition-colors"
+                              onClick={() => handleDocSort('createdAt')}
+                            >
+                              <div className="flex items-center justify-center gap-1">
+                                Uploaded Date
+                                {docSort.column === 'createdAt' && (docSort.direction === 'asc' ? '↑' : '↓')}
+                              </div>
+                            </th>
+                            <th className="px-6 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-slate-100 shadow-none text-[10px] tracking-wider opacity-70 text-slate-700">Actions</th>
                           </tr>
-                        ) : (
-                          sortedDocuments.map((doc) => (
-                            <tr key={doc.id} className="group hover:bg-slate-50/50 transition-colors">
-                              <td className="p-4 align-middle bg-transparent border-b border-slate-50 shadow-none">
-                                <div className="flex px-2 py-1">
-                                  <div className="flex items-center justify-center w-10 h-10 mr-4 text-white rounded-xl bg-gradient-to-tl from-blue-600 to-cyan-400 shadow-soft-sm">
-                                    <FileText size={18} />
-                                  </div>
-                                  <div className="flex flex-col justify-center">
-                                    <h6 className="mb-0 text-sm font-bold leading-normal text-slate-700">{doc.title}</h6>
-                                    <div className="flex items-center gap-2 mt-0.5">
-                                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{doc.fileType?.split('/')[1] || 'FILE'}</span>
-                                      <span className="text-[10px] text-slate-300">•</span>
-                                      <span className="text-[10px] font-bold text-slate-400">{formatFileSize(doc.fileSize)}</span>
+                        </thead>
+                        <tbody>
+                          {docsLoading ? (
+                            // Skeleton Loading
+                            [...Array(3)].map((_, i) => (
+                              <tr key={i} className="animate-pulse">
+                                <td className="p-4 border-b border-slate-50">
+                                  <div className="flex items-center gap-4">
+                                    <div className="w-10 h-10 bg-slate-100 rounded-xl"></div>
+                                    <div className="flex-1 space-y-2">
+                                      <div className="h-4 bg-slate-100 rounded w-24"></div>
+                                      <div className="h-3 bg-slate-100 rounded w-32"></div>
                                     </div>
                                   </div>
-                                </div>
-                              </td>
-                              <td className="p-4 align-middle bg-transparent border-b border-slate-50 shadow-none">
-                                <p className="mb-0 text-xs font-bold text-slate-600 max-w-xs truncate" title={doc.description}>{doc.description || 'No description'}</p>
-                              </td>
-                              <td className="p-4 text-center align-middle bg-transparent border-b border-slate-50 shadow-none">
-                                <span className="text-xs font-bold text-slate-400">{new Date(doc.createdAt).toLocaleDateString()}</span>
-                              </td>
-                              <td className="p-4 text-center align-middle bg-transparent border-b border-slate-50 shadow-none">
-                                <div className="flex items-center justify-center gap-2 opacity-60 group-hover:opacity-100 transition-opacity">
-                                  <button
-                                    onClick={() => handleViewDocument(doc)}
-                                    className="p-2 rounded-lg hover:bg-white hover:shadow-soft-md text-slate-400 hover:text-fuchsia-600 transition-all"
-                                    title="View Document"
-                                  >
-                                    <Eye size={16} />
-                                  </button>
-                                  <button
-                                    onClick={() => handleDownloadDocument(doc)}
-                                    className="p-2 rounded-lg hover:bg-white hover:shadow-soft-md text-slate-400 hover:text-blue-600 transition-all"
-                                    title="Download Document"
-                                  >
-                                    <Download size={16} />
-                                  </button>
-                                  {user?.role === 'admin' && (
-                                    <button
-                                      onClick={() => handleDeleteDocument(doc.id)}
-                                      className="p-2 rounded-lg hover:bg-white hover:shadow-soft-md text-slate-400 hover:text-red-600 transition-all"
-                                      title="Delete Document"
-                                    >
-                                      <Trash2 size={16} />
-                                    </button>
-                                  )}
+                                </td>
+                                <td className="p-4 border-b border-slate-50">
+                                  <div className="h-4 bg-slate-100 rounded w-full max-w-xs"></div>
+                                </td>
+                                <td className="p-4 border-b border-slate-50">
+                                  <div className="h-4 bg-slate-100 rounded w-16 mx-auto"></div>
+                                </td>
+                                <td className="p-4 border-b border-slate-50">
+                                  <div className="flex justify-center gap-2">
+                                    <div className="w-8 h-8 bg-slate-100 rounded-lg"></div>
+                                    <div className="w-8 h-8 bg-slate-100 rounded-lg"></div>
+                                  </div>
+                                </td>
+                              </tr>
+                            ))
+                          ) : sortedDocuments.length === 0 ? (
+                            <tr>
+                              <td colSpan="4" className="p-12 text-center">
+                                <div className="flex flex-col items-center justify-center">
+                                  <div className="w-16 h-16 rounded-2xl bg-slate-50 flex items-center justify-center text-slate-300 mb-4">
+                                    <FileText size={32} />
+                                  </div>
+                                  <p className="text-sm font-bold text-slate-400">No documents found for this project</p>
+                                  <p className="text-xs text-slate-400 mt-1">Upload files to share them with the team.</p>
                                 </div>
                               </td>
                             </tr>
-                          ))
-                        )}
-                      </tbody>
-                    </table>
+                          ) : (
+                            sortedDocuments.map((doc) => (
+                              <tr key={doc.id} className="group hover:bg-slate-50/50 transition-colors">
+                                <td className="p-4 align-middle bg-transparent border-b border-slate-50 shadow-none">
+                                  <div className="flex px-2 py-1">
+                                    <div className="flex items-center justify-center w-10 h-10 mr-4 text-white rounded-xl bg-gradient-to-tl from-blue-600 to-cyan-400 shadow-soft-sm">
+                                      <FileText size={18} />
+                                    </div>
+                                    <div className="flex flex-col justify-center">
+                                      <h6 className="mb-0 text-sm font-bold leading-normal text-slate-700">{doc.title}</h6>
+                                      <div className="flex items-center gap-2 mt-0.5">
+                                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{doc.fileType?.split('/')[1] || 'FILE'}</span>
+                                        <span className="text-[10px] text-slate-300">•</span>
+                                        <span className="text-[10px] font-bold text-slate-400">{formatFileSize(doc.fileSize)}</span>
+                                      </div>
+                                    </div>
+                                  </div>
+                                </td>
+                                <td className="p-4 align-middle bg-transparent border-b border-slate-50 shadow-none">
+                                  <p className="mb-0 text-xs font-bold text-slate-600 max-w-xs truncate" title={doc.description}>{doc.description || 'No description'}</p>
+                                </td>
+                                <td className="p-4 text-center align-middle bg-transparent border-b border-slate-50 shadow-none">
+                                  <span className="text-xs font-bold text-slate-400">{new Date(doc.createdAt).toLocaleDateString()}</span>
+                                </td>
+                                <td className="p-4 text-center align-middle bg-transparent border-b border-slate-50 shadow-none">
+                                  <div className="flex items-center justify-center gap-2 opacity-60 group-hover:opacity-100 transition-opacity">
+                                    <button
+                                      onClick={() => handleViewDocument(doc)}
+                                      className="p-2 rounded-lg hover:bg-white hover:shadow-soft-md text-slate-400 hover:text-fuchsia-600 transition-all"
+                                      title="View Document"
+                                    >
+                                      <Eye size={16} />
+                                    </button>
+                                    <button
+                                      onClick={() => handleDownloadDocument(doc)}
+                                      className="p-2 rounded-lg hover:bg-white hover:shadow-soft-md text-slate-400 hover:text-blue-600 transition-all"
+                                      title="Download Document"
+                                    >
+                                      <Download size={16} />
+                                    </button>
+                                    {user?.role === 'admin' && (
+                                      <button
+                                        onClick={() => handleDeleteDocument(doc.id)}
+                                        className="p-2 rounded-lg hover:bg-white hover:shadow-soft-md text-slate-400 hover:text-red-600 transition-all"
+                                        title="Delete Document"
+                                      >
+                                        <Trash2 size={16} />
+                                      </button>
+                                    )}
+                                  </div>
+                                </td>
+                              </tr>
+                            ))
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
                   </div>
-                </div>
-              )}
-            </CardBody>
-          </Card>
+                )}
+              </CardBody>
+            </Card>
+          </div>
         </div>
-      </div>
 
-      {/* Document Upload Modal */}
-      <Modal
-        isOpen={documentDialog}
-        title="Upload Project Document"
-        onClose={() => setDocumentDialog(false)}
-        footer={
-          <>
-            <Button variant="secondary" size="sm" onClick={() => setDocumentDialog(false)}>Cancel</Button>
-            <Button size="sm" onClick={handleUploadDocument} disabled={uploading}>
-              {uploading ? 'Uploading...' : 'Upload'}
-            </Button>
-          </>
-        }
-      >
-        <div className="flex flex-col gap-4">
-          <InputGroup
-            label="Document Title"
-            placeholder="e.g., Project Specification"
-            value={documentForm.title}
-            onChange={(e) => setDocumentForm({ ...documentForm, title: e.target.value })}
-          />
-          <div className="flex flex-col gap-1">
-            <label className="ml-1 font-bold text-xs text-slate-700 uppercase tracking-wider">Description</label>
-            <textarea
-              className="p-3 text-sm border border-slate-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-fuchsia-500/20 focus:border-fuchsia-500 transition-all min-h-[100px]"
-              placeholder="Brief description of the document..."
-              value={documentForm.description}
-              onChange={(e) => setDocumentForm({ ...documentForm, description: e.target.value })}
+        {/* Document Upload Modal */}
+        <Modal
+          isOpen={documentDialog}
+          title="Upload Project Document"
+          onClose={() => setDocumentDialog(false)}
+          footer={
+            <>
+              <Button variant="secondary" size="sm" onClick={() => setDocumentDialog(false)}>Cancel</Button>
+              <Button size="sm" onClick={handleUploadDocument} disabled={uploading}>
+                {uploading ? 'Uploading...' : 'Upload'}
+              </Button>
+            </>
+          }
+        >
+          <div className="flex flex-col gap-4">
+            <InputGroup
+              label="Document Title"
+              placeholder="e.g., Project Specification"
+              value={documentForm.title}
+              onChange={(e) => setDocumentForm({ ...documentForm, title: e.target.value })}
             />
-          </div>
-          <div className="flex flex-col gap-1">
-            <label className="ml-1 font-bold text-xs text-slate-700 uppercase tracking-wider">File</label>
-            <div className="relative group">
-              <input
-                type="file"
-                className="hidden"
-                id="doc-file-upload"
-                onChange={(e) => setDocumentForm({ ...documentForm, file: e.target.files[0] })}
+            <div className="flex flex-col gap-1">
+              <label className="ml-1 font-bold text-xs text-slate-700 uppercase tracking-wider">Description</label>
+              <textarea
+                className="p-3 text-sm border border-slate-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-fuchsia-500/20 focus:border-fuchsia-500 transition-all min-h-[100px]"
+                placeholder="Brief description of the document..."
+                value={documentForm.description}
+                onChange={(e) => setDocumentForm({ ...documentForm, description: e.target.value })}
               />
-              <label
-                htmlFor="doc-file-upload"
-                className="flex flex-col items-center justify-center w-full p-8 border-2 border-dashed border-slate-200 rounded-2xl cursor-pointer hover:bg-slate-50 hover:border-fuchsia-400 transition-all group"
-              >
-                <div className="flex flex-col items-center justify-center">
-                  <div className="w-12 h-12 rounded-xl bg-slate-50 flex items-center justify-center text-slate-400 mb-3 group-hover:bg-fuchsia-50 group-hover:text-fuchsia-500 transition-all">
-                    <Upload size={24} />
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="ml-1 font-bold text-xs text-slate-700 uppercase tracking-wider">File</label>
+              <div className="relative group">
+                <input
+                  type="file"
+                  className="hidden"
+                  id="doc-file-upload"
+                  onChange={(e) => setDocumentForm({ ...documentForm, file: e.target.files[0] })}
+                />
+                <label
+                  htmlFor="doc-file-upload"
+                  className="flex flex-col items-center justify-center w-full p-8 border-2 border-dashed border-slate-200 rounded-2xl cursor-pointer hover:bg-slate-50 hover:border-fuchsia-400 transition-all group"
+                >
+                  <div className="flex flex-col items-center justify-center">
+                    <div className="w-12 h-12 rounded-xl bg-slate-50 flex items-center justify-center text-slate-400 mb-3 group-hover:bg-fuchsia-50 group-hover:text-fuchsia-500 transition-all">
+                      <Upload size={24} />
+                    </div>
+                    <p className="text-sm font-bold text-slate-600 mb-1">
+                      {documentForm.file ? documentForm.file.name : 'Click to select a file'}
+                    </p>
+                    <p className="text-xs text-slate-400">
+                      {documentForm.file ? formatFileSize(documentForm.file.size) : 'Any document or archive format'}
+                    </p>
                   </div>
-                  <p className="text-sm font-bold text-slate-600 mb-1">
-                    {documentForm.file ? documentForm.file.name : 'Click to select a file'}
-                  </p>
-                  <p className="text-xs text-slate-400">
-                    {documentForm.file ? formatFileSize(documentForm.file.size) : 'Any document or archive format'}
-                  </p>
-                </div>
-              </label>
-            </div>
-          </div>
-          {uploading && (
-            <div className="mt-4">
-              <div className="flex justify-between items-center mb-1">
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Uploading...</span>
-                <span className="text-[10px] font-bold text-fuchsia-600">{uploadProgress}%</span>
+                </label>
               </div>
-              <ProgressBar value={uploadProgress} max={100} showLabel={false} gradient="from-purple-700 to-pink-500" />
             </div>
-          )}
-        </div>
-      </Modal>
+            {uploading && (
+              <div className="mt-4">
+                <div className="flex justify-between items-center mb-1">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Uploading...</span>
+                  <span className="text-[10px] font-bold text-fuchsia-600">{uploadProgress}%</span>
+                </div>
+                <ProgressBar value={uploadProgress} max={100} showLabel={false} gradient="from-purple-700 to-pink-500" />
+              </div>
+            )}
+          </div>
+        </Modal>
 
-      {/* Modals */}
-      <Modal
-        isOpen={milestoneDialog}
-        title={editingMilestone ? 'Edit Milestone' : 'New Milestone'}
-        onClose={() => setMilestoneDialog(false)}
-        footer={
-          <>
-            <Button variant="secondary" size="sm" onClick={() => setMilestoneDialog(false)}>Cancel</Button>
-            <Button size="sm" onClick={handleAddMilestone}>{editingMilestone ? 'Update' : 'Create'}</Button>
-          </>
-        }
-      >
-        <div className="flex flex-col gap-4">
-          <InputGroup label="Milestone Number" value={milestoneForm.milestoneNumber} onChange={(e) => setMilestoneForm({ ...milestoneForm, milestoneNumber: e.target.value })} />
+        {/* Modals */}
+        <Modal
+          isOpen={milestoneDialog}
+          title={editingMilestone ? 'Edit Milestone' : 'New Milestone'}
+          onClose={() => setMilestoneDialog(false)}
+          footer={
+            <>
+              <Button variant="secondary" size="sm" onClick={() => setMilestoneDialog(false)}>Cancel</Button>
+              <Button size="sm" onClick={handleAddMilestone}>{editingMilestone ? 'Update' : 'Create'}</Button>
+            </>
+          }
+        >
+          <div className="flex flex-col gap-4">
+            <InputGroup label="Milestone Number" value={milestoneForm.milestoneNumber} onChange={(e) => setMilestoneForm({ ...milestoneForm, milestoneNumber: e.target.value })} />
 
-          <div className="mb-4">
-            <label className="mb-3 ml-1 font-bold text-xs text-slate-700 uppercase tracking-wider">Select Modules (from Screens)</label>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-48 overflow-y-auto p-4 border border-gray-200 rounded-2xl bg-slate-50/50 shadow-inner">
-              {screensList.length === 0 ? (
-                <p className="text-xs text-slate-500 italic col-span-full text-center py-4">No screens available to select as modules.</p>
-              ) : (
-                screensList.map(screen => {
-                  const isChecked = milestoneForm.module ? milestoneForm.module.split(',').map(m => m.trim()).includes(screen.title) : false;
-                  return (
-                    <label
-                      key={screen.id}
-                      className={`flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-all duration-200 border ${isChecked
+            <div className="mb-4">
+              <label className="mb-3 ml-1 font-bold text-xs text-slate-700 uppercase tracking-wider">Select Modules (from Screens)</label>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-48 overflow-y-auto p-4 border border-gray-200 rounded-2xl bg-slate-50/50 shadow-inner">
+                {screensList.length === 0 ? (
+                  <p className="text-xs text-slate-500 italic col-span-full text-center py-4">No screens available to select as modules.</p>
+                ) : (
+                  screensList.map(screen => {
+                    const isChecked = milestoneForm.module ? milestoneForm.module.split(',').map(m => m.trim()).includes(screen.title) : false;
+                    return (
+                      <label
+                        key={screen.id}
+                        className={`flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-all duration-200 border ${isChecked
                           ? 'bg-white border-fuchsia-200 shadow-soft-sm'
                           : 'bg-transparent border-transparent hover:bg-white/60'
-                        }`}
-                    >
-                      <div className="relative flex items-center">
-                        <input
-                          type="checkbox"
-                          className="peer appearance-none w-5 h-5 border-2 border-slate-300 rounded-md checked:bg-fuchsia-600 checked:border-fuchsia-600 transition-all cursor-pointer"
-                          checked={isChecked}
-                          onChange={() => handleToggleModule(screen.title)}
-                        />
-                        <CheckCircle
-                          className={`absolute w-3.5 h-3.5 text-white left-0.75 pointer-events-none transition-opacity ${isChecked ? 'opacity-100' : 'opacity-0'}`}
-                          size={14}
-                        />
-                      </div>
-                      <span className={`text-xs font-bold transition-colors ${isChecked ? 'text-slate-800' : 'text-slate-500'}`}>
-                        {screen.title}
-                      </span>
-                    </label>
-                  );
-                })
+                          }`}
+                      >
+                        <div className="relative flex items-center">
+                          <input
+                            type="checkbox"
+                            className="peer appearance-none w-5 h-5 border-2 border-slate-300 rounded-md checked:bg-fuchsia-600 checked:border-fuchsia-600 transition-all cursor-pointer"
+                            checked={isChecked}
+                            onChange={() => handleToggleModule(screen.title)}
+                          />
+                          <CheckCircle
+                            className={`absolute w-3.5 h-3.5 text-white left-0.75 pointer-events-none transition-opacity ${isChecked ? 'opacity-100' : 'opacity-0'}`}
+                            size={14}
+                          />
+                        </div>
+                        <span className={`text-xs font-bold transition-colors ${isChecked ? 'text-slate-800' : 'text-slate-500'}`}>
+                          {screen.title}
+                        </span>
+                      </label>
+                    );
+                  })
+                )}
+              </div>
+              {milestoneForm.module && (
+                <div className="mt-4 flex flex-wrap gap-2">
+                  <p className="w-full text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1 ml-1">Selected:</p>
+                  {milestoneForm.module.split(',').map(m => m.trim()).filter(m => m !== '').map((m, idx) => (
+                    <Badge key={idx} gradient="from-blue-600 to-cyan-400" size="sm">{m}</Badge>
+                  ))}
+                </div>
               )}
             </div>
-            {milestoneForm.module && (
-              <div className="mt-4 flex flex-wrap gap-2">
-                <p className="w-full text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1 ml-1">Selected:</p>
-                {milestoneForm.module.split(',').map(m => m.trim()).filter(m => m !== '').map((m, idx) => (
-                  <Badge key={idx} gradient="from-blue-600 to-cyan-400" size="sm">{m}</Badge>
-                ))}
-              </div>
-            )}
-          </div>
 
-          <InputGroup label="Timeline" type="date" value={milestoneForm.timeline} onChange={(e) => setMilestoneForm({ ...milestoneForm, timeline: e.target.value })} />
-          <Select
-            label="Status"
-            options={[
-              { value: 'pending', label: 'Pending' },
-              { value: 'in progress', label: 'In Progress' },
-              { value: 'done', label: 'Done' },
-              { value: 'approved', label: 'Approved' },
-              { value: 'approval pending', label: 'Approval Pending' }
-            ]}
-            value={milestoneForm.status}
-            onChange={(e) => setMilestoneForm({ ...milestoneForm, status: e.target.value })}
-          />
-        </div>
-      </Modal>
-
-      <Modal
-        isOpen={screenDialog}
-        title={editingScreen ? 'Edit Screen' : 'New Screen'}
-        onClose={() => setScreenDialog(false)}
-        footer={
-          <>
-            <Button variant="secondary" size="sm" onClick={() => setScreenDialog(false)}>Cancel</Button>
-            <Button size="sm" onClick={handleAddScreen}>{editingScreen ? 'Update' : 'Create'}</Button>
-          </>
-        }
-      >
-        <div className="flex flex-col gap-4">
-          <InputGroup label="Title" value={screenForm.title} onChange={(e) => setScreenForm({ ...screenForm, title: e.target.value })} />
-          <InputGroup label="Module" value={screenForm.module} onChange={(e) => setScreenForm({ ...screenForm, module: e.target.value })} />
-          <Select
-            label="Assignee"
-            options={[
-              { value: '', label: 'Unassigned' },
-              ...(project?.developerNames?.map(d => ({ value: d.id, label: d.name })) || [])
-            ]}
-            value={screenForm.assigneeId}
-            onChange={(e) => setScreenForm({ ...screenForm, assigneeId: e.target.value })}
-          />
-          <InputGroup label="Planned Deadline" type="date" value={screenForm.plannedDeadline} onChange={(e) => setScreenForm({ ...screenForm, plannedDeadline: e.target.value })} />
-          <div className="mb-4">
-            <label className="mb-2 ml-1 font-bold text-xs text-slate-700">Notes</label>
-            <textarea
-              className="focus:shadow-soft-primary-outline text-sm leading-5.6 block w-full appearance-none rounded-lg border border-solid border-gray-300 bg-white bg-clip-padding px-3 py-2 font-normal text-gray-700 transition-all focus:border-fuchsia-300 focus:outline-none focus:transition-shadow"
-              rows="3"
-              value={screenForm.notes}
-              onChange={(e) => setScreenForm({ ...screenForm, notes: e.target.value })}
+            <InputGroup label="Timeline" type="date" value={milestoneForm.timeline} onChange={(e) => setMilestoneForm({ ...milestoneForm, timeline: e.target.value })} />
+            <Select
+              label="Status"
+              options={[
+                { value: 'pending', label: 'Pending' },
+                { value: 'in progress', label: 'In Progress' },
+                { value: 'done', label: 'Done' },
+                { value: 'approved', label: 'Approved' },
+                { value: 'approval pending', label: 'Approval Pending' }
+              ]}
+              value={milestoneForm.status}
+              onChange={(e) => setMilestoneForm({ ...milestoneForm, status: e.target.value })}
             />
           </div>
-        </div>
-      </Modal>
+        </Modal>
 
-      {/* Screen Deadline Edit Modal */}
-      <Modal
-        isOpen={screenEditDeadlineDialog}
-        title="Edit Screen Deadline"
-        onClose={() => setScreenEditDeadlineDialog(false)}
-        footer={
-          <>
-            <Button variant="secondary" size="sm" onClick={() => setScreenEditDeadlineDialog(false)}>Cancel</Button>
-            <Button size="sm" onClick={handleSaveScreenDeadline}>Save Changes</Button>
-          </>
-        }
-      >
-        <InputGroup label="New Deadline" type="date" value={screenEditDeadlineValue} onChange={(e) => setScreenEditDeadlineValue(e.target.value)} />
-      </Modal>
-
-      {/* Bug Report Modal */}
-      <Modal
-        isOpen={bugDialog}
-        title="Report New Bug"
-        onClose={() => setBugDialog(false)}
-        footer={
-          <>
-            <Button variant="secondary" size="sm" onClick={() => setBugDialog(false)}>Cancel</Button>
-            <Button size="sm" onClick={handleAddBug}>Submit Bug</Button>
-          </>
-        }
-      >
-        <div className="flex flex-col gap-4">
-          <div className="mb-4">
-            <label className="mb-2 ml-1 font-bold text-xs text-slate-700">Description</label>
-            <textarea
-              className="focus:shadow-soft-primary-outline text-sm leading-5.6 block w-full appearance-none rounded-lg border border-solid border-gray-300 bg-white bg-clip-padding px-3 py-2 font-normal text-gray-700 transition-all focus:border-fuchsia-300 focus:outline-none focus:transition-shadow"
-              rows="3"
-              value={bugForm.description}
-              onChange={(e) => setBugForm({ ...bugForm, description: e.target.value })}
-              required
+        <Modal
+          isOpen={screenDialog}
+          title={editingScreen ? 'Edit Screen' : 'New Screen'}
+          onClose={() => setScreenDialog(false)}
+          footer={
+            <>
+              <Button variant="secondary" size="sm" onClick={() => setScreenDialog(false)}>Cancel</Button>
+              <Button size="sm" onClick={handleAddScreen}>{editingScreen ? 'Update' : 'Create'}</Button>
+            </>
+          }
+        >
+          <div className="flex flex-col gap-4">
+            <InputGroup label="Title" value={screenForm.title} onChange={(e) => setScreenForm({ ...screenForm, title: e.target.value })} />
+            <InputGroup label="Module" value={screenForm.module} onChange={(e) => setScreenForm({ ...screenForm, module: e.target.value })} />
+            <Select
+              label="Assignee"
+              options={[
+                { value: '', label: 'Unassigned' },
+                ...(project?.developerNames?.map(d => ({ value: d.id, label: d.name })) || [])
+              ]}
+              value={screenForm.assigneeId}
+              onChange={(e) => setScreenForm({ ...screenForm, assigneeId: e.target.value })}
             />
-          </div>
-          <Select
-            label="Severity"
-            options={[
-              { value: 'low', label: 'Low' },
-              { value: 'medium', label: 'Medium' },
-              { value: 'high', label: 'High' },
-              { value: 'critical', label: 'Critical' }
-            ]}
-            value={bugForm.severity}
-            onChange={(e) => setBugForm({ ...bugForm, severity: e.target.value })}
-          />
-          <Select
-            label="Related Screen"
-            options={[
-              { value: '', label: 'General / No Screen' },
-              ...(screensList.map(s => ({ value: s.id, label: s.title })) || [])
-            ]}
-            value={bugForm.screenId}
-            onChange={(e) => setBugForm({ ...bugForm, screenId: e.target.value })}
-          />
-          <Select
-            label="Assign Developer"
-            options={[
-              { value: '', label: 'Unassigned' },
-              ...(project?.developerNames?.map(d => ({ value: d.id, label: d.name })) || [])
-            ]}
-            value={bugForm.assignedDeveloperId}
-            onChange={(e) => setBugForm({ ...bugForm, assignedDeveloperId: e.target.value })}
-          />
-          <InputGroup label="Deadline" type="date" value={bugForm.deadline} onChange={(e) => setBugForm({ ...bugForm, deadline: e.target.value })} />
-
-          <div className="mb-4">
-            <label className="mb-2 ml-1 font-bold text-xs text-slate-700">Attachments</label>
-            <div className="flex items-center justify-center w-full">
-              <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100 transition-colors">
-                <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                  <Plus className="w-8 h-8 mb-4 text-gray-500" />
-                  <p className="mb-2 text-sm text-gray-500"><span className="font-semibold">Click to upload</span> or drag and drop</p>
-                  <p className="text-xs text-gray-400">PNG, JPG, GIF up to 10MB</p>
-                </div>
-                <input type="file" className="hidden" multiple onChange={handleAttachmentChange} />
-              </label>
+            <InputGroup label="Planned Deadline" type="date" value={screenForm.plannedDeadline} onChange={(e) => setScreenForm({ ...screenForm, plannedDeadline: e.target.value })} />
+            <div className="mb-4">
+              <label className="mb-2 ml-1 font-bold text-xs text-slate-700">Notes</label>
+              <textarea
+                className="focus:shadow-soft-primary-outline text-sm leading-5.6 block w-full appearance-none rounded-lg border border-solid border-gray-300 bg-white bg-clip-padding px-3 py-2 font-normal text-gray-700 transition-all focus:border-fuchsia-300 focus:outline-none focus:transition-shadow"
+                rows="3"
+                value={screenForm.notes}
+                onChange={(e) => setScreenForm({ ...screenForm, notes: e.target.value })}
+              />
             </div>
-            {bugForm.attachments.length > 0 && (
-              <div className="flex flex-wrap gap-2 mt-4">
-                {bugForm.attachments.map(att => (
-                  <div key={att.id} className="flex items-center gap-2 p-2 bg-white border border-gray-200 rounded-lg">
-                    {isImageFile(att.type) ? <ImageIcon size={14} className="text-blue-500" /> : <Paperclip size={14} className="text-slate-400" />}
-                    <span className="text-xs truncate max-w-[100px]">{att.name}</span>
-                    <button onClick={() => removeAttachment(att.id)} className="text-red-500 hover:text-red-700">
-                      <X size={14} />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
           </div>
-        </div>
-      </Modal>
+        </Modal>
 
-      {/* Bug Edit Modal */}
-      <Modal
-        isOpen={bugEditDialog}
-        title="Edit Bug Deadline"
-        onClose={() => setBugEditDialog(false)}
-        footer={
-          <>
-            <Button variant="secondary" size="sm" onClick={() => setBugEditDialog(false)}>Cancel</Button>
-            <Button size="sm" onClick={handleSaveBugDeadline}>Save Changes</Button>
-          </>
-        }
-      >
-        <InputGroup label="New Deadline" type="date" value={bugEditDeadline} onChange={(e) => setBugEditDeadline(e.target.value)} />
-      </Modal>
+        {/* Screen Deadline Edit Modal */}
+        <Modal
+          isOpen={screenEditDeadlineDialog}
+          title="Edit Screen Deadline"
+          onClose={() => setScreenEditDeadlineDialog(false)}
+          footer={
+            <>
+              <Button variant="secondary" size="sm" onClick={() => setScreenEditDeadlineDialog(false)}>Cancel</Button>
+              <Button size="sm" onClick={handleSaveScreenDeadline}>Save Changes</Button>
+            </>
+          }
+        >
+          <InputGroup label="New Deadline" type="date" value={screenEditDeadlineValue} onChange={(e) => setScreenEditDeadlineValue(e.target.value)} />
+        </Modal>
 
-      {/* Attachment Preview Modal */}
-      <Modal
-        isOpen={previewDialog}
-        title={previewAttachment?.name || 'Preview'}
-        onClose={() => setPreviewDialog(false)}
-      >
-        {previewAttachment && (
-          <div className="flex flex-col items-center">
-            {isImageFile(previewAttachment.type) ? (
-              <img src={previewAttachment.data} alt={previewAttachment.name} className="max-w-full rounded-lg shadow-soft-xl" />
-            ) : isVideoFile(previewAttachment.type) ? (
-              <video src={previewAttachment.data} controls className="max-w-full rounded-lg shadow-soft-xl" />
-            ) : (
-              <div className="p-8 text-center">
-                <Paperclip size={48} className="text-slate-300 mb-4 mx-auto" />
-                <p className="text-slate-500 mb-4">Preview not available for this file type.</p>
-                <a
-                  href={previewAttachment.data}
-                  download={previewAttachment.name}
-                  className="inline-flex items-center px-4 py-2 bg-gradient-to-tl from-purple-700 to-pink-500 text-white rounded-lg font-bold text-sm shadow-soft-md"
-                >
-                  <Download size={16} className="mr-2" /> Download File
-                </a>
+        {/* Bug Report Modal */}
+        <Modal
+          isOpen={bugDialog}
+          title="Report New Bug"
+          onClose={() => setBugDialog(false)}
+          footer={
+            <>
+              <Button variant="secondary" size="sm" onClick={() => setBugDialog(false)}>Cancel</Button>
+              <Button size="sm" onClick={handleAddBug}>Submit Bug</Button>
+            </>
+          }
+        >
+          <div className="flex flex-col gap-4">
+            <div className="mb-4">
+              <label className="mb-2 ml-1 font-bold text-xs text-slate-700">Description</label>
+              <textarea
+                className="focus:shadow-soft-primary-outline text-sm leading-5.6 block w-full appearance-none rounded-lg border border-solid border-gray-300 bg-white bg-clip-padding px-3 py-2 font-normal text-gray-700 transition-all focus:border-fuchsia-300 focus:outline-none focus:transition-shadow"
+                rows="3"
+                value={bugForm.description}
+                onChange={(e) => setBugForm({ ...bugForm, description: e.target.value })}
+                required
+              />
+            </div>
+            <Select
+              label="Severity"
+              options={[
+                { value: 'low', label: 'Low' },
+                { value: 'medium', label: 'Medium' },
+                { value: 'high', label: 'High' },
+                { value: 'critical', label: 'Critical' }
+              ]}
+              value={bugForm.severity}
+              onChange={(e) => setBugForm({ ...bugForm, severity: e.target.value })}
+            />
+            <Select
+              label="Related Screen"
+              options={[
+                { value: '', label: 'General / No Screen' },
+                ...(screensList.map(s => ({ value: s.id, label: s.title })) || [])
+              ]}
+              value={bugForm.screenId}
+              onChange={(e) => setBugForm({ ...bugForm, screenId: e.target.value })}
+            />
+            <Select
+              label="Assign Developer"
+              options={[
+                { value: '', label: 'Unassigned' },
+                ...(project?.developerNames?.map(d => ({ value: d.id, label: d.name })) || [])
+              ]}
+              value={bugForm.assignedDeveloperId}
+              onChange={(e) => setBugForm({ ...bugForm, assignedDeveloperId: e.target.value })}
+            />
+            <InputGroup label="Deadline" type="date" value={bugForm.deadline} onChange={(e) => setBugForm({ ...bugForm, deadline: e.target.value })} />
+
+            <div className="mb-4">
+              <label className="mb-2 ml-1 font-bold text-xs text-slate-700">Attachments</label>
+              <div className="flex items-center justify-center w-full">
+                <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100 transition-colors">
+                  <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                    <Plus className="w-8 h-8 mb-4 text-gray-500" />
+                    <p className="mb-2 text-sm text-gray-500"><span className="font-semibold">Click to upload</span> or drag and drop</p>
+                    <p className="text-xs text-gray-400">PNG, JPG, GIF up to 10MB</p>
+                  </div>
+                  <input type="file" className="hidden" multiple onChange={handleAttachmentChange} />
+                </label>
               </div>
-            )}
-            {previewBug && (
-              <div className="mt-4 p-4 bg-slate-50 rounded-xl border border-slate-100 w-full shadow-inner">
-                <p className="text-sm font-bold text-slate-800 mb-3 leading-relaxed">{previewBug.description}</p>
-                <div className="flex flex-wrap items-center gap-3">
-                  <div className="flex items-center gap-1.5 px-2.5 py-1 bg-indigo-50 text-indigo-700 rounded-lg border border-indigo-100 text-[11px] font-bold uppercase tracking-wider">
-                    <span className="opacity-60">Screen:</span> {previewBug.screenTitle || 'General'}
-                  </div>
-                  <div className="flex items-center gap-1.5 px-2.5 py-1 bg-fuchsia-50 text-fuchsia-700 rounded-lg border border-fuchsia-100 text-[11px] font-bold uppercase tracking-wider">
-                    <span className="opacity-60">Module:</span> {previewBug.module || 'N/A'}
-                  </div>
+              {bugForm.attachments.length > 0 && (
+                <div className="flex flex-wrap gap-2 mt-4">
+                  {bugForm.attachments.map(att => (
+                    <div key={att.id} className="flex items-center gap-2 p-2 bg-white border border-gray-200 rounded-lg">
+                      {isImageFile(att.type) ? <ImageIcon size={14} className="text-blue-500" /> : <Paperclip size={14} className="text-slate-400" />}
+                      <span className="text-xs truncate max-w-[100px]">{att.name}</span>
+                      <button onClick={() => removeAttachment(att.id)} className="text-red-500 hover:text-red-700">
+                        <X size={14} />
+                      </button>
+                    </div>
+                  ))}
                 </div>
-              </div>
-            )}
+              )}
+            </div>
           </div>
-        )}
-      </Modal>
+        </Modal>
 
-      {/* Project Document Preview Modal */}
-      <Modal
-        isOpen={docPreviewDialog}
-        title={previewDoc?.title || 'Document Preview'}
-        onClose={() => {
-          if (previewDocUrl) URL.revokeObjectURL(previewDocUrl);
-          setPreviewDocUrl(null);
-          setDocPreviewDialog(false);
-        }}
-        footer={
-          <>
-            <Button variant="secondary" size="sm" onClick={() => {
-              if (previewDocUrl) URL.revokeObjectURL(previewDocUrl);
-              setPreviewDocUrl(null);
-              setDocPreviewDialog(false);
-            }}>Close</Button>
-            <Button size="sm" onClick={() => handleDownloadDocument(previewDoc)}>
-              <Download size={14} className="mr-2" /> Download
-            </Button>
-          </>
-        }
-      >
-        {previewDoc && (
-          <div className="flex flex-col gap-6">
-            <div className="flex items-start gap-4 p-4 bg-slate-50 rounded-2xl border border-slate-100">
-              <div className="w-12 h-12 rounded-xl bg-gradient-to-tl from-blue-600 to-cyan-400 flex items-center justify-center text-white shadow-soft-md shrink-0">
-                <FileText size={24} />
-              </div>
-              <div>
-                <h6 className="text-slate-800 font-bold mb-1">{previewDoc.title}</h6>
-                <p className="text-xs text-slate-500 mb-0">{previewDoc.fileName}</p>
-                <div className="flex items-center gap-2 mt-2">
-                  <Badge gradient="from-slate-600 to-slate-300" size="sm">{previewDoc.fileType || 'Unknown Type'}</Badge>
-                  <Badge gradient="from-blue-600 to-cyan-400" size="sm">{formatFileSize(previewDoc.fileSize)}</Badge>
-                </div>
-              </div>
-            </div>
+        {/* Bug Edit Modal */}
+        <Modal
+          isOpen={bugEditDialog}
+          title="Edit Bug Deadline"
+          onClose={() => setBugEditDialog(false)}
+          footer={
+            <>
+              <Button variant="secondary" size="sm" onClick={() => setBugEditDialog(false)}>Cancel</Button>
+              <Button size="sm" onClick={handleSaveBugDeadline}>Save Changes</Button>
+            </>
+          }
+        >
+          <InputGroup label="New Deadline" type="date" value={bugEditDeadline} onChange={(e) => setBugEditDeadline(e.target.value)} />
+        </Modal>
 
-            <div>
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 ml-1">Description</p>
-              <div className="p-4 bg-white border border-slate-100 rounded-2xl text-sm text-slate-600 leading-relaxed shadow-soft-sm">
-                {previewDoc.description || <span className="italic opacity-50">No description provided for this document.</span>}
-              </div>
-            </div>
-
-            {/* File Preview if possible */}
-            <div className="border-t border-slate-100 pt-6">
-              {previewDoc.fileType?.startsWith('image/') ? (
-                <div className="flex justify-center p-2 bg-slate-50 rounded-2xl border border-dashed border-slate-200">
-                  <img
-                    src={previewDocUrl || ''}
-                    alt={previewDoc.title}
-                    className="max-w-full max-h-[400px] rounded-xl shadow-soft-lg object-contain"
-                  />
-                </div>
+        {/* Attachment Preview Modal */}
+        <Modal
+          isOpen={previewDialog}
+          title={previewAttachment?.name || 'Preview'}
+          onClose={() => setPreviewDialog(false)}
+        >
+          {previewAttachment && (
+            <div className="flex flex-col items-center">
+              {isImageFile(previewAttachment.type) ? (
+                <img src={previewAttachment.data} alt={previewAttachment.name} className="max-w-full rounded-lg shadow-soft-xl" />
+              ) : isVideoFile(previewAttachment.type) ? (
+                <video src={previewAttachment.data} controls className="max-w-full rounded-lg shadow-soft-xl" />
               ) : (
-                <div className="flex flex-col items-center justify-center py-12 bg-slate-50 rounded-2xl border border-dashed border-slate-200">
-                  <div className="w-16 h-16 rounded-full bg-white flex items-center justify-center text-slate-300 mb-4 shadow-soft-sm">
-                    <FileText size={32} />
+                <div className="p-8 text-center">
+                  <Paperclip size={48} className="text-slate-300 mb-4 mx-auto" />
+                  <p className="text-slate-500 mb-4">Preview not available for this file type.</p>
+                  <a
+                    href={previewAttachment.data}
+                    download={previewAttachment.name}
+                    className="inline-flex items-center px-4 py-2 bg-gradient-to-tl from-purple-700 to-pink-500 text-white rounded-lg font-bold text-sm shadow-soft-md"
+                  >
+                    <Download size={16} className="mr-2" /> Download File
+                  </a>
+                </div>
+              )}
+              {previewBug && (
+                <div className="mt-4 p-4 bg-slate-50 rounded-xl border border-slate-100 w-full shadow-inner">
+                  <p className="text-sm font-bold text-slate-800 mb-3 leading-relaxed">{previewBug.description}</p>
+                  <div className="flex flex-wrap items-center gap-3">
+                    <div className="flex items-center gap-1.5 px-2.5 py-1 bg-indigo-50 text-indigo-700 rounded-lg border border-indigo-100 text-[11px] font-bold uppercase tracking-wider">
+                      <span className="opacity-60">Screen:</span> {previewBug.screenTitle || 'General'}
+                    </div>
+                    <div className="flex items-center gap-1.5 px-2.5 py-1 bg-fuchsia-50 text-fuchsia-700 rounded-lg border border-fuchsia-100 text-[11px] font-bold uppercase tracking-wider">
+                      <span className="opacity-60">Module:</span> {previewBug.module || 'N/A'}
+                    </div>
                   </div>
-                  <p className="text-sm font-bold text-slate-500 mb-1">Preview not available for this file type</p>
-                  <p className="text-xs text-slate-400 mb-4">Please download the file to view its content</p>
                 </div>
               )}
             </div>
+          )}
+        </Modal>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
-                <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1">Uploaded By</p>
-                <p className="text-xs font-bold text-slate-700">{previewDoc.createdBy || 'System'}</p>
+        {/* Project Document Preview Modal */}
+        <Modal
+          isOpen={docPreviewDialog}
+          title={previewDoc?.title || 'Document Preview'}
+          onClose={() => {
+            if (previewDocUrl) URL.revokeObjectURL(previewDocUrl);
+            setPreviewDocUrl(null);
+            setDocPreviewDialog(false);
+          }}
+          footer={
+            <>
+              <Button variant="secondary" size="sm" onClick={() => {
+                if (previewDocUrl) URL.revokeObjectURL(previewDocUrl);
+                setPreviewDocUrl(null);
+                setDocPreviewDialog(false);
+              }}>Close</Button>
+              <Button size="sm" onClick={() => handleDownloadDocument(previewDoc)}>
+                <Download size={14} className="mr-2" /> Download
+              </Button>
+            </>
+          }
+        >
+          {previewDoc && (
+            <div className="flex flex-col gap-6">
+              <div className="flex items-start gap-4 p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                <div className="w-12 h-12 rounded-xl bg-gradient-to-tl from-blue-600 to-cyan-400 flex items-center justify-center text-white shadow-soft-md shrink-0">
+                  <FileText size={24} />
+                </div>
+                <div>
+                  <h6 className="text-slate-800 font-bold mb-1">{previewDoc.title}</h6>
+                  <p className="text-xs text-slate-500 mb-0">{previewDoc.fileName}</p>
+                  <div className="flex items-center gap-2 mt-2">
+                    <Badge gradient="from-slate-600 to-slate-300" size="sm">{previewDoc.fileType || 'Unknown Type'}</Badge>
+                    <Badge gradient="from-blue-600 to-cyan-400" size="sm">{formatFileSize(previewDoc.fileSize)}</Badge>
+                  </div>
+                </div>
               </div>
-              <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
-                <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1">Upload Date</p>
-                <p className="text-xs font-bold text-slate-700">{new Date(previewDoc.createdAt).toLocaleString()}</p>
+
+              <div>
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 ml-1">Description</p>
+                <div className="p-4 bg-white border border-slate-100 rounded-2xl text-sm text-slate-600 leading-relaxed shadow-soft-sm">
+                  {previewDoc.description || <span className="italic opacity-50">No description provided for this document.</span>}
+                </div>
+              </div>
+
+              {/* File Preview if possible */}
+              <div className="border-t border-slate-100 pt-6">
+                {previewDoc.fileType?.startsWith('image/') ? (
+                  <div className="flex justify-center p-2 bg-slate-50 rounded-2xl border border-dashed border-slate-200">
+                    <img
+                      src={previewDocUrl || ''}
+                      alt={previewDoc.title}
+                      className="max-w-full max-h-[400px] rounded-xl shadow-soft-lg object-contain"
+                    />
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center justify-center py-12 bg-slate-50 rounded-2xl border border-dashed border-slate-200">
+                    <div className="w-16 h-16 rounded-full bg-white flex items-center justify-center text-slate-300 mb-4 shadow-soft-sm">
+                      <FileText size={32} />
+                    </div>
+                    <p className="text-sm font-bold text-slate-500 mb-1">Preview not available for this file type</p>
+                    <p className="text-xs text-slate-400 mb-4">Please download the file to view its content</p>
+                  </div>
+                )}
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
+                  <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1">Uploaded By</p>
+                  <p className="text-xs font-bold text-slate-700">{previewDoc.createdBy || 'System'}</p>
+                </div>
+                <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
+                  <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1">Upload Date</p>
+                  <p className="text-xs font-bold text-slate-700">{new Date(previewDoc.createdAt).toLocaleString()}</p>
+                </div>
               </div>
             </div>
-          </div>
-        )}
-      </Modal>
-    </div>
-  </PageContainer>
-)
+          )}
+        </Modal>
+      </div>
+    </PageContainer>
+  )
 }
 
