@@ -13,13 +13,13 @@ import { Loader } from './Loader'
  * @param {number} pageSize - Number of items per page
  * @param {string} emptyMessage - Message to show when no data is available
  */
-export const Table = ({ 
-  columns, 
-  data = [], 
-  loading = false, 
-  pagination = false, 
+export const Table = ({
+  columns,
+  data = [],
+  loading = false,
+  pagination = false,
   pageSize = 10,
-  emptyMessage = "No data available" 
+  emptyMessage = "No data available"
 }) => {
   const [currentPage, setCurrentPage] = React.useState(1)
   const [sortConfig, setSortConfig] = React.useState({ key: null, direction: 'asc' })
@@ -54,9 +54,9 @@ export const Table = ({
   // Pagination Logic
   const totalItems = sortedData.length
   const totalPages = Math.ceil(totalItems / pageSize)
-  
+
   const paginatedData = React.useMemo(() => {
-    return pagination 
+    return pagination
       ? sortedData.slice((currentPage - 1) * pageSize, currentPage * pageSize)
       : sortedData
   }, [sortedData, pagination, currentPage, pageSize])
@@ -94,7 +94,7 @@ export const Table = ({
       <div className="py-12 text-center bg-slate-50/50 rounded-xl border border-dashed border-slate-200 mx-4 my-2">
         <div className="flex flex-col items-center gap-2">
           <div className="w-12 h-12 bg-slate-100 rounded-full flex items-center justify-center text-slate-400">
-            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" /></svg>
           </div>
           <p className="text-slate-500 font-medium">{emptyMessage}</p>
         </div>
@@ -112,16 +112,16 @@ export const Table = ({
                 <th
                   key={col.key}
                   onClick={() => col.sortable && requestSort(col.key)}
-                  className={`px-6 py-5 font-bold text-left uppercase align-middle border-b border-gray-200 shadow-none text-xxs border-b-solid tracking-tight-soft text-slate-500 ${col.sortable ? 'cursor-pointer hover:bg-slate-100/80 transition-colors group' : ''}`}
+                  className={`sticky top-0 z-10 bg-white px-6 py-5 font-bold text-left uppercase align-middle border-b border-gray-200 shadow-none text-xxs border-b-solid tracking-tight-soft text-slate-500 ${col.sortable ? 'cursor-pointer hover:bg-slate-100/80 transition-colors group' : ''}`}
                 >
                   <div className="flex items-center gap-2">
                     {col.label}
                     {col.sortable && (
                       <span className={`transition-opacity ${sortConfig.key === col.key ? 'opacity-100' : 'opacity-0 group-hover:opacity-40'}`}>
                         {sortConfig.key === col.key && sortConfig.direction === 'desc' ? (
-                          <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="m18 15-6-6-6 6"/></svg>
+                          <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="m18 15-6-6-6 6" /></svg>
                         ) : (
-                          <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+                          <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6" /></svg>
                         )}
                       </span>
                     )}
@@ -143,7 +143,7 @@ export const Table = ({
           </tbody>
         </table>
       </div>
-      
+
       {pagination && (
         <div className="mt-4 mb-4 px-4">
           <div className="flex flex-wrap items-center justify-between bg-white rounded-full border border-gray-100 shadow-sm px-6 py-3 gap-4">
@@ -153,16 +153,15 @@ export const Table = ({
               <button
                 onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
                 disabled={currentPage === 1}
-                className={`flex items-center gap-2 text-sm font-medium transition-all ${
-                  currentPage === 1 
-                    ? 'text-slate-300 cursor-not-allowed' 
+                className={`flex items-center gap-2 text-sm font-medium transition-all ${currentPage === 1
+                    ? 'text-slate-300 cursor-not-allowed'
                     : 'text-slate-600 hover:text-indigo-600'
-                }`}
+                  }`}
               >
                 <ChevronLeft size={18} />
                 <span>Previous</span>
               </button>
-              
+
               {/* Page Numbers */}
               <div className="flex items-center gap-1">
                 {getPageNumbers().map((page, idx) => (
@@ -172,11 +171,10 @@ export const Table = ({
                     ) : (
                       <button
                         onClick={() => setCurrentPage(page)}
-                        className={`w-9 h-9 flex items-center justify-center text-sm font-medium rounded-full transition-all ${
-                          currentPage === page 
-                            ? 'bg-indigo-600 text-white shadow-md shadow-indigo-200' 
+                        className={`w-9 h-9 flex items-center justify-center text-sm font-medium rounded-full transition-all ${currentPage === page
+                            ? 'bg-indigo-600 text-white shadow-md shadow-indigo-200'
                             : 'text-slate-600 hover:bg-slate-50 hover:text-indigo-600'
-                        }`}
+                          }`}
                       >
                         {page}
                       </button>
@@ -189,11 +187,10 @@ export const Table = ({
               <button
                 onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
                 disabled={currentPage === totalPages}
-                className={`flex items-center gap-2 text-sm font-medium transition-all ${
-                  currentPage === totalPages 
-                    ? 'text-slate-300 cursor-not-allowed' 
+                className={`flex items-center gap-2 text-sm font-medium transition-all ${currentPage === totalPages
+                    ? 'text-slate-300 cursor-not-allowed'
                     : 'text-slate-600 hover:text-indigo-600'
-                }`}
+                  }`}
               >
                 <span>Next</span>
                 <ChevronRight size={18} />
@@ -227,7 +224,7 @@ export const Modal = ({ isOpen, title, children, onClose, footer, size = 'md' })
       if (e.key === 'Escape' && isOpen) onClose()
     }
     window.addEventListener('keydown', handleEsc)
-    
+
     // Prevent scrolling when modal is open
     if (isOpen) {
       document.body.style.overflow = 'hidden'
@@ -261,7 +258,7 @@ export const Modal = ({ isOpen, title, children, onClose, footer, size = 'md' })
       />
 
       {/* Modal */}
-      <div 
+      <div
         className="fixed inset-0 z-50 flex items-center justify-center p-4 pointer-events-none"
         role="dialog"
         aria-modal="true"
@@ -279,7 +276,7 @@ export const Modal = ({ isOpen, title, children, onClose, footer, size = 'md' })
               className="text-slate-400 hover:text-slate-600 transition-colors p-1 rounded-full hover:bg-slate-50"
               aria-label="Close modal"
             >
-              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
             </button>
           </div>
 
@@ -301,15 +298,15 @@ export const Modal = ({ isOpen, title, children, onClose, footer, size = 'md' })
 /**
  * A specialized confirmation dialog
  */
-export const ConfirmDialog = ({ 
-  isOpen, 
-  title = 'Confirmation', 
-  message, 
-  onConfirm, 
-  onCancel, 
-  confirmText = 'Yes, Proceed', 
+export const ConfirmDialog = ({
+  isOpen,
+  title = 'Confirmation',
+  message,
+  onConfirm,
+  onCancel,
+  confirmText = 'Yes, Proceed',
   cancelText = 'Cancel',
-  type = 'primary' 
+  type = 'primary'
 }) => {
   // Use the same keyboard and body lock logic as Modal
   React.useEffect(() => {
@@ -328,41 +325,40 @@ export const ConfirmDialog = ({
 
   return (
     <>
-      <div 
+      <div
         className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[110] transition-opacity animate-fade-in"
         onClick={onCancel}
         aria-hidden="true"
       />
       <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 pointer-events-none">
-        <div 
+        <div
           className="bg-white rounded-3xl shadow-soft-2xl max-w-sm w-full p-8 pointer-events-auto transform transition-all animate-scale-in"
           onClick={(e) => e.stopPropagation()}
         >
           <div className="text-center">
-            <div className={`mx-auto w-14 h-14 rounded-full flex items-center justify-center mb-4 ${
-              type === 'danger' ? 'bg-red-50 text-red-500' : 'bg-indigo-50 text-indigo-500'
-            }`}>
+            <div className={`mx-auto w-14 h-14 rounded-full flex items-center justify-center mb-4 ${type === 'danger' ? 'bg-red-50 text-red-500' : 'bg-indigo-50 text-indigo-500'
+              }`}>
               {type === 'danger' ? (
-                <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
+                <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18" /><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" /><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" /><line x1="10" y1="11" x2="10" y2="17" /><line x1="14" y1="11" x2="14" y2="17" /></svg>
               ) : (
-                <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></svg>
+                <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><path d="m9 12 2 2 4-4" /></svg>
               )}
             </div>
             <h6 className="mb-2 font-bold text-slate-700 text-xl">{title}</h6>
             <p className="mb-8 text-slate-500 text-sm font-medium leading-relaxed">{message}</p>
-            
+
             <div className="flex flex-col gap-3">
-              <Button 
-                variant={type === 'danger' ? 'danger' : 'success'} 
-                fullWidth 
+              <Button
+                variant={type === 'danger' ? 'danger' : 'success'}
+                fullWidth
                 onClick={onConfirm}
                 className="py-3"
               >
                 {confirmText}
               </Button>
-              <Button 
-                variant="outline" 
-                fullWidth 
+              <Button
+                variant="outline"
+                fullWidth
                 onClick={onCancel}
                 className="py-3 border-slate-200 text-slate-600 hover:bg-slate-50"
               >
@@ -418,9 +414,8 @@ export const InputGroup = ({ label, type = 'text', error, icon, rightElement, ..
       )}
       <input
         type={type}
-        className={`focus:shadow-soft-primary-outline text-sm leading-5.6 block w-full appearance-none rounded-lg border border-solid bg-white bg-clip-padding py-2.5 font-normal text-gray-700 transition-all focus:border-indigo-300 focus:outline-none focus:transition-shadow ${
-          error ? 'border-red-400 ring-1 ring-red-100' : 'border-gray-200 hover:border-gray-300'
-        } ${icon ? 'pl-11' : 'px-4'} ${rightElement ? 'pr-12' : ''}`}
+        className={`focus:shadow-soft-primary-outline text-sm leading-5.6 block w-full appearance-none rounded-lg border border-solid bg-white bg-clip-padding py-2.5 font-normal text-gray-700 transition-all focus:border-indigo-300 focus:outline-none focus:transition-shadow ${error ? 'border-red-400 ring-1 ring-red-100' : 'border-gray-200 hover:border-gray-300'
+          } ${icon ? 'pl-11' : 'px-4'} ${rightElement ? 'pr-12' : ''}`}
         {...props}
       />
       {rightElement && (
@@ -468,9 +463,8 @@ export const Select = ({ label, options = [], error, icon, containerClassName = 
         </div>
       )}
       <select
-        className={`focus:shadow-soft-primary-outline text-sm leading-5.6 block w-full appearance-none rounded-lg border border-solid bg-white bg-clip-padding py-2.5 font-normal text-gray-700 transition-all focus:border-indigo-300 focus:outline-none focus:transition-shadow ${
-          error ? 'border-red-400 ring-1 ring-red-100' : 'border-gray-200 hover:border-gray-300'
-        } ${icon ? 'pl-11' : 'px-4'} pr-10 cursor-pointer`}
+        className={`focus:shadow-soft-primary-outline text-sm leading-5.6 block w-full appearance-none rounded-lg border border-solid bg-white bg-clip-padding py-2.5 font-normal text-gray-700 transition-all focus:border-indigo-300 focus:outline-none focus:transition-shadow ${error ? 'border-red-400 ring-1 ring-red-100' : 'border-gray-200 hover:border-gray-300'
+          } ${icon ? 'pl-11' : 'px-4'} pr-10 cursor-pointer`}
         {...props}
       >
         {options.map((opt) => (
@@ -480,7 +474,7 @@ export const Select = ({ label, options = [], error, icon, containerClassName = 
         ))}
       </select>
       <div className="absolute right-3.5 pointer-events-none text-slate-400">
-        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6" /></svg>
       </div>
     </div>
     {error && <p className="text-red-500 text-xs mt-1.5 ml-1 font-medium">{error}</p>}
