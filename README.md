@@ -1,15 +1,16 @@
-## Project Tracker Tool
+# Project Tracker Tool
 
-### Executive Summary
+## Executive Summary
 
-Project Tracker Tool is a full‑stack project management and bug‑tracking system used internally at MMF Infotech. It is a **MERN‑style monolith** (React SPA + Node/Express API + MySQL) that provides:
+Project Tracker Tool is a comprehensive full‑stack project management and bug‑tracking system used internally at MMF Infotech. It is a **MERN‑style monolith** (React SPA + Node/Express API + MySQL) that provides:
 
-- Project and screen planning
-- Bug reporting and tracking
-- Leave and attendance management
-- Announcements and notifications
-- Careers and applications management
-- Role‑based access for Admin, HR, Tester, Developer, E‑Commerce, Management, Accountant
+- **Project and Screen Planning** - Complete project lifecycle management
+- **Bug Reporting and Tracking** - Comprehensive bug management with assignment and verification workflows
+- **Leave and Attendance Management** - Employee leave requests and approvals
+- **Task Management** - Consolidated task view organized by type (Projects, Leaves, Bugs, HR, Notifications)
+- **Announcements and Notifications** - Company-wide communications
+- **Careers and Applications Management** - Job posting and applicant tracking
+- **Role‑based Access Control** - Multi-role system (Admin, HR, Tester, Developer, E‑Commerce, Management, Accountant)
 
 The system is optimized to run either entirely on a **local in‑memory data store** (for development) or against a **live MySQL database** (for production), controlled through environment configuration.
 
@@ -40,7 +41,7 @@ The system is optimized to run either entirely on a **local in‑memory data sto
    - Applies `helmet`, `cors`, JSON body parsing.
    - Logs via `pino-http`.
 3. **Routing** delegates to route modules mounted under `BASE_URL`:
-   - `auth`, `projects`, `screens`, `bugs`, `leaves`, `notifications`, `announcements`, `milestones`, `careers`, `users`, `projectDocuments`.
+   - `auth`, `projects`, `screens`, `bugs`, `leaves`, `notifications`, `announcements`, `milestones`, `careers`, `users`, `projectDocuments`, `tasks`.
 4. **Authentication middleware** (`authenticate`) verifies JWT and populates `req.user` with `{ userId, email, role, jti }`.
 5. **Helpers and services**:
    - `middleware/helpers.js` uses repository + services to fetch and enrich data.
@@ -49,6 +50,31 @@ The system is optimized to run either entirely on a **local in‑memory data sto
 6. **Response**:
    - Route handlers send JSON.
    - If any error escapes, the global error handler logs it and returns a normalized JSON error with `requestId`.
+
+### Task Management System
+
+The system features a comprehensive task management system that aggregates tasks from various modules:
+
+**Task Categories**:
+- **Project Tasks** - Project assignments and screen assignments
+- **Leave Management** - Leave approvals and status updates
+- **Bug Management** - Bug assignments, verifications, and deadlines
+- **HR Tasks** - Job application reviews
+- **Notifications** - Actionable notifications
+
+**Task Collection**: Tasks are automatically collected from:
+- Leave requests requiring approval
+- Bug assignments and verifications
+- Project and screen assignments
+- Job applications requiring review
+- Actionable notifications
+
+**Project‑Specific Tasks**
+A new API endpoint (`GET /tasks/project/:projectId`) aggregates tasks associated with a particular project for the current user.  It returns bugs assigned to the user, verification tasks, upcoming deadlines, screen assignments and project assignments, all filtered by the supplied `projectId` and ordered by priority (then most recent).  The React `ProjectPage` uses this endpoint to render a project‑wise task list.
+**Priority System**: Each task has a priority level (high, medium, low) displayed with color-coded badges:
+- 🔴 **High Priority** - Critical tasks requiring immediate attention
+- 🟡 **Medium Priority** - Important tasks
+- 🟢 **Low Priority** - Routine tasks
 
 ---
 

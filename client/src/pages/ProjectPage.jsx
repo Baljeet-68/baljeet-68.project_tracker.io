@@ -61,7 +61,7 @@ const formatFileSize = (bytes) => {
 const getStatusGradient = (status) => {
   if (!status) return 'from-slate-600 to-slate-300'
   const s = status.toLowerCase()
-  
+
   switch (s) {
     case 'open': return 'from-red-600 to-rose-400'
     case 'in progress': return 'from-orange-500 to-yellow-400'
@@ -111,6 +111,9 @@ export default function ProjectPage() {
   const [activityList, setActivityList] = useState([])
   const [milestonesList, setMilestonesList] = useState([])
   const [documentsList, setDocumentsList] = useState([])
+  // project-specific tasks
+  const [projectTasks, setProjectTasks] = useState([])
+  const [tasksLoading, setTasksLoading] = useState(true)
   const [loading, setLoading] = useState(true)
   const [tabIndex, setTabIndex] = useState(0)
   const user = getUser()
@@ -195,7 +198,7 @@ export default function ProjectPage() {
       return { name: dev.name, bugs: devBugs, tasks: devTasks };
     }).filter(d => d.bugs > 0 || d.tasks > 0);
 
-    const devBreakdownText = devStats.length > 0 
+    const devBreakdownText = devStats.length > 0
       ? ` Currently, the workload distribution is as follows: ${devStats.map(d => `${d.name} is managing ${d.tasks} pending task${d.tasks !== 1 ? 's' : ''} and ${d.bugs} open bug${d.bugs !== 1 ? 's' : ''}`).join('; ')}.`
       : '';
 
@@ -230,7 +233,7 @@ export default function ProjectPage() {
       const { column, direction } = docSort;
       let valA = a[column];
       let valB = b[column];
-      
+
       if (column === 'createdAt') {
         valA = new Date(valA);
         valB = new Date(valB);
@@ -238,7 +241,7 @@ export default function ProjectPage() {
         valA = valA.toLowerCase();
         valB = valB.toLowerCase();
       }
-      
+
       if (valA < valB) return direction === 'asc' ? -1 : 1;
       if (valA > valB) return direction === 'asc' ? 1 : -1;
       return 0;
@@ -246,15 +249,15 @@ export default function ProjectPage() {
   }, [documentsList, docSort]);
 
   const handleDocSort = (column) => {
-     setDocSort(prev => ({
-       column,
-       direction: prev.column === column && prev.direction === 'asc' ? 'desc' : 'asc'
-     }));
-   };
+    setDocSort(prev => ({
+      column,
+      direction: prev.column === column && prev.direction === 'asc' ? 'desc' : 'asc'
+    }));
+  };
 
-   useEffect(() => {
-     loadData()
-   }, [id])
+  useEffect(() => {
+    loadData()
+  }, [id])
 
   /**
    * Centralized error handling for authentication issues
@@ -276,19 +279,21 @@ export default function ProjectPage() {
   const loadData = async () => {
     setLoading(true)
     setDocsLoading(true)
+    setTasksLoading(true)
     try {
-      const [projRes, screensRes, bugsRes, activityRes, milestonesRes, docsRes] = await Promise.all([
+      const [projRes, screensRes, bugsRes, activityRes, milestonesRes, docsRes, tasksRes] = await Promise.all([
         authFetch(`${API_BASE_URL}/projects/${id}`),
         authFetch(`${API_BASE_URL}/projects/${id}/screens`),
         authFetch(`${API_BASE_URL}/projects/${id}/bugs`),
         authFetch(`${API_BASE_URL}/projects/${id}/activity`),
         authFetch(`${API_BASE_URL}/projects/${id}/milestones`),
-        authFetch(`${API_BASE_URL}/projects/${id}/documents`)
+        authFetch(`${API_BASE_URL}/projects/${id}/documents`),
+        authFetch(`${API_BASE_URL}/tasks/project/${id}`)
       ])
 
       const projData = await handleApiResponse(projRes)
       setProject(projData)
-      
+
       // Initialize edit states
       const startStr = projData.startDate ? new Date(projData.startDate).toISOString().slice(0, 10) : ''
       setProjectStart(startStr)
@@ -305,13 +310,16 @@ export default function ProjectPage() {
       const activityData = await handleApiResponse(activityRes)
       const milestonesData = await handleApiResponse(milestonesRes)
       const docsData = await handleApiResponse(docsRes)
+      const tasksData = await handleApiResponse(tasksRes)
 
       setScreensList(Array.isArray(screensData) ? screensData : [])
       setBugsList(Array.isArray(bugsData) ? bugsData : [])
       setActivityList(Array.isArray(activityData) ? activityData : [])
       setMilestonesList(Array.isArray(milestonesData) ? milestonesData : [])
       setDocumentsList(Array.isArray(docsData) ? docsData : [])
+      setProjectTasks(Array.isArray(tasksData) ? tasksData : [])
       setDocsLoading(false)
+      setTasksLoading(false)
     } catch (e) {
       handleAuthError(e)
     } finally {
@@ -357,7 +365,7 @@ export default function ProjectPage() {
           try {
             const errorData = JSON.parse(xhr.responseText);
             errorMsg = errorData.error || errorMsg;
-          } catch (e) {}
+          } catch (e) { }
           toast.error(errorMsg);
         }
         setUploading(false);
@@ -379,7 +387,7 @@ export default function ProjectPage() {
   const handleDeleteDocument = async (docId) => {
     const doc = documentsList.find(d => d.id === docId);
     if (!window.confirm(`Are you sure you want to delete "${doc?.title || 'this document'}"?`)) return;
-    
+
     try {
       const res = await authFetch(`${API_BASE_URL}/documents/${docId}?projectId=${id}&title=${encodeURIComponent(doc?.title || '')}`, {
         method: 'DELETE'
@@ -431,7 +439,7 @@ export default function ProjectPage() {
     } catch (e) {
       console.warn('Failed to load preview:', e);
     }
-    
+
     // Log view activity to server
     try {
       await authFetch(`${API_BASE_URL}/documents/${doc.id}/view`, {
@@ -453,13 +461,13 @@ export default function ProjectPage() {
       const res = await authFetch(`${API_BASE_URL}/projects/${id}/bugs`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
+        body: JSON.stringify({
           ...bugForm,
           deadline: bugForm.deadline || null
         })
       })
       await handleApiResponse(res)
-      
+
       setBugForm({ description: '', severity: 'medium', screenId: '', module: '', assignedDeveloperId: '', attachments: [], deadline: '' })
       setBugDialog(false)
       loadData()
@@ -478,7 +486,7 @@ export default function ProjectPage() {
 
   const handleSaveBugDeadline = async () => {
     if (!bugEditId) return
-    
+
     if (bugEditDeadline === bugEditOriginalDeadline) {
       console.info('[ProjectPage] No changes detected in bug deadline');
       toast('No changes detected', {
@@ -579,7 +587,7 @@ export default function ProjectPage() {
     try {
       if (editingScreen) {
         // Check for changes
-        const hasChanges = 
+        const hasChanges =
           screenForm.title !== (editingScreen.title || '') ||
           screenForm.module !== (editingScreen.module || '') ||
           screenForm.assigneeId !== (editingScreen.assigneeId || '') ||
@@ -587,8 +595,8 @@ export default function ProjectPage() {
           screenForm.notes !== (editingScreen.notes || '');
 
         if (!hasChanges) {
-            console.info('[ProjectPage] No changes detected in screen form');
-            toast('No changes detected', {
+          console.info('[ProjectPage] No changes detected in screen form');
+          toast('No changes detected', {
             icon: 'ℹ️',
             style: {
               background: '#f0f9ff',
@@ -675,9 +683,9 @@ export default function ProjectPage() {
 
   const handleUpdateProjectSettings = async () => {
     // Check for changes
-    if (projectStart === originalProjectStart && 
-        projectEnd === originalProjectEnd && 
-        projectStatus === originalProjectStatus) {
+    if (projectStart === originalProjectStart &&
+      projectEnd === originalProjectEnd &&
+      projectStatus === originalProjectStatus) {
       console.info('[ProjectPage] No changes detected in project settings');
       toast('No changes detected', {
         icon: 'ℹ️',
@@ -735,7 +743,7 @@ export default function ProjectPage() {
       if (editingMilestone) {
         // Check for changes
         const milestoneTimeline = editingMilestone.timeline ? new Date(editingMilestone.timeline).toISOString().slice(0, 10) : '';
-        const hasChanges = 
+        const hasChanges =
           milestoneForm.milestoneNumber !== (editingMilestone.milestoneNumber || '') ||
           milestoneForm.module !== (editingMilestone.module || '') ||
           milestoneForm.timeline !== milestoneTimeline ||
@@ -843,7 +851,7 @@ export default function ProjectPage() {
         gradient = 'from-red-600 to-rose-400';
         const bugRef = changes?.bugNumber ? `Bug #${changes.bugNumber}` : 'a bug';
         const bugDesc = changes?.description ? `: "${changes.description}"` : '';
-        
+
         if (action === 'created') description = `Reported ${bugRef}${bugDesc}`;
         else if (action === 'status_change') description = `Changed status of ${bugRef} to "${changes.status || changes.newStatus}"`;
         else if (action === 'deadline_updated') description = `Updated deadline for ${bugRef} to ${formatDateDisplay(changes.deadline)}`;
@@ -989,7 +997,7 @@ export default function ProjectPage() {
         }
 
         if (!Array.isArray(attList) || attList.length === 0) return <span className="text-slate-400 text-xs">No files</span>
-        
+
         return (
           <div className="flex -space-x-2">
             {attList.map((att, idx) => (
@@ -998,17 +1006,89 @@ export default function ProjectPage() {
                 onClick={() => showAttachmentPreview(att, b)}
                 className="w-8 h-8 rounded-full border-2 border-white bg-slate-100 flex items-center justify-center text-slate-500 hover:text-fuchsia-600 hover:border-fuchsia-200 transition-all shadow-sm"
                 title={att.name || 'Attachment'}
-              >
-                {isImageFile(att.type) ? <ImageIcon size={14} /> : <Paperclip size={14} />}
               </button>
+        ))
+      }
+          </div >
+        )
+}
+    }
+  ]
+
+const projectTaskColumns = [
+  { key: 'title', label: 'Task' },
+  {
+    key: 'module',
+    label: 'Module',
+    render: (_, row) => (
+      <span className="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-700 capitalize">
+        {row.module}
+      </span>
+    )
+  },
+  {
+    key: 'priority',
+    label: 'Priority',
+    render: (_, row) => {
+      const priorityColors = {
+        high: 'bg-red-100 text-red-800',
+        medium: 'bg-yellow-100 text-yellow-800',
+        low: 'bg-green-100 text-green-800'
+      };
+      const color = priorityColors[row.priority] || 'bg-gray-100 text-gray-800';
+      return (
+        <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium capitalize ${color}`}>
+          {row.priority}
+        </span>
+      );
+    }
+  },
+  {
+    key: 'createdAt',
+    label: 'Created',
+    render: (_, row) => {
+      const d = row.createdAt ? new Date(row.createdAt) : null;
+      const label = d && !isNaN(d.getTime())
+        ? d.toLocaleString(undefined, {
+          year: 'numeric',
+          month: 'short',
+          day: '2-digit',
+          hour: '2-digit',
+          minute: '2-digit'
+        })
+        : '-';
+      return <span className="text-xs text-slate-500">{label}</span>;
+    }
+  },
+  {
+    key: 'action',
+    label: 'Action',
+    render: (_, row) => (
+      <button
+        type="button"
+        onClick={() => {
+          if (row.actionUrl) {
+            nav(row.actionUrl);
+          }
+        }}
+        className="inline-flex items-center rounded-lg border border-indigo-500 px-3 py-1.5 text-xs font-semibold text-indigo-600 hover:bg-indigo-50 transition-colors"
+      >
+        Open
+      </button>
+    )
+  }
+]
+  >
+  { isImageFile(att.type) ? < ImageIcon size = { 14} /> : <Paperclip size={14} />}
+              </button >
             ))}
-          </div>
+          </div >
         )
       }
     },
-    {
-      key: 'deadline',
-      label: 'Deadline',
+{
+  key: 'deadline',
+    label: 'Deadline',
       render: (val, b) => (
         <div className="flex items-center gap-2">
           <span>{formatDateDisplay(val)}</span>
@@ -1019,10 +1099,10 @@ export default function ProjectPage() {
           )}
         </div>
       )
-    },
-    {
-      key: 'actions',
-      label: 'Actions',
+},
+{
+  key: 'actions',
+    label: 'Actions',
       render: (_, b) => (
         <div className="flex gap-2">
           {(user?.role === 'admin' || user?.role === 'tester') && (
@@ -1032,11 +1112,11 @@ export default function ProjectPage() {
           )}
         </div>
       )
-    }
+}
   ]
 
-  return (
-    <PageContainer>
+return (
+  <PageContainer>
     <div className="container-fluid py-4">
       {/* Breadcrumbs */}
       <nav className="mb-6 px-4">
@@ -1106,6 +1186,30 @@ export default function ProjectPage() {
             icon={Clock}
             gradient="from-orange-500 to-yellow-400"
           />
+        </div>
+
+        {/* Project Tasks Section */}
+        <div className="w-full max-w-full px-3 mb-6">
+          <Card className="mb-6">
+            <CardHeader className="p-4 pb-0">
+              <h6 className="font-bold mb-0">Project Tasks</h6>
+            </CardHeader>
+            <CardBody className="p-4">
+              {tasksLoading ? (
+                <div className="py-6 text-center">
+                  <Loader />
+                </div>
+              ) : projectTasks.length === 0 ? (
+                <div className="py-6 text-center text-xs text-slate-500">
+                  No tasks found for this project.
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <Table columns={projectTaskColumns} data={projectTasks} pagination={true} pageSize={10} />
+                </div>
+              )}
+            </CardBody>
+          </Card>
         </div>
 
         {/* Tabs Section */}
@@ -1243,7 +1347,7 @@ export default function ProjectPage() {
               )}
 
               {tabIndex === 1 && (
-              <div>
+                <div>
                   <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-4">
                     <h6 className="font-bold mb-0">Screens & Tasks</h6>
                     {user?.role === 'admin' && (
@@ -1266,12 +1370,12 @@ export default function ProjectPage() {
                       </Button>
                     )}
                   </div>
-                  <Table 
+                  <Table
                     columns={[
                       { key: 'milestoneNumber', label: 'Milestone #' },
-                      { 
-                        key: 'module', 
-                        label: 'Modules', 
+                      {
+                        key: 'module',
+                        label: 'Modules',
                         render: (val) => (
                           <div className="flex flex-wrap gap-2 max-w-[200px]">
                             {val ? val.split(',').map((m, idx) => (
@@ -1306,10 +1410,10 @@ export default function ProjectPage() {
                           </div>
                         )
                       }
-                    ]} 
-                    data={milestonesList} 
-                    pagination={true} 
-                    pageSize={10} 
+                    ]}
+                    data={milestonesList}
+                    pagination={true}
+                    pageSize={10}
                   />
                 </div>
               )}
@@ -1335,40 +1439,40 @@ export default function ProjectPage() {
                           { value: 'Open', label: 'Open' },
                           { value: 'In Progress', label: 'In Progress' },
                           { value: 'Resolved', label: 'Resolved' },
-                        { value: 'Closed', label: 'Closed' }
-                      ]}
-                      value={bugFilters.status}
-                      onChange={(e) => setBugFilters(prev => ({ ...prev, status: e.target.value }))}
-                      className="mb-0"
-                    />
-                  </div>
-                  <div className="w-full md:w-auto min-w-[150px]">
-                    <Select
-                      label="Severity"
-                      options={[
-                        { value: '', label: 'All Severities' },
-                        { value: 'low', label: 'Low' },
-                        { value: 'medium', label: 'Medium' },
-                        { value: 'high', label: 'High' },
-                        { value: 'critical', label: 'Critical' }
-                      ]}
-                      value={bugFilters.severity}
-                      onChange={(e) => setBugFilters(prev => ({ ...prev, severity: e.target.value }))}
-                      className="mb-0"
-                    />
-                  </div>
-                  <div className="w-full md:w-auto min-w-[150px]">
-                    <Select
-                      label="Assignee"
-                      options={[
-                        { value: '', label: 'All Developers' },
-                        ...(project?.developerNames?.map(d => ({ value: d.id, label: d.name })) || [])
-                      ]}
-                      value={bugFilters.assignee}
-                      onChange={(e) => setBugFilters(prev => ({ ...prev, assignee: e.target.value }))}
-                      className="mb-0"
-                    />
-                  </div>
+                          { value: 'Closed', label: 'Closed' }
+                        ]}
+                        value={bugFilters.status}
+                        onChange={(e) => setBugFilters(prev => ({ ...prev, status: e.target.value }))}
+                        className="mb-0"
+                      />
+                    </div>
+                    <div className="w-full md:w-auto min-w-[150px]">
+                      <Select
+                        label="Severity"
+                        options={[
+                          { value: '', label: 'All Severities' },
+                          { value: 'low', label: 'Low' },
+                          { value: 'medium', label: 'Medium' },
+                          { value: 'high', label: 'High' },
+                          { value: 'critical', label: 'Critical' }
+                        ]}
+                        value={bugFilters.severity}
+                        onChange={(e) => setBugFilters(prev => ({ ...prev, severity: e.target.value }))}
+                        className="mb-0"
+                      />
+                    </div>
+                    <div className="w-full md:w-auto min-w-[150px]">
+                      <Select
+                        label="Assignee"
+                        options={[
+                          { value: '', label: 'All Developers' },
+                          ...(project?.developerNames?.map(d => ({ value: d.id, label: d.name })) || [])
+                        ]}
+                        value={bugFilters.assignee}
+                        onChange={(e) => setBugFilters(prev => ({ ...prev, assignee: e.target.value }))}
+                        className="mb-0"
+                      />
+                    </div>
                   </div>
 
                   <Table columns={bugColumns} data={filteredBugs} pagination={true} pageSize={10} />
@@ -1379,8 +1483,8 @@ export default function ProjectPage() {
                 <div>
                   <div className="flex items-center justify-between mb-8">
                     <h6 className="font-bold text-slate-700 uppercase text-xs tracking-wider">Project Activity Feed</h6>
-                    <button 
-                      onClick={loadData} 
+                    <button
+                      onClick={loadData}
                       className="p-2 rounded-lg hover:bg-slate-50 text-slate-400 hover:text-fuchsia-600 transition-all flex items-center gap-2 text-xs font-bold"
                       title="Refresh Activity"
                     >
@@ -1409,7 +1513,7 @@ export default function ProjectPage() {
                             <div className={`absolute left-0 top-0 w-10 h-10 rounded-xl bg-gradient-to-tl ${gradient} shadow-soft-md flex items-center justify-center text-white z-10 group-hover:scale-110 transition-transform duration-300`}>
                               {icon}
                             </div>
-                            
+
                             <div className="flex-auto ml-14">
                               <div className="bg-white rounded-2xl p-4 border border-slate-100 shadow-soft-sm group-hover:shadow-soft-md transition-all duration-300 group-hover:border-fuchsia-100">
                                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
@@ -1443,7 +1547,7 @@ export default function ProjectPage() {
                                         <Badge gradient={getStatusGradient(act.changes.newStatus || act.changes.status)} size="sm">{act.changes.newStatus || act.changes.status}</Badge>
                                       </div>
                                     )}
-                                    
+
                                     {act.entityType === 'screen' && act.action === 'status_change' && (
                                       <div className="flex items-center gap-2">
                                         <Badge gradient={getStatusGradient(act.changes.oldStatus)} size="sm">{act.changes.oldStatus}</Badge>
@@ -1490,7 +1594,7 @@ export default function ProjectPage() {
                       <h6 className="font-bold text-slate-700 uppercase text-xs tracking-wider mb-1">Project Documents</h6>
                       <p className="text-xs text-slate-500">Manage and share project-related files and documentation.</p>
                     </div>
-                    <button 
+                    <button
                       onClick={() => setDocumentDialog(true)}
                       className="inline-flex items-center gap-2 px-6 py-3 font-bold text-center text-white uppercase align-middle transition-all bg-gradient-to-tl from-purple-700 to-pink-500 rounded-xl cursor-pointer text-xs shadow-soft-md hover:shadow-soft-lg active:opacity-85"
                     >
@@ -1503,7 +1607,7 @@ export default function ProjectPage() {
                     <table className="w-full mb-0 align-top border-collapse border-spacing-0 text-slate-500">
                       <thead className="align-bottom">
                         <tr>
-                          <th 
+                          <th
                             className="px-6 py-3 font-bold text-left uppercase align-middle bg-transparent border-b border-slate-100 shadow-none text-[10px] tracking-wider opacity-70 text-slate-700 cursor-pointer hover:text-fuchsia-600 transition-colors"
                             onClick={() => handleDocSort('title')}
                           >
@@ -1513,7 +1617,7 @@ export default function ProjectPage() {
                             </div>
                           </th>
                           <th className="px-6 py-3 font-bold text-left uppercase align-middle bg-transparent border-b border-slate-100 shadow-none text-[10px] tracking-wider opacity-70 text-slate-700">Description</th>
-                          <th 
+                          <th
                             className="px-6 py-3 font-bold text-center uppercase align-middle bg-transparent border-b border-slate-100 shadow-none text-[10px] tracking-wider opacity-70 text-slate-700 cursor-pointer hover:text-fuchsia-600 transition-colors"
                             onClick={() => handleDocSort('createdAt')}
                           >
@@ -1644,11 +1748,11 @@ export default function ProjectPage() {
         }
       >
         <div className="flex flex-col gap-4">
-          <InputGroup 
-            label="Document Title" 
+          <InputGroup
+            label="Document Title"
             placeholder="e.g., Project Specification"
-            value={documentForm.title} 
-            onChange={(e) => setDocumentForm({ ...documentForm, title: e.target.value })} 
+            value={documentForm.title}
+            onChange={(e) => setDocumentForm({ ...documentForm, title: e.target.value })}
           />
           <div className="flex flex-col gap-1">
             <label className="ml-1 font-bold text-xs text-slate-700 uppercase tracking-wider">Description</label>
@@ -1712,7 +1816,7 @@ export default function ProjectPage() {
       >
         <div className="flex flex-col gap-4">
           <InputGroup label="Milestone Number" value={milestoneForm.milestoneNumber} onChange={(e) => setMilestoneForm({ ...milestoneForm, milestoneNumber: e.target.value })} />
-          
+
           <div className="mb-4">
             <label className="mb-3 ml-1 font-bold text-xs text-slate-700 uppercase tracking-wider">Select Modules (from Screens)</label>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-48 overflow-y-auto p-4 border border-gray-200 rounded-2xl bg-slate-50/50 shadow-inner">
@@ -1722,24 +1826,23 @@ export default function ProjectPage() {
                 screensList.map(screen => {
                   const isChecked = milestoneForm.module ? milestoneForm.module.split(',').map(m => m.trim()).includes(screen.title) : false;
                   return (
-                    <label 
-                      key={screen.id} 
-                      className={`flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-all duration-200 border ${
-                        isChecked 
-                          ? 'bg-white border-fuchsia-200 shadow-soft-sm' 
+                    <label
+                      key={screen.id}
+                      className={`flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-all duration-200 border ${isChecked
+                          ? 'bg-white border-fuchsia-200 shadow-soft-sm'
                           : 'bg-transparent border-transparent hover:bg-white/60'
-                      }`}
+                        }`}
                     >
                       <div className="relative flex items-center">
-                        <input 
-                          type="checkbox" 
+                        <input
+                          type="checkbox"
                           className="peer appearance-none w-5 h-5 border-2 border-slate-300 rounded-md checked:bg-fuchsia-600 checked:border-fuchsia-600 transition-all cursor-pointer"
                           checked={isChecked}
                           onChange={() => handleToggleModule(screen.title)}
                         />
-                        <CheckCircle 
-                          className={`absolute w-3.5 h-3.5 text-white left-0.75 pointer-events-none transition-opacity ${isChecked ? 'opacity-100' : 'opacity-0'}`} 
-                          size={14} 
+                        <CheckCircle
+                          className={`absolute w-3.5 h-3.5 text-white left-0.75 pointer-events-none transition-opacity ${isChecked ? 'opacity-100' : 'opacity-0'}`}
+                          size={14}
                         />
                       </div>
                       <span className={`text-xs font-bold transition-colors ${isChecked ? 'text-slate-800' : 'text-slate-500'}`}>
@@ -2016,10 +2119,10 @@ export default function ProjectPage() {
             <div className="border-t border-slate-100 pt-6">
               {previewDoc.fileType?.startsWith('image/') ? (
                 <div className="flex justify-center p-2 bg-slate-50 rounded-2xl border border-dashed border-slate-200">
-                  <img 
-                    src={previewDocUrl || ''} 
-                    alt={previewDoc.title} 
-                    className="max-w-full max-h-[400px] rounded-xl shadow-soft-lg object-contain" 
+                  <img
+                    src={previewDocUrl || ''}
+                    alt={previewDoc.title}
+                    className="max-w-full max-h-[400px] rounded-xl shadow-soft-lg object-contain"
                   />
                 </div>
               ) : (
@@ -2047,7 +2150,7 @@ export default function ProjectPage() {
         )}
       </Modal>
     </div>
-    </PageContainer>
-  )
+  </PageContainer>
+)
 }
 

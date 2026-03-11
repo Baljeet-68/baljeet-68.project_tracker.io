@@ -326,6 +326,145 @@ async function getMyTasks(req) {
   return allTasks;
 }
 
+// project-specific task collector (for new UI endpoint)
+async function getProjectTasks(req, projectId) {
+  const tasks = [];
+  const { userId, role } = req.user || {};
+  if (!userId || projectId == null) return tasks;
+
+  const [projects, bugs, screens] = await Promise.all([
+    getProjects(req),
+    getBugs(req),
+    getScreens(req)
+  ]);
+
+  const project = (projects || []).find((p) => String(p.id) === String(projectId));
+  if (!project) return tasks;
+
+  const now = new Date();
+  const twoDaysMs = 2 * 24 * 60 * 60 * 1000;
+
+  for (const bug of bugs || []) {
+    if (String(bug.projectId) !== String(projectId)) continue;
+
+    if (
+      bug.assignedDeveloperId &&
+      String(bug.assignedDeveloperId) === String(userId) &&
+      String(bug.status).toLowerCase() !== 'closed'
+    ) {
+      tasks.push({
+        id: buildTaskId('bug-assigned', bug.id),
+        type: 'bug_assigned',
+        category: 'bugs',
+        title: `Fix Bug #${bug.bugNumber || bug.id}`,
+        description: bug.description || 'Bug assigned to you',
+        module: 'bugs',
+        priority: 'high',
+        actionUrl: `/projects/${projectId}`,
+        createdAt: toIsoDate(bug.createdAt)
+      });
+    }
+
+    if (
+      project &&
+      project.testerId &&
+      String(project.testerId) === String(userId) &&
+      String(bug.status).toLowerCase() === 'resolved'
+    ) {
+      tasks.push({
+        id: buildTaskId('bug-verify', bug.id),
+        type: 'bug_verification',
+        category: 'bugs',
+        title: `Verify Bug #${bug.bugNumber || bug.id}`,
+        description: bug.description || 'Verify resolved bug',
+        module: 'bugs',
+        priority: 'high',
+        actionUrl: `/projects/${projectId}`,
+        createdAt: toIsoDate(bug.resolvedAt || bug.updatedAt || bug.createdAt)
+      });
+    }
+
+    if (
+      bug.deadline &&
+      bug.assignedDeveloperId &&
+      String(bug.assignedDeveloperId) === String(userId)
+    ) {
+      const deadline = new Date(bug.deadline);
+      if (!Number.isNaN(deadline.getTime())) {
+        const diff = deadline.getTime() - now.getTime();
+        if (diff >= 0 && diff <= twoDaysMs) {
+          tasks.push({
+            id: buildTaskId('bug-deadline', bug.id),
+            type: 'bug_deadline',
+            category: 'bugs',
+            title: `Bug Deadline Approaching`,
+            description: `Bug #${bug.bugNumber || bug.id} deadline is near.`,
+            module: 'bugs',
+            priority: 'high',
+            actionUrl: `/projects/${projectId}`,
+            createdAt: toIsoDate(bug.createdAt)
+          });
+        }
+      }
+    }
+  }
+
+  for (const screen of screens || []) {
+    if (
+      String(screen.projectId) === String(projectId) &&
+      screen.assigneeId &&
+      String(screen.assigneeId) === String(userId)
+    ) {
+      tasks.push({
+        id: buildTaskId('screen', screen.id),
+        type: 'screen_assignment',
+        category: 'projects',
+        title: `Implement Screen ${screen.title || screen.id}`,
+        description: screen.module
+          ? `Work on module "${screen.module}".`
+          : 'You have an assigned screen/task.',
+        module: 'screens',
+        priority: 'medium',
+        actionUrl: `/projects/${projectId}`,
+        createdAt: toIsoDate(screen.createdAt)
+      });
+    }
+  }
+
+  const devIds = Array.isArray(project.developerIds)
+    ? project.developerIds
+    : [];
+  const isDeveloper =
+    devIds.some((id) => String(id) === String(userId));
+  const isTester =
+    project.testerId && String(project.testerId) === String(userId);
+
+  if (isDeveloper || isTester || role === 'admin') {
+    tasks.push({
+      id: buildTaskId('project', project.id),
+      type: 'project_assignment',
+      category: 'projects',
+      title: project.name || 'Project',
+      description: `You have work on project "${project.name || project.id}".`,
+      module: 'projects',
+      priority: 'medium',
+      actionUrl: `/projects/${projectId}`,
+      createdAt: toIsoDate(project.createdAt)
+    });
+  }
+
+  tasks.sort((a, b) => {
+    const pa = PRIORITY_ORDER[a.priority] || 99;
+    const pb = PRIORITY_ORDER[b.priority] || 99;
+    if (pa !== pb) return pa - pb;
+    const da = new Date(a.createdAt).getTime();
+    const db = new Date(b.createdAt).getTime();
+    return db - da;
+  });
+
+  return tasks;
+}
+
 module.exports = {
   getMyTasks,
   collectLeaveTasks,
@@ -333,6 +472,7 @@ module.exports = {
   collectProjectTasks,
   collectScreenTasks,
   collectHRTasks,
-  collectNotificationTasks
+  collectNotificationTasks,
+  getProjectTasks
 };
 
