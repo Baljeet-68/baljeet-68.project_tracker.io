@@ -130,6 +130,7 @@ const milestoneRoutes = require("./routes/milestones");
 const careerRoutes = require("./routes/careers");
 const projectDocumentRoutes = require("./routes/projectDocuments");
 const taskRoutes = require("./routes/tasks");
+const dashboardRoutes = require("./routes/dashboard");
 
 /* ===============================
    Mount Routes (NO double prefix)
@@ -146,6 +147,7 @@ app.use(cfg.BASE_URL, milestoneRoutes);
 app.use(cfg.BASE_URL, careerRoutes);
 app.use(cfg.BASE_URL, projectDocumentRoutes);
 app.use(cfg.BASE_URL, taskRoutes);
+app.use(cfg.BASE_URL, dashboardRoutes);
 
 /* ===============================
    404 Handler

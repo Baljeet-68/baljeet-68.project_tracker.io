@@ -6,39 +6,37 @@ import { LineChart, BarChart, PieChart, AreaChart, ParetoChart } from '../compon
 import { StatCard, Card, CardHeader, CardBody, Badge } from '../components/TailAdminComponents'
 import PageLayout from '../components/layout/PageLayout'
 import PageContainer from '../components/layout/PageContainer'
-import { TrendingUp, AlertCircle, CheckCircle, Users, Activity, ChevronDown } from 'lucide-react'
+import {
+  TrendingUp,
+  AlertCircle,
+  CheckCircle,
+  Users,
+  Activity,
+  ChevronDown,
+  Bug,
+  Layout,
+  Calendar,
+  Clock,
+  UserCheck,
+  FileText,
+  BarChart3,
+  PieChart as PieChartIcon,
+  Table
+} from 'lucide-react'
 import { API_BASE_URL } from '../apiConfig'
 import { Loader } from '../components/Loader'
 
 /**
- * Dashboard Component
- * @description Provides a high-level overview of projects, bugs, and performance metrics.
+ * Enhanced Dashboard Component
+ * @description Provides comprehensive operational visibility with modern UI
  */
 export default function Dashboard() {
-  const [projects, setProjects] = useState([])
-  const [allBugs, setAllBugs] = useState([])
-  const [allScreens, setAllScreens] = useState([])
-  const [bugTrend, setBugTrend] = useState([])
-  const [selectedYear, setSelectedYear] = useState(() => {
-    const saved = localStorage.getItem('dashboardSelectedYear')
-    return saved ? parseInt(saved, 10) : new Date().getFullYear()
-  })
-
-  // Persist selected year
-  useEffect(() => {
-    localStorage.setItem('dashboardSelectedYear', selectedYear.toString())
-  }, [selectedYear])
+  const [dashboardData, setDashboardData] = useState(null)
   const [loading, setLoading] = useState(true)
-  const [trendLoading, setTrendLoading] = useState(false)
-  
+  const [error, setError] = useState(null)
+
   const user = getUser()
   const nav = useNavigate()
-
-  // Generate the last 5 years for the filter dropdown
-  const availableYears = useMemo(() => {
-    const currentYear = new Date().getFullYear()
-    return Array.from({ length: 5 }, (_, i) => currentYear - i)
-  }, [])
 
   /**
    * Error handler for authentication failures
@@ -55,361 +53,366 @@ export default function Dashboard() {
   }, [nav])
 
   /**
-   * Fetches initial data including projects, bugs, and screens
+   * Fetches comprehensive dashboard data
    */
-  const loadInitialData = useCallback(async () => {
+  const loadDashboardData = useCallback(async () => {
     setLoading(true)
+    setError(null)
     try {
-      const [projRes, bugsRes, screensRes] = await Promise.all([
-        authFetch(`${API_BASE_URL}/projects`),
-        authFetch(`${API_BASE_URL}/bugs`),
-        authFetch(`${API_BASE_URL}/screens`)
-      ])
-
-      const projData = await handleApiResponse(projRes)
-      const bugsData = await handleApiResponse(bugsRes)
-      const screensData = await handleApiResponse(screensRes)
-
-      setProjects(projData)
-      setAllBugs(bugsData)
-      setAllScreens(screensData)
+      const res = await authFetch(`${API_BASE_URL}/dashboard/summary`)
+      const data = await handleApiResponse(res)
+      setDashboardData(data)
     } catch (e) {
       handleAuthError(e)
+      setError(e.message)
     } finally {
       setLoading(false)
     }
   }, [handleAuthError])
 
-  /**
-   * Fetches monthly bug trend data for the selected year
-   */
-  const loadBugTrend = useCallback(async (year) => {
-    setTrendLoading(true)
-    try {
-      const res = await authFetch(`${API_BASE_URL}/bugs/stats/${year}`)
-      const data = await handleApiResponse(res)
-      setBugTrend(data)
-    } catch (e) {
-      handleAuthError(e)
-    } finally {
-      setTrendLoading(false)
-    }
-  }, [handleAuthError])
-
-  // Load data on mount and when selectedYear changes
+  // Load data on mount
   useEffect(() => {
     if (user?.role?.toLowerCase() === 'hr') {
       nav('/notifications', { replace: true })
       return
     }
-    loadInitialData()
-    loadBugTrend(selectedYear)
-  }, [selectedYear, loadInitialData, loadBugTrend, nav, user?.role])
-
-  // --- Memoized Derived Data ---
-
-  // Filtered projects for the selected year
-  const filteredProjects = useMemo(() => {
-    return projects.filter(p => new Date(p.createdAt).getFullYear() === selectedYear)
-  }, [projects, selectedYear])
-
-  // Filtered bugs for the selected year
-  const filteredBugs = useMemo(() => {
-    return allBugs.filter(b => new Date(b.createdAt).getFullYear() === selectedYear)
-  }, [allBugs, selectedYear])
-
-  // Filtered screens for the selected year
-  const filteredScreens = useMemo(() => {
-    return allScreens.filter(s => new Date(s.createdAt).getFullYear() === selectedYear)
-  }, [allScreens, selectedYear])
-
-  // Pareto Chart Data (Module-wise Issues)
-  const projectIssuesData = useMemo(() => {
-    const moduleMap = {}
-    const now = new Date()
-
-    // Count open/in-progress bugs per module
-    filteredBugs.forEach(bug => {
-      if (bug.status === 'Open' || bug.status === 'In Progress') {
-        const moduleName = bug.module || 'General'
-        moduleMap[moduleName] = (moduleMap[moduleName] || 0) + 1
-      }
-    })
-
-    // Count blocked/overdue screens per module
-    filteredScreens.forEach(screen => {
-      const isOverdue = screen.plannedDeadline && new Date(screen.plannedDeadline) < now && screen.status !== 'Done'
-      if (screen.status === 'Blocked' || isOverdue) {
-        const moduleName = screen.module || 'General'
-        moduleMap[moduleName] = (moduleMap[moduleName] || 0) + 1
-      }
-    })
-
-    return Object.entries(moduleMap)
-      .map(([label, value]) => ({ label, value }))
-      .sort((a, b) => b.value - a.value) // Sort for Pareto
-  }, [filteredBugs, filteredScreens])
-
-  // Dashboard summary metrics
-  const summary = useMemo(() => ({
-    total: filteredProjects.length,
-    running: filteredProjects.filter(p => ['Active', 'Running'].includes(p.status)).length,
-    completed: filteredProjects.filter(p => ['Completed', 'Done'].includes(p.status)).length,
-    onHold: filteredProjects.filter(p => p.status === 'On Hold').length,
-    maintenance: filteredProjects.filter(p => p.status === 'Maintenance').length,
-    openBugs: filteredProjects.reduce((acc, p) => {
-      if (user.role === 'admin') return acc + (p.openBugsCount || 0)
-      if (user.role === 'developer') return acc + (p.userOpenBugsCount ?? (p.openBugsCount || 0))
-      if (user.role === 'tester') return acc + (p.userCreatedBugsCount ?? (p.openBugsCount || 0))
-      return acc + (p.openBugsCount || 0)
-    }, 0),
-    upcomingDeadlines: filteredProjects.reduce((acc, p) => acc + (p.upcomingDeadlines || 0), 0)
-  }), [filteredProjects, user.role])
-
-  // Status Chart Data
-  const statusChartData = useMemo(() => {
-    const statusMap = {}
-    filteredProjects.forEach(p => {
-      let mappedStatus = p.status || 'Unknown'
-      if (['Active', 'Running'].includes(p.status)) mappedStatus = 'Running'
-      if (['Planning', 'Under Planning'].includes(p.status)) mappedStatus = 'Planning'
-      statusMap[mappedStatus] = (statusMap[mappedStatus] || 0) + 1
-    })
-    
-    const entries = Object.entries(statusMap)
-    return {
-      labels: entries.map(([status]) => status),
-      values: entries.map(([, count]) => count),
-      hasData: entries.length > 0 && entries.some(([, count]) => count > 0)
-    }
-  }, [filteredProjects])
-
-  // Bug Trend Chart Formatting
-  const bugTrendData = useMemo(() => {
-    const categories = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
-    const series = [{
-      name: 'Open Bugs',
-      data: categories.map((_, index) => {
-        const monthData = bugTrend.find(d => d.month === index + 1)
-        return monthData ? monthData.count : 0
-      })
-    }]
-    const hasData = series[0].data.some(val => val > 0);
-    const totalBugs = series[0].data.reduce((a, b) => a + b, 0);
-    return { categories, series, hasData, totalBugs }
-  }, [bugTrend])
-
-  // Project Progress Data for charts
-  const projectProgressData = useMemo(() => {
-    const counts = {
-      Planning: filteredProjects.filter(p => ['Planning', 'Under Planning'].includes(p.status)).length,
-      Running: filteredProjects.filter(p => ['Active', 'Running'].includes(p.status)).length,
-      OnHold: filteredProjects.filter(p => p.status === 'On Hold').length,
-      Critical: filteredProjects.filter(p => p.status === 'Critical').length
-    }
-
-    return Object.entries(counts).map(([name, count]) => ({
-      name,
-      data: [count, count, count, count] // Dummy data for visualization if needed
-    }))
-  }, [filteredProjects])
-  const projectProgressCategories = ['Q1', 'Q2', 'Q3', 'Q4']
-  const hasProgressData = projects.length > 0
-
-  const hasIssuesData = projectIssuesData.length > 0 && projectIssuesData.some(d => d.value > 0)
-
-  const currentYear = new Date().getFullYear();
+    loadDashboardData()
+  }, [loadDashboardData, nav, user?.role])
 
   if (loading) {
-    return <Loader message="Loading dashboard data..." />
+    return <Loader message="Loading operational dashboard..." />
   }
 
-  const { categories: bugTrendCategories, series: bugTrendSeries, hasData: hasTrendData, totalBugs: currentTotalBugs } = bugTrendData;
-  const { labels: statusLabels, values: statusValues, hasData: hasStatusData } = statusChartData;
-  const displayYear = selectedYear;
-
-  return (
-  <PageContainer>
-      <PageLayout
-      maxWidth="full"
-      title="Dashboard Overview"
-      subtitle={<>Tracking projects and performance for {selectedYear}</>}
-      actions={(
-        <div className="relative w-full md:w-auto">
-          <select
-            value={selectedYear}
-            onChange={(e) => setSelectedYear(parseInt(e.target.value))}
-            className="appearance-none bg-white border-2 border-fuchsia-400/30 text-slate-700 text-sm font-bold rounded-xl focus:outline-none focus:border-fuchsia-500 focus:ring-4 focus:ring-fuchsia-500/10 px-6 py-3 pr-12 shadow-soft-xl cursor-pointer transition-all hover:border-fuchsia-500 hover:shadow-fuchsia-500/5 w-full md:min-w-[200px]"
-          >
-            {availableYears.map(year => (
-              <option key={year} value={year} className="py-2">
-                {year === currentYear ? `${year} (Current Year)` : year}
-              </option>
-            ))}
-          </select>
-          <div className="absolute inset-y-0 right-0 flex items-center pr-4 pointer-events-none text-fuchsia-500">
-            <ChevronDown size={20} strokeWidth={3} />
+  if (error) {
+    return (
+      <PageContainer>
+        <div className="flex items-center justify-center min-h-screen">
+          <div className="text-center">
+            <AlertCircle className="mx-auto h-12 w-12 text-red-500" />
+            <h2 className="mt-4 text-lg font-semibold text-slate-700">Error Loading Dashboard</h2>
+            <p className="mt-2 text-slate-500">{error}</p>
+            <button
+              onClick={loadDashboardData}
+              className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+            >
+              Retry
+            </button>
           </div>
         </div>
-      )}
-    >
+      </PageContainer>
+    )
+  }
 
-      {/* Summary Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-        <StatCard 
-          title="Total Projects" 
-          value={summary.total} 
-          icon={Activity} 
-          gradient="from-purple-700 to-pink-500"
-        />
-        <StatCard 
-          title="Running Projects" 
-          value={summary.running} 
-          icon={TrendingUp} 
-          gradient="from-blue-600 to-cyan-400"
-        />
-        <StatCard 
-          title="Completed Projects" 
-          value={summary.completed} 
-          icon={CheckCircle} 
-          gradient="from-green-600 to-lime-400"
-        />
-        <StatCard 
-          title="On Hold Projects" 
-          value={summary.onHold} 
-          icon={Activity} 
-          gradient="from-orange-500 to-yellow-400"
-        />
-        <StatCard 
-          title="Maintenance Projects" 
-          value={summary.maintenance} 
-          icon={Activity} 
-          gradient="from-slate-600 to-slate-300"
-        />
-        <StatCard 
-          title="Open Bugs" 
-          value={summary.openBugs} 
-          icon={AlertCircle} 
-          gradient="from-red-600 to-rose-400"
-        />
-        <StatCard 
-          title="Upcoming Deadlines" 
-          value={summary.upcomingDeadlines} 
-          icon={TrendingUp} 
-          gradient="from-blue-600 to-cyan-400"
-        />
-      </div>
+  if (!dashboardData) {
+    return (
+      <PageContainer>
+        <div className="flex items-center justify-center min-h-screen">
+          <div className="text-center">
+            <Activity className="mx-auto h-12 w-12 text-slate-400" />
+            <h2 className="mt-4 text-lg font-semibold text-slate-700">No Dashboard Data</h2>
+            <p className="mt-2 text-slate-500">Unable to load dashboard data</p>
+          </div>
+        </div>
+      </PageContainer>
+    )
+  }
 
-      {/* Charts Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        <div className="lg:col-span-7">
-          <Card className="h-full">
-            <CardHeader className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
-              <div>
-                <h6 className="font-bold">Bugs Trend</h6>
-                <p className="leading-normal text-sm">
-                  <span className="font-semibold">{currentTotalBugs} bugs</span> in {displayYear}
-                </p>
-              </div>
-            </CardHeader>
-            <CardBody className="relative min-h-[300px]">
-              {trendLoading ? (
-                <div className="absolute inset-0 flex items-center justify-center bg-white/50 z-10">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-700"></div>
-                </div>
-              ) : null}
+  const {
+    systemOverview,
+    myWorkSummary,
+    bugAnalytics,
+    projectHealth,
+    developerWorkload,
+    leaveOverview,
+    recentActivity,
+    userRole
+  } = dashboardData;
 
-              {!hasTrendData && !trendLoading ? (
-                <div className="absolute inset-0 flex items-center justify-center z-10">
-                  <p className="text-gray-500 font-medium">No data available for this year</p>
-                </div>
-              ) : null}
+  const isAdmin = userRole === 'admin';
+  const isDeveloper = ['developer', 'tester', 'ecommerce'].includes(userRole);
 
-              <div className={`w-full overflow-hidden ${!hasTrendData ? 'opacity-20' : ''}`}>
-                <AreaChart
-                  series={bugTrendSeries}
-                  categories={bugTrendCategories}
-                  height={300}
-                  colors={['#cb0c9f']}
-                />
-              </div>
-            </CardBody>
-          </Card>
+  return (
+    <PageContainer>
+      <PageLayout
+        maxWidth="full"
+        title="Operational Dashboard"
+        subtitle={<span>Real-time system insights and performance metrics</span>}
+        actions={
+          <div className="flex gap-3">
+            <button
+              onClick={loadDashboardData}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2"
+            >
+              <Activity size={16} />
+              Refresh
+            </button>
+          </div>
+        }
+      >
+        {/* System Overview Cards */}
+        <div className="mb-8">
+          <h3 className="text-lg font-semibold text-slate-700 mb-4">System Overview</h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
+            <StatCard
+              title="Projects"
+              value={systemOverview.totalProjects}
+              icon={Activity}
+              gradient="from-purple-700 to-pink-500"
+            />
+            <StatCard
+              title="Open Bugs"
+              value={systemOverview.openBugs}
+              icon={Bug}
+              gradient="from-red-600 to-rose-400"
+            />
+            <StatCard
+              title="Screens"
+              value={systemOverview.totalScreens}
+              icon={Layout}
+              gradient="from-blue-600 to-cyan-400"
+            />
+            <StatCard
+              title="Active Users"
+              value={systemOverview.activeUsers}
+              icon={Users}
+              gradient="from-green-600 to-lime-400"
+            />
+            <StatCard
+              title="Leaves Today"
+              value={systemOverview.leavesToday}
+              icon={Calendar}
+              gradient="from-orange-500 to-yellow-400"
+            />
+          </div>
         </div>
 
-        <div className="lg:col-span-5">
-          <Card className="h-full overflow-visible">
-            <CardHeader>
-              <h6 className="font-bold">Projects by Status</h6>
-            </CardHeader>
-            <CardBody className="relative min-h-[350px]">
-              {!hasStatusData ? (
-                <div className="absolute inset-0 flex items-center justify-center z-10">
-                  <p className="text-gray-500 font-medium">No data available for this year</p>
+        {/* Charts Section */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 mb-8">
+          {/* Bug Analytics */}
+          <div className="lg:col-span-7">
+            <Card className="h-full">
+              <CardHeader className="flex items-center gap-2">
+                <BarChart3 size={20} className="text-blue-600" />
+                <h6 className="font-bold">Bug Analytics</h6>
+              </CardHeader>
+              <CardBody className="min-h-[300px]">
+                <div className="grid grid-cols-2 gap-4 mb-4">
+                  <div className="text-center">
+                    <p className="text-sm text-slate-500">Open</p>
+                    <p className="text-2xl font-bold text-red-600">{bugAnalytics.byStatus.open}</p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-sm text-slate-500">In Progress</p>
+                    <p className="text-2xl font-bold text-yellow-600">{bugAnalytics.byStatus.inProgress}</p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-sm text-slate-500">Resolved</p>
+                    <p className="text-2xl font-bold text-green-600">{bugAnalytics.byStatus.resolved}</p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-sm text-slate-500">Closed</p>
+                    <p className="text-2xl font-bold text-slate-600">{bugAnalytics.byStatus.closed}</p>
+                  </div>
                 </div>
-              ) : null}
-
-              <div className={`w-full overflow-hidden ${!hasStatusData ? 'opacity-0' : ''}`}>
                 <PieChart
-                  labels={statusLabels}
-                  series={statusValues}
-                  height={350}
-                  colors={['#FF5733', '#FFC300', '#FF33FF', '#8B5CF6', '#0EA5E9', '#10B981']}
+                  labels={['Open', 'In Progress', 'Resolved', 'Closed']}
+                  series={[
+                    bugAnalytics.byStatus.open,
+                    bugAnalytics.byStatus.inProgress,
+                    bugAnalytics.byStatus.resolved,
+                    bugAnalytics.byStatus.closed
+                  ]}
+                  height={200}
+                  colors={['#ef4444', '#f59e0b', '#10b981', '#64748b']}
                 />
-              </div>
-            </CardBody>
-          </Card>
-        </div>
-      </div>
+              </CardBody>
+            </Card>
+          </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        <div className="lg:col-span-12">
-          <Card className="h-full overflow-hidden">
-            <CardBody className="relative min-h-[350px]">
-              {!hasIssuesData ? (
-                <div className="absolute inset-0 flex flex-col items-center justify-center z-10 bg-white p-6">
-                  <h6 className="font-bold text-slate-700 mb-2">Module-wise Issue Analysis (Pareto)</h6>
-                  <p className="text-gray-500 font-medium">No data available for this year</p>
+          {/* Project Health */}
+          <div className="lg:col-span-5">
+            <Card className="h-full">
+              <CardHeader className="flex items-center gap-2">
+                <PieChartIcon size={20} className="text-green-600" />
+                <h6 className="font-bold">Project Health</h6>
+              </CardHeader>
+              <CardBody className="min-h-[300px]">
+                <div className="space-y-3">
+                  {Object.entries(projectHealth.byStatus).map(([status, count]) => (
+                    <div key={status} className="flex justify-between items-center">
+                      <span className="text-sm text-slate-600">{status}</span>
+                      <span className="font-semibold">{count}</span>
+                    </div>
+                  ))}
                 </div>
-              ) : (
-                <div className="w-full overflow-hidden">
-                  <ParetoChart
-                    title="Module-wise Issue Analysis (Pareto)"
-                    data={projectIssuesData}
-                    height={350}
+                <div className="mt-4">
+                  <h6 className="font-semibold text-sm mb-2">Top Projects with Bugs</h6>
+                  <div className="space-y-2">
+                    {projectHealth.topProjectsWithBugs.slice(0, 3).map((project, index) => (
+                      <div key={project.id} className="flex justify-between items-center text-sm">
+                        <span className="truncate">{project.name}</span>
+                        <Badge gradient="from-red-600 to-rose-400" size="sm">
+                          {project.openBugCount} open</Badge>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </CardBody>
+            </Card>
+          </div>
+        </div>
+
+        {/* My Work & Developer Workload */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 mb-8">
+          {/* My Work Summary */}
+          {isDeveloper && (
+            <div className="lg:col-span-6">
+              <Card className="h-full">
+                <CardHeader className="flex items-center gap-2">
+                  <UserCheck size={20} className="text-blue-600" />
+                  <h6 className="font-bold">My Work Summary</h6>
+                </CardHeader>
+                <CardBody>
+                  <div className="grid grid-cols-2 gap-4">
+                    <StatCard
+                      title="My Tasks"
+                      value={myWorkSummary.myTasks}
+                      icon={Activity}
+                      gradient="from-purple-700 to-pink-500"
+                      className="p-3"
+                    />
+                    <StatCard
+                      title="Assigned Bugs"
+                      value={myWorkSummary.assignedBugs}
+                      icon={Bug}
+                      gradient="from-red-600 to-rose-400"
+                      className="p-3"
+                    />
+                    <StatCard
+                      title="Assigned Screens"
+                      value={myWorkSummary.assignedScreens}
+                      icon={Layout}
+                      gradient="from-blue-600 to-cyan-400"
+                      className="p-3"
+                    />
+                    <StatCard
+                      title="Pending Leaves"
+                      value={myWorkSummary.pendingLeaveRequests}
+                      icon={Calendar}
+                      gradient="from-orange-500 to-yellow-400"
+                      className="p-3"
+                    />
+                  </div>
+                </CardBody>
+              </Card>
+            </div>
+          )}
+
+          {/* Developer Workload */}
+          {isAdmin && (
+            <div className="lg:col-span-6">
+              <Card className="h-full">
+                <CardHeader className="flex items-center gap-2">
+                  <Table size={20} className="text-green-600" />
+                  <h6 className="font-bold">Developer Workload</h6>
+                </CardHeader>
+                <CardBody>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b">
+                          <th className="text-left py-2">Developer</th>
+                          <th className="text-center py-2">Bugs</th>
+                          <th className="text-center py-2">Screens</th>
+                          <th className="text-center py-2">Total</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {developerWorkload.slice(0, 5).map((dev) => (
+                          <tr key={dev.id} className="border-b">
+                            <td className="py-2">{dev.name}</td>
+                            <td className="text-center py-2">{dev.assignedBugs}</td>
+                            <td className="text-center py-2">{dev.assignedScreens}</td>
+                            <td className="text-center py-2 font-semibold">
+                              {dev.assignedBugs + dev.assignedScreens}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </CardBody>
+              </Card>
+            </div>
+          )}
+        </div>
+
+        {/* Leave Overview & Recent Activity */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          {/* Leave Overview */}
+          <div className="lg:col-span-4">
+            <Card className="h-full">
+              <CardHeader className="flex items-center gap-2">
+                <Clock size={20} className="text-orange-600" />
+                <h6 className="font-bold">Leave Overview</h6>
+              </CardHeader>
+              <CardBody>
+                <div className="space-y-4">
+                  <StatCard
+                    title="Leaves Today"
+                    value={leaveOverview.leavesToday}
+                    icon={Calendar}
+                    gradient="from-orange-500 to-yellow-400"
+                    className="p-3"
+                  />
+                  <StatCard
+                    title="Pending Requests"
+                    value={leaveOverview.pendingRequests}
+                    icon={AlertCircle}
+                    gradient="from-red-600 to-rose-400"
+                    className="p-3"
+                  />
+                  <StatCard
+                    title="This Month"
+                    value={leaveOverview.leavesThisMonth}
+                    icon={TrendingUp}
+                    gradient="from-blue-600 to-cyan-400"
+                    className="p-3"
                   />
                 </div>
-              )}
-            </CardBody>
-          </Card>
-        </div>
-      </div>
+              </CardBody>
+            </Card>
+          </div>
 
-      <div className="grid grid-cols-1 gap-6">
-        <div className="w-full">
-          <Card className="h-full">
-            <CardHeader>
-              <h6 className="font-bold">Project Status Progress</h6>
-            </CardHeader>
-            <CardBody className="relative min-h-[300px]">
-              {!hasProgressData ? (
-                <div className="absolute inset-0 flex items-center justify-center z-10">
-                  <p className="text-gray-500 font-medium">No data available for this year</p>
+          {/* Recent Activity */}
+          <div className="lg:col-span-8">
+            <Card className="h-full">
+              <CardHeader className="flex items-center gap-2">
+                <FileText size={20} className="text-purple-600" />
+                <h6 className="font-bold">Recent Activity</h6>
+              </CardHeader>
+              <CardBody>
+                <div className="space-y-3 max-h-64 overflow-y-auto">
+                  {recentActivity.length > 0 ? (
+                    recentActivity.map((activity) => (
+                      <div key={activity.id} className="flex items-center gap-3 p-2 hover:bg-slate-50 rounded">
+                        <div className="flex-shrink-0 w-2 h-2 bg-blue-500 rounded-full"></div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm text-slate-700 truncate">{activity.description}</p>
+                          <p className="text-xs text-slate-500">
+                            {new Date(activity.timestamp).toLocaleDateString()} by {activity.user}
+                          </p>
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <p className="text-slate-500 text-center py-4">No recent activity</p>
+                  )}
                 </div>
-              ) : null}
-
-              <div className={`w-full overflow-hidden ${!hasProgressData ? 'opacity-0' : ''}`}>
-                <BarChart
-                  series={projectProgressData}
-                  categories={projectProgressCategories}
-                  height={300}
-                  colors={['#cb0c9f', '#17c1e8', '#3a416f', '#f53939']}
-                />
-              </div>
-            </CardBody>
-          </Card>
+              </CardBody>
+            </Card>
+          </div>
         </div>
-      </div>
       </PageLayout>
     </PageContainer>
   )
