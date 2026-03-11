@@ -1,6 +1,6 @@
 import React from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
-import { getUser, clearToken, clearUser } from '../auth'
+import { getUser, clearToken, clearUser, authFetch } from '../auth'
 import {
   X,
   LayoutDashboard,
@@ -24,11 +24,14 @@ import {
   Briefcase
 } from 'lucide-react'
 
+import { API_BASE_URL } from '../apiConfig'
+
 import logo from '../../public/assets/img/logos/mmf_logo.svg'
 
 export default function Sidebar({ open, onClose, collapsed, setCollapsed }) {
   const [isHovered, setIsHovered] = React.useState(false)
   const [showProfileMenu, setShowProfileMenu] = React.useState(false)
+  const [taskCount, setTaskCount] = React.useState(null)
   const user = getUser()
   const location = useLocation()
   const navigate = useNavigate()
@@ -45,6 +48,29 @@ export default function Sidebar({ open, onClose, collapsed, setCollapsed }) {
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
 
+  React.useEffect(() => {
+    let cancelled = false
+    async function loadTaskCount() {
+      try {
+        const res = await authFetch(`${API_BASE_URL}/tasks/count`)
+        if (!res || !res.ok) return
+        const data = await res.json()
+        if (!cancelled) {
+          const total = typeof data.total === 'number' ? data.total : 0
+          setTaskCount(total)
+        }
+      } catch (_err) {
+        // Best-effort only; silently ignore
+      }
+    }
+    if (user && user.role) {
+      loadTaskCount()
+    }
+    return () => {
+      cancelled = true
+    }
+  }, [user])
+
   const handleLogout = () => {
     clearToken()
     clearUser()
@@ -56,6 +82,7 @@ export default function Sidebar({ open, onClose, collapsed, setCollapsed }) {
 
   const mainMenuItems = [
     { label: 'Dashboard', icon: LayoutDashboard, path: '/dashboard', roles: ['admin', 'tester', 'developer', 'ecommerce', 'management'] },
+    { label: 'My Tasks', icon: Inbox, path: '/tasks', roles: ['admin', 'tester', 'developer', 'ecommerce', 'management', 'hr', 'accountant'], showTaskBadge: true },
     { label: 'IT Projects', icon: BarChart3, path: '/projects', roles: ['admin', 'tester', 'developer',] },
     { label: 'E-Commerce Projects', icon: BarChart3, path: '/ecommerce-projects', roles: ['admin', 'ecommerce', 'management'] },
     { label: 'Announcements', icon: Megaphone, path: '/announcements', roles: ['admin', 'tester', 'developer', 'ecommerce', 'management', 'hr', 'accountant'] },
@@ -109,7 +136,16 @@ export default function Sidebar({ open, onClose, collapsed, setCollapsed }) {
               <Icon size={20} strokeWidth={active ? 2.5 : 2} />
             </div>
           )}
-          {!isActuallyCollapsed && <span className={`text-sm ${active ? 'font-bold' : 'font-medium'}`}>{item.label}</span>}
+          {!isActuallyCollapsed && (
+            <span className={`text-sm ${active ? 'font-bold' : 'font-medium'} flex items-center gap-2`}>
+              {item.label}
+              {item.showTaskBadge && typeof taskCount === 'number' && taskCount > 0 && (
+                <span className="inline-flex items-center justify-center rounded-full bg-white/90 text-[#004e92] text-[10px] font-extrabold min-w-[18px] h-[18px] px-1">
+                  {taskCount > 99 ? '99+' : taskCount}
+                </span>
+              )}
+            </span>
+          )}
         </div>
         {!isActuallyCollapsed && item.shortcut && (
           <span className="text-[10px] font-medium text-slate-300 group-hover:text-slate-400 transition-colors">

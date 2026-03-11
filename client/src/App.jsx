@@ -11,6 +11,7 @@ import ECommerceProjects from './pages/ECommerceProjects'
 import Notifications from './pages/Notifications'
 import Announcements from './pages/Announcements'
 import Careers from './pages/Careers'
+import MyTasks from './pages/MyTasks'
 import { getToken, getUser } from './auth'
 import Layout from './Layout'
 import { Toaster, ToastBar, toast } from 'react-hot-toast'
@@ -87,6 +88,7 @@ export default function App() {
         <Route element={<Layout />}>
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
           <Route path="/dashboard" element={<PrivateRoute><Dashboard /></PrivateRoute>} />
+          <Route path="/tasks" element={<PrivateRoute><MyTasks /></PrivateRoute>} />
           <Route path="/projects" element={<PrivateRoute><Projects /></PrivateRoute>} />
           <Route path="/projects/:id" element={<PrivateRoute><ProjectPage /></PrivateRoute>} />
           <Route path="/users" element={<PrivateRoute roles={['admin']}><Users /></PrivateRoute>} />
