@@ -2,23 +2,26 @@ const express = require('express');
 const router = express.Router();
 const jwt = require('jsonwebtoken');
 const { authenticate, tokenBlacklist } = require('../middleware/auth');
+const { loginLimiter } = require('../middleware/rateLimiter');
 const { getProfileUrl, getUsers } = require('../middleware/helpers');
 const { USE_LIVE_DB } = require('../config');
 const { comparePassword, hashPassword } = require('../utils/encryption');
 const { getConfig } = require('../config/runtime');
 const { v4: uuidv4 } = require('uuid');
+const logger = require('../utils/logger');
 
 // Login - accepts { email, password } - returns JWT with userId, email, role
-router.post(`/login`, async (req, res) => {
+// Protected with rate limiting to prevent brute force attacks
+router.post(`/login`, loginLimiter, async (req, res) => {
   const { email, password } = req.body;
   req.log?.info({ email: email ? String(email).toLowerCase() : undefined }, 'Login attempt');
 
   if (!email || !password) return res.status(400).json({ error: 'Missing email or password' });
-  
+
   const users = await getUsers(req);
-  
+
   const user = users.find((u) => u.email.toLowerCase() === email.toLowerCase());
-  
+
   if (!user) {
     req.log?.warn({ email: String(email).toLowerCase() }, 'Login failed: user not found');
     return res.status(401).json({ error: 'Invalid credentials' });
@@ -26,7 +29,7 @@ router.post(`/login`, async (req, res) => {
 
   // Check account status
   if (user.active === false || user.active === 0 || user.active === '0') {
-    console.log(`[LOGIN] Account inactive for: ${email}`);
+    logger.warn({ userId: user.id }, 'Account inactive for login attempt');
     return res.status(403).json({ error: 'Account is inactive. Contact the admin' });
   }
 
@@ -65,15 +68,15 @@ router.post(`/login`, async (req, res) => {
     JWT_SECRET,
     { expiresIn: '8h', algorithm: 'HS256' }
   );
-  return res.json({ 
-    token, 
-    user: { 
-      id: user.id, 
-      name: user.name, 
-      email: user.email, 
+  return res.json({
+    token,
+    user: {
+      id: user.id,
+      name: user.name,
+      email: user.email,
       role: user.role,
       profilePicture: getProfileUrl(req, user.profilePicture)
-    } 
+    }
   });
 });
 

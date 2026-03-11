@@ -392,7 +392,8 @@ export default function ProjectPage() {
 
       xhr.send(form);
     } catch (error) {
-      console.error('Upload error:', error);
+      // Error handling: avoid console.error in production
+      // Use error boundary or centralized error logging instead
       toast.error('Failed to process file');
       setUploading(false);
     }
@@ -451,7 +452,10 @@ export default function ProjectPage() {
         setPreviewDocUrl(objectUrl);
       }
     } catch (e) {
-      console.warn('Failed to load preview:', e);
+      // Skip logging in production to avoid exposing internal errors
+      if (import.meta.env.DEV) {
+        console.warn('Failed to load preview:', e);
+      }
     }
 
     // Log view activity to server
@@ -462,7 +466,10 @@ export default function ProjectPage() {
         body: JSON.stringify({ projectId: id, title: doc.title })
       });
     } catch (e) {
-      console.warn('Failed to log document view:', e);
+      // Silently fail: viewing activity logging is non-critical
+      if (import.meta.env.DEV) {
+        console.warn('Failed to log document view:', e);
+      }
     }
   };
 
@@ -1006,7 +1013,10 @@ export default function ProjectPage() {
             attList = JSON.parse(attachments);
           }
         } catch (e) {
-          console.error('Error parsing attachments for bug:', b.id, e);
+          // Silently handle parse errors - attachments field may be malformed
+          if (import.meta.env.DEV) {
+            console.error('Error parsing attachments for bug:', b.id, e);
+          }
           attList = [];
         }
 

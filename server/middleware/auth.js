@@ -1,8 +1,21 @@
 const jwt = require('jsonwebtoken');
 const { getConfig } = require('../config/runtime');
 
-// NOTE: In-memory blacklist is kept for backwards compatibility with existing logout behavior.
-// For production-scale revocation, replace with Redis/DB keyed by jti with TTL.
+// NOTE: In-memory blacklist is a temporary solution for development only.
+// For production with multiple servers, implement this:
+//   1. Redis cache: Store revoked JTIs with TTL = token expiry (8h)
+//   2. Database: Add revoked_tokens table with index on jti
+// 
+// Example Redis implementation:
+//   const redis = require('redis');
+//   const client = redis.createClient();
+//   async function revokeToken(jti) {
+//     await client.setex(`revoked:${jti}`, 28800, '1'); // 8h TTL
+//   }
+//   async function isTokenRevoked(jti) {
+//     return await client.exists(`revoked:${jti}`);
+//   }
+
 const tokenBlacklist = new Set();
 
 // Middleware to protect routes

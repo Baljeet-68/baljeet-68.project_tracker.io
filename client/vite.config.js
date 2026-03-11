@@ -10,13 +10,21 @@ export default defineConfig({
     setupFiles: './src/test/setup.js',
   },
   build: {
-    chunkSizeWarningLimit: 1000,
+    // Warn when chunks exceed 500KB (best practice)
+    chunkSizeWarningLimit: 500,
     rollupOptions: {
       output: {
         manualChunks(id) {
+          // Vendor libraries: split into separate chunks for better caching
           if (id.includes('node_modules')) {
-            if (id.includes('framer-motion')) {
-              return 'vendor-motion';
+            if (id.includes('react-router')) {
+              return 'vendor-router';
+            }
+            if (id.includes('lucide-react')) {
+              return 'vendor-icons';
+            }
+            if (id.includes('react-hot-toast')) {
+              return 'vendor-toast';
             }
             return 'vendor';
           }
