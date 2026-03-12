@@ -1,74 +1,90 @@
 #!/bin/bash
 
-echo "=== DEPLOY START ==="
+echo "================================="
+echo "🚀 DEPLOYMENT STARTED"
+echo "================================="
 
 TARGET="/home/mmfilgqi/public_html/Project_Tracker_Tool"
 
-# Try loading Node.js environment (if available)
+# Load Node.js environment if available
+
 source /opt/alt/alt-nodejs24/enable 2>/dev/null || true
 
 # ===============================
-# GIT RESET + PULL
-# ===============================
-cd "$TARGET" || exit
 
-echo "Resetting local changes..."
+# GO TO PROJECT DIRECTORY
+
+# ===============================
+
+cd "$TARGET" || {
+echo "❌ Project directory not found!"
+exit 1
+}
+
+# ===============================
+
+# GIT RESET + PULL
+
+# ===============================
+
+echo "📥 Resetting local changes..."
 git reset --hard HEAD
 
-echo "Pulling latest changes..."
+echo "📥 Pulling latest code from GitHub..."
 git pull origin main
 
+# ===============================
+
+# FRONTEND DEPLOYMENT
 
 # ===============================
-# FRONTEND (BUILD LOCALLY)
-# ===============================
-echo "Skipping frontend build (server cannot build Vite apps)."
-echo "Make sure client/dist is built locally and committed to GitHub."
 
+echo "🎨 Deploying frontend..."
 
-# ===============================
-# DELETE OLD ROOT FRONTEND FILES
-# ===============================
 echo "Deleting old frontend root files..."
 rm -f "$TARGET/index.html"
 rm -rf "$TARGET/assets"
 
-
-# ===============================
-# COPY NEW DIST FILES TO ROOT
-# ===============================
 echo "Copying new dist files to root..."
 cp -rf "$TARGET/client/dist/"* "$TARGET/"
 
-echo "Frontend deployment complete."
-
+echo "✅ Frontend deployment complete."
 
 # ===============================
+
 # BACKEND SETUP
+
 # ===============================
-echo "Installing backend dependencies..."
+
+echo "📦 Installing backend dependencies..."
 cd "$TARGET/server" || exit
-npm install
-npm start
-
+npm install --omit=dev
 
 # ===============================
-# RESTART BACKEND
+
+# RESTART BACKEND SERVER
+
 # ===============================
-echo "Restarting Node.js server..."
+
+echo "🔁 Restarting Node.js server..."
+
 mkdir -p "$TARGET/logs"
 
-# Kill existing Node processes
+# Kill any process using port 4000
+
 echo "Stopping existing Node.js processes..."
-pkill -f "node.*server.js" || true
+lsof -ti:4000 | xargs kill -9 2>/dev/null || true
+
 sleep 2
 
-# Start the server in the background
+# Start server in background
+
 echo "Starting Node.js server..."
-cd "$TARGET/server"
 nohup npm start > "$TARGET/logs/server.log" 2>&1 &
+
 SERVER_PID=$!
-echo "Server started with PID: $SERVER_PID"
+echo "✅ Server started with PID: $SERVER_PID"
 
-echo "=== DEPLOY COMPLETE ==="
-
+echo "================================="
+echo "🎉 DEPLOYMENT COMPLETE"
+echo "================================="
