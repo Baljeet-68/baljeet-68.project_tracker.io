@@ -2,7 +2,7 @@ import React from 'react'
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import Login from './pages/Login'
 import Dashboard from './pages/Dashboard'
-import ProjectPage from './pages/ProjectPage'
+import ProjectPage from './modules/projects/ProjectPage'
 import Projects from './pages/Projects'
 import Users from './pages/Users'
 import Settings from './pages/Settings'
@@ -20,7 +20,7 @@ import { X } from 'lucide-react'
 function PrivateRoute({ children, roles }) {
   const token = getToken()
   const user = getUser()
-  
+
   if (!token) return <Navigate to="/login" replace />
   if (roles && !roles.includes(user?.role?.toLowerCase())) {
     return <Navigate to="/dashboard" replace />
@@ -30,9 +30,9 @@ function PrivateRoute({ children, roles }) {
 
 export default function App() {
   const basename = '/Project_Tracker_Tool';
-  
+
   return (
-    <BrowserRouter 
+    <BrowserRouter
       basename={basename}
       future={{
         v7_startTransition: true,
@@ -41,7 +41,7 @@ export default function App() {
     >
       <Toaster position="top-right" reverseOrder={false}>
         {(t) => (
-          <ToastBar 
+          <ToastBar
             toast={t}
             style={{
               ...t.style,
@@ -84,7 +84,7 @@ export default function App() {
       </Toaster>
       <Routes>
         <Route path="/login" element={<Login />} />
-        
+
         <Route element={<Layout />}>
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
           <Route path="/dashboard" element={<PrivateRoute><Dashboard /></PrivateRoute>} />
