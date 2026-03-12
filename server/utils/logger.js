@@ -3,12 +3,15 @@
  * @description Centralized logging with production/development modes
  */
 
-const pino = require('pino');
-
 const isDev = process.env.NODE_ENV !== 'production';
-const logger = pino({
-    level: isDev ? 'debug' : 'warn',
-    transport: isDev ? { target: 'pino-pretty', options: { colorize: true } } : undefined,
-});
+
+// Simple logger that uses console methods - avoids pino-pretty dependency issues
+const logger = {
+    debug: isDev ? (...args) => console.log('[DEBUG]', ...args) : () => { },
+    info: (...args) => console.log('[INFO]', ...args),
+    warn: (...args) => console.warn('[WARN]', ...args),
+    error: (...args) => console.error('[ERROR]', ...args),
+    level: isDev ? 'debug' : 'warn'
+};
 
 module.exports = logger;

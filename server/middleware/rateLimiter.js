@@ -4,6 +4,7 @@
  */
 
 const rateLimit = require('express-rate-limit');
+const { ipKeyGenerator } = require('express-rate-limit');
 
 // Brute force protection on login
 const loginLimiter = rateLimit({
@@ -15,7 +16,8 @@ const loginLimiter = rateLimit({
     skip: (req) => req.ip === '127.0.0.1', // Skip localhost for development
     keyGenerator: (req) => {
         // Rate limit by email instead of IP (attacks via email enumeration)
-        return req.body?.email || req.ip;
+        // Fall back to ipKeyGenerator for proper IPv6 handling
+        return req.body?.email || ipKeyGenerator(req);
     }
 });
 

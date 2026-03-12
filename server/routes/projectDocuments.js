@@ -141,7 +141,24 @@ router.get('/documents/:id/download', authenticate, async (req, res) => {
 });
 
 // Upload a new document (multipart/form-data)
-router.post('/projects/:projectId/documents', authenticate, uploadLimiter, upload.single('file'), async (req, res) => {
+router.post('/projects/:projectId/documents', authenticate, uploadLimiter, (req, res, next) => {
+  upload.single('file')(req, res, function (err) {
+    if (err instanceof multer.MulterError) {
+      console.error('Multer error:', err.message);
+      if (err.code === 'FILE_TOO_LARGE') {
+        return res.status(400).json({ error: 'File size exceeds 10MB limit' });
+      }
+      if (err.code === 'LIMIT_FILE_COUNT') {
+        return res.status(400).json({ error: 'Too many files uploaded' });
+      }
+      return res.status(400).json({ error: 'File upload error: ' + err.message });
+    } else if (err) {
+      console.error('File upload error:', err.message);
+      return res.status(400).json({ error: 'Unsupported file type. Please upload PDF, PNG, or JPEG.' });
+    }
+    next();
+  });
+}, async (req, res) => {
   try {
     const { projectId } = req.params;
     const userId = req.user.userId;
@@ -235,25 +252,6 @@ router.delete('/documents/:id', authenticate, requireRole('admin'), async (req, 
     console.error('Error deleting project document:', error.message);
     res.status(500).json({ error: 'Failed to delete project document', details: error.message });
   }
-});
-
-// Error handling middleware for multer errors
-router.use((error, req, res, next) => {
-  if (error instanceof multer.MulterError) {
-    if (error.code === 'FILE_TOO_LARGE') {
-      return res.status(400).json({ error: 'File size exceeds 10MB limit' });
-    }
-    if (error.code === 'LIMIT_FILE_COUNT') {
-      return res.status(400).json({ error: 'Too many files uploaded' });
-    }
-    console.error('Multer error:', error.message);
-    return res.status(400).json({ error: 'File upload error: ' + error.message });
-  }
-  if (error && error.message && error.message.includes('Unsupported file type')) {
-    return res.status(400).json({ error: 'Unsupported file type. Please upload PDF, PNG, or JPEG.' });
-  }
-  // Pass other errors to next middleware
-  next(error);
 });
 
 module.exports = router;
