@@ -56,7 +56,19 @@ npm start
 # RESTART BACKEND
 # ===============================
 echo "Restarting Node.js server..."
-mkdir -p "$TARGET/tmp"
-touch "$TARGET/tmp/restart.txt"
+mkdir -p "$TARGET/logs"
+
+# Kill existing Node processes
+echo "Stopping existing Node.js processes..."
+pkill -f "node.*server.js" || true
+sleep 2
+
+# Start the server in the background
+echo "Starting Node.js server..."
+cd "$TARGET/server"
+nohup npm start > "$TARGET/logs/server.log" 2>&1 &
+SERVER_PID=$!
+echo "Server started with PID: $SERVER_PID"
 
 echo "=== DEPLOY COMPLETE ==="
+
