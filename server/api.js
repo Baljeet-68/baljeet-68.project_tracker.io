@@ -248,15 +248,15 @@ async function deleteScreenFromDb(screenId) {
   }
 }
 
-  async function createUserInDb(user) {
-    try {
-      const password = (typeof user.password === 'string' && user.password.startsWith('$2'))
-        ? user.password
-        : await hashPassword(user.password);
-      const sql = 'INSERT INTO users (`id`, `name`, `email`, `password`, `role`, `active`) VALUES (?, ?, ?, ?, ?, ?)';
-      const params = [user.id, user.name, user.email, password, user.role, user.active !== undefined ? Number(user.active) : 1];
-      await pool.query(sql, params);
-    } catch (error) {
+async function createUserInDb(user) {
+  try {
+    const password = (typeof user.password === 'string' && user.password.startsWith('$2'))
+      ? user.password
+      : await hashPassword(user.password);
+    const sql = 'INSERT INTO users (`id`, `name`, `email`, `password`, `role`, `active`) VALUES (?, ?, ?, ?, ?, ?)';
+    const params = [user.id, user.name, user.email, password, user.role, user.active !== undefined ? Number(user.active) : 1];
+    await pool.query(sql, params);
+  } catch (error) {
     console.error('Database insert failed in createUserInDb:', error);
     throw error;
   }
@@ -505,10 +505,24 @@ async function getProjectDocumentsFromMySQL(projectId) {
 
 async function createProjectDocumentInDb(doc) {
   try {
-    const sql = 'INSERT INTO project_documents (id, projectId, title, description, fileName, fileData, fileSize, fileType, createdBy, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)';
     const fileData = doc.storagePath || doc.fileData || '';
-    const params = [doc.id, doc.projectId, doc.title, doc.description, doc.fileName, fileData, doc.fileSize || 0, doc.fileType || '', doc.createdBy, doc.createdAt];
-    await pool.execute(sql, params);
+    // Try with all columns first (for new schema), fallback to basic columns if error
+    let sql = 'INSERT INTO project_documents (id, projectId, title, description, fileName, fileData, fileSize, fileType, createdBy, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)';
+    let params = [doc.id, doc.projectId, doc.title, doc.description, doc.fileName, fileData, doc.fileSize || 0, doc.fileType || '', doc.createdBy, doc.createdAt];
+
+    try {
+      await pool.execute(sql, params);
+    } catch (err) {
+      // If fileSize/fileType columns don't exist, use basic insert
+      if (err.message?.includes('Unknown column')) {
+        console.warn('fileSize/fileType columns not found, using basic insert');
+        sql = 'INSERT INTO project_documents (id, projectId, title, description, fileName, fileData, createdBy, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?)';
+        params = [doc.id, doc.projectId, doc.title, doc.description, doc.fileName, fileData, doc.createdBy, doc.createdAt];
+        await pool.execute(sql, params);
+      } else {
+        throw err;
+      }
+    }
   } catch (error) {
     console.error('Database insert failed in createProjectDocumentInDb:', error);
     throw error;
@@ -596,17 +610,17 @@ async function getLeavesFromMySQL() {
 }
 
 async function getJobsFromMySQL() {
+  try {
+    // Auto-expire jobs
     try {
-      // Auto-expire jobs
-      try {
-        await pool.query("UPDATE jobs SET status = 'inactive' WHERE expiryDate < NOW() AND status = 'active'");
-      } catch (e) {
-        console.warn("Auto-expiry failed (likely missing expiryDate column):", e.message);
-      }
-      
-      const [rows] = await pool.query('SELECT * FROM jobs ORDER BY createdAt DESC');
-      return rows;
-    } catch (error) {
+      await pool.query("UPDATE jobs SET status = 'inactive' WHERE expiryDate < NOW() AND status = 'active'");
+    } catch (e) {
+      console.warn("Auto-expiry failed (likely missing expiryDate column):", e.message);
+    }
+
+    const [rows] = await pool.query('SELECT * FROM jobs ORDER BY createdAt DESC');
+    return rows;
+  } catch (error) {
     console.error('Database query failed in getJobsFromMySQL:', error);
     throw error;
   }
@@ -616,14 +630,14 @@ async function createJobInDb(job) {
   try {
     const sql = 'INSERT INTO jobs (id, title, description, location, type, salary, status, createdBy, createdAt, expiryDate) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)';
     const params = [
-      job.id, 
-      job.title, 
-      job.description, 
-      job.location, 
-      job.type, 
-      job.salary, 
-      job.status || 'active', 
-      job.createdBy, 
+      job.id,
+      job.title,
+      job.description,
+      job.location,
+      job.type,
+      job.salary,
+      job.status || 'active',
+      job.createdBy,
       job.createdAt || new Date().toISOString(),
       job.expiryDate || null
     ];
