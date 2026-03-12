@@ -8,7 +8,7 @@ import React, { useState, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { Loader } from '../../components/Loader'
 import { handleError, handleApiResponse } from '../../utils/errorHandler'
-import { authFetch, getUser, clearToken, clearUser } from '../../auth'
+import { authFetch, getUser, getToken, clearToken, clearUser } from '../../auth'
 import { API_BASE_URL } from '../../apiConfig'
 import toast from 'react-hot-toast'
 import PageContainer from '../../components/layout/PageContainer'
@@ -263,7 +263,10 @@ export default function ProjectPage() {
 
             const xhr = new XMLHttpRequest()
             xhr.open('POST', `${API_BASE_URL}/projects/${id}/documents`, true)
-            xhr.setRequestHeader('Authorization', `Bearer ${authFetch.token}`)
+            const token = getToken()
+            if (token) {
+                xhr.setRequestHeader('Authorization', `Bearer ${token}`)
+            }
 
             xhr.upload.onprogress = (e) => {
                 if (e.lengthComputable) {

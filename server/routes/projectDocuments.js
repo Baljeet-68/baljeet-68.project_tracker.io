@@ -36,8 +36,11 @@ const upload = multer({
   }),
   limits: { fileSize: 10 * 1024 * 1024 }, // 10MB
   fileFilter: (req, file, cb) => {
-    const allowed = new Set(['application/pdf', 'image/png', 'image/jpeg']);
-    cb(null, allowed.has(file.mimetype));
+    const allowed = new Set(['application/pdf', 'image/png', 'image/jpeg', 'image/jpg']);
+    if (!allowed.has(file.mimetype)) {
+      return cb(new Error(`Unsupported file type: ${file.mimetype}`));
+    }
+    cb(null, true);
   }
 });
 
@@ -86,11 +89,11 @@ router.post('/documents/:id/view', authenticate, async (req, res) => {
     const project = await getProjectById(projectId);
     if (!project) return res.status(404).json({ error: 'Project not found' });
     if (!await hasProjectAccess(req.user.userId, projectId)) return res.status(403).json({ error: 'Forbidden' });
-    
+
     logActivity(projectId, 'project_document', id, 'viewed', req.user.userId, {
       title: req.body.title || 'Unknown Document'
     });
-    
+
     res.json({ success: true });
   } catch (error) {
     console.error('Error logging document view:', error);
@@ -142,13 +145,19 @@ router.post('/projects/:projectId/documents', authenticate, uploadLimiter, uploa
   try {
     const { projectId } = req.params;
     const userId = req.user.userId;
+
+    // Check for multer file upload errors
+    if (!req.file) {
+      return res.status(400).json({ error: 'No file uploaded. Please select a valid PDF, PNG, or JPEG file.' });
+    }
+
     const project = await getProjectById(projectId);
     if (!project) return res.status(404).json({ error: 'Project not found' });
     if (!await hasProjectAccess(req.user.userId, projectId)) return res.status(403).json({ error: 'Forbidden' });
 
     const { title, description } = req.body || {};
-    if (!title || !req.file) {
-      return res.status(400).json({ error: 'title and file are required' });
+    if (!title) {
+      return res.status(400).json({ error: 'Document title is required' });
     }
 
     const storagePath = path.posix.join('uploads', 'project-documents', req.file.filename);
@@ -181,7 +190,7 @@ router.post('/projects/:projectId/documents', authenticate, uploadLimiter, uploa
 
     res.status(201).json(toSafeDoc(newDoc));
   } catch (error) {
-    console.error('Error uploading project document:', error.message);
+    console.error('Error uploading project document:', error);
     res.status(500).json({ error: 'Failed to upload project document', details: error.message });
   }
 });
@@ -208,7 +217,7 @@ router.delete('/documents/:id', authenticate, requireRole('admin'), async (req, 
         const fileRel = doc.storagePath || doc.fileData;
         if (fileRel && typeof fileRel === 'string' && !fileRel.startsWith('data:')) {
           const abs = path.join(__dirname, '..', fileRel.replace(/^\/+/, ''));
-          try { if (fs.existsSync(abs)) fs.unlinkSync(abs); } catch (e) {}
+          try { if (fs.existsSync(abs)) fs.unlinkSync(abs); } catch (e) { }
         }
         localData.projectDocuments.splice(index, 1);
       }
@@ -226,6 +235,25 @@ router.delete('/documents/:id', authenticate, requireRole('admin'), async (req, 
     console.error('Error deleting project document:', error.message);
     res.status(500).json({ error: 'Failed to delete project document', details: error.message });
   }
+});
+
+// Error handling middleware for multer errors
+router.use((error, req, res, next) => {
+  if (error instanceof multer.MulterError) {
+    if (error.code === 'FILE_TOO_LARGE') {
+      return res.status(400).json({ error: 'File size exceeds 10MB limit' });
+    }
+    if (error.code === 'LIMIT_FILE_COUNT') {
+      return res.status(400).json({ error: 'Too many files uploaded' });
+    }
+    console.error('Multer error:', error.message);
+    return res.status(400).json({ error: 'File upload error: ' + error.message });
+  }
+  if (error && error.message && error.message.includes('Unsupported file type')) {
+    return res.status(400).json({ error: 'Unsupported file type. Please upload PDF, PNG, or JPEG.' });
+  }
+  // Pass other errors to next middleware
+  next(error);
 });
 
 module.exports = router;
