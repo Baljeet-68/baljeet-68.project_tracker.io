@@ -55,6 +55,14 @@ export function ActivityTimeline({ activities = [], emptyIcon: Icon, emptyMessag
 }
 
 export function LeaveBreakdown({ leaveTypes = [] }) {
+    const colorMap = {
+        sick: 'bg-red-500',
+        casual: 'bg-blue-500',
+        earned: 'bg-green-500',
+        unpaid: 'bg-yellow-500',
+        default: 'bg-gray-500'
+    }
+
     return (
         <div className="bg-white rounded-lg shadow p-6">
             <h3 className="text-lg font-semibold mb-4">Leave Breakdown</h3>
@@ -67,9 +75,9 @@ export function LeaveBreakdown({ leaveTypes = [] }) {
                         </div>
                         <div className="w-full bg-gray-200 rounded-full h-2">
                             <div
-                                className={`h-2 rounded-full bg-${leave.color}-500`}
+                                className={`h-2 rounded-full ${colorMap[leave.color] || colorMap.default}`}
                                 style={{ width: `${leave.pct || 0}%` }}
-                            />
+                            ></div>
                         </div>
                     </div>
                 ))}

@@ -399,21 +399,21 @@ export const Toast = ({ message, type = 'info', onClose }) => {
 /**
  * Standardized input group with label, icon, and error handling
  */
-export const InputGroup = ({ label, type = 'text', error, icon, rightElement, ...props }) => (
+export const InputGroup = ({ label, type = 'text', error, icon, rightElement, as: Component = 'input', ...props }) => (
   <div className="mb-4">
     {label && (
       <label className="mb-2 ml-1 font-bold text-xs text-slate-700 block">
         {label}
       </label>
     )}
-    <div className="relative flex items-center">
+    <div className={`relative flex ${Component === 'textarea' ? 'items-start pt-0' : 'items-center'}`}>
       {icon && (
-        <div className="absolute left-3.5 flex items-center pointer-events-none text-slate-400">
+        <div className={`absolute left-3.5 flex items-center pointer-events-none text-slate-400 ${Component === 'textarea' ? 'mt-3' : ''}`}>
           {icon}
         </div>
       )}
-      <input
-        type={type}
+      <Component
+        {...(Component === 'input' ? { type } : {})}
         className={`focus:shadow-soft-primary-outline text-sm leading-5.6 block w-full appearance-none rounded-lg border border-solid bg-white bg-clip-padding py-2.5 font-normal text-gray-700 transition-all focus:border-indigo-300 focus:outline-none focus:transition-shadow ${error ? 'border-red-400 ring-1 ring-red-100' : 'border-gray-200 hover:border-gray-300'
           } ${icon ? 'pl-11' : 'px-4'} ${rightElement ? 'pr-12' : ''}`}
         {...props}

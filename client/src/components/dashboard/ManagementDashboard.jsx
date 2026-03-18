@@ -13,6 +13,7 @@ import {
 } from 'lucide-react'
 import { StatCard, Card, CardHeader, CardBody, Badge } from '../TailAdminComponents'
 import { BarChart, LineChart, PieChart as PieChartComponent } from '../ChartComponents'
+import { ActivityTimeline } from './common'
 
 /**
  * Management Dashboard Component
@@ -38,8 +39,8 @@ export default function ManagementDashboard({ dashboardData }) {
     }
 
     const bugTrendData = {
-        series: [{ name: 'Bugs', data: [12, 18, 15, 22, 28, 25, 30] }],
-        categories: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+        series: [{ name: 'Bugs', data: bugAnalytics.trend || [] }],
+        categories: bugAnalytics.trendCategories || ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
     }
 
     const bugStatusData = {
@@ -105,7 +106,7 @@ export default function ManagementDashboard({ dashboardData }) {
                     </CardHeader>
                     <CardBody className="flex items-center justify-center min-h-[150px]">
                         <div className="text-center">
-                            <div className="text-4xl font-bold text-blue-600">85%</div>
+                            <div className="text-4xl font-bold text-blue-600">{`${Math.round((projectHealth?.onTimeDeliveryRate || 0) * 100)}%`}</div>
                             <p className="text-sm text-slate-500 mt-2">On-time delivery</p>
                             <div className="flex gap-2 mt-4">
                                 <Badge gradient="from-green-600 to-emerald-500" size="sm">↑ +5% from last month</Badge>
@@ -123,7 +124,7 @@ export default function ManagementDashboard({ dashboardData }) {
                     </CardHeader>
                     <CardBody className="flex items-center justify-center min-h-[150px]">
                         <div className="text-center">
-                            <div className="text-4xl font-bold text-orange-600">78%</div>
+                            <div className="text-4xl font-bold text-orange-600">{`${Math.round((bugAnalytics?.resolutionRate || 0) * 100)}%`}</div>
                             <p className="text-sm text-slate-500 mt-2">Bugs fixed this month</p>
                             <div className="flex gap-2 mt-4">
                                 <Badge gradient="from-yellow-600 to-amber-500" size="sm">→ Stable trend</Badge>
@@ -141,7 +142,7 @@ export default function ManagementDashboard({ dashboardData }) {
                     </CardHeader>
                     <CardBody className="flex items-center justify-center min-h-[150px]">
                         <div className="text-center">
-                            <div className="text-4xl font-bold text-green-600">92%</div>
+                            <div className="text-4xl font-bold text-green-600">{`${Math.round((projectHealth.utilizationRate || 0) * 100)}%`}</div>
                             <p className="text-sm text-slate-500 mt-2">Resource utilization</p>
                             <div className="flex gap-2 mt-4">
                                 <Badge gradient="from-green-600 to-lime-500" size="sm">↑ +8% efficiency</Badge>
@@ -191,7 +192,8 @@ export default function ManagementDashboard({ dashboardData }) {
             </div>
 
             {/* Bug Trend and Project Health */}
-            <div className="grid grid-cols-1 gap-6">
+            {bugAnalytics.trend && bugAnalytics.trend.length > 0 && (
+                <div className="grid grid-cols-1 gap-6">
                 <Card className="h-full bg-gradient-to-br from-white to-purple-50 border border-purple-100 hover:shadow-lg transition-all duration-300">
                     <CardHeader className="border-b border-purple-100 bg-gradient-to-r from-purple-50 to-pink-50">
                         <h6 className="font-bold text-slate-700 flex items-center gap-2">
@@ -209,6 +211,7 @@ export default function ManagementDashboard({ dashboardData }) {
                     </CardBody>
                 </Card>
             </div>
+            )}
 
             {/* Top Projects and Recent Activity */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -252,40 +255,16 @@ export default function ManagementDashboard({ dashboardData }) {
                 </Card>
 
                 {/* Recent Executive Activity */}
-                <Card className="h-full bg-gradient-to-br from-white to-green-50 border border-green-100 hover:shadow-lg transition-all duration-300">
-                    <CardHeader className="border-b border-green-100 bg-gradient-to-r from-green-50 to-emerald-50">
-                        <h6 className="font-bold text-slate-700 flex items-center gap-2">
-                            <Activity size={18} className="text-green-600" />
-                            Critical Changes
-                        </h6>
-                    </CardHeader>
-                    <CardBody>
-                        <div className="space-y-2 max-h-64 overflow-y-auto pr-2">
-                            {recentActivity && recentActivity.length > 0 ? (
-                                recentActivity.slice(0, 5).map((activity, index) => (
-                                    <div key={activity.id} className="relative flex gap-4 group">
-                                        {index < 4 && (
-                                            <div className="absolute left-3 top-8 bottom-0 w-0.5 bg-gradient-to-b from-green-300 to-transparent"></div>
-                                        )}
-                                        <div className="relative flex-shrink-0 w-6 h-6 rounded-full mt-1 border-2 border-white bg-gradient-to-r from-green-500 to-emerald-500 shadow-md group-hover:shadow-lg transition-all duration-200 flex items-center justify-center">
-                                            <div className="w-2 h-2 bg-white rounded-full"></div>
-                                        </div>
-                                        <div className="flex-1 min-w-0 p-3 rounded-lg hover:bg-green-100 transition-colors duration-150">
-                                            <p className="text-sm text-slate-700 font-medium truncate">{activity.description}</p>
-                                            <p className="text-xs text-slate-500 mt-1">
-                                                {new Date(activity.timestamp).toLocaleDateString()}
-                                            </p>
-                                        </div>
-                                    </div>
-                                ))
-                            ) : (
-                                <div className="text-center py-8 text-slate-400">
-                                    <p>No recent activity</p>
-                                </div>
-                            )}
-                        </div>
-                    </CardBody>
-                </Card>
+                <div className="lg:col-span-1">
+                    <ActivityTimeline 
+                        activities={(recentActivity || []).map(a => ({
+                            title: a.description,
+                            timestamp: new Date(a.timestamp).toLocaleString()
+                        }))}
+                        emptyIcon={Activity}
+                        emptyMessage="No critical changes recorded recently."
+                    />
+                </div>
             </div>
         </div>
     )

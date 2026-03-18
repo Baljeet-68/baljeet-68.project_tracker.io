@@ -3,8 +3,9 @@ import { authFetch, getUser } from '../auth'
 import { API_BASE_URL } from '../apiConfig'
 import { Card, CardHeader, CardBody, Badge, Button } from '../components/TailAdminComponents'
 import { Modal, InputGroup, Select, Table, ConfirmDialog } from '../components/FormComponents'
-import { Users as UsersIcon, UserPlus, RefreshCw, Edit, Trash2, Eye, EyeOff, Wand2, Mail, User, Lock, Shield, Code, Briefcase, UserCheck, Calculator } from 'lucide-react'
+import { Users as UsersIcon, UserPlus, RefreshCw, Edit, Trash2, Eye, EyeOff, Wand2, Mail, User, Lock, Shield, Code, Briefcase, UserCheck, Calculator, Search } from 'lucide-react'
 import { handleError, handleApiResponse } from '../utils/errorHandler'
+import { noChangesToastConfig } from '../utils/changeDetection'
 import { toast } from 'react-hot-toast'
 import PageLayout from '../components/layout/PageLayout'
 import PageContainer from '../components/layout/PageContainer'
@@ -12,6 +13,8 @@ import PageContainer from '../components/layout/PageContainer'
 export default function Users() {
   const [users, setUsers] = useState([])
   const [loading, setLoading] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [roleFilter, setRoleFilter] = useState('')
 
   // User form
   const [userForm, setUserForm] = useState({ name: '', email: '', password: '', role: 'developer' })
@@ -33,6 +36,21 @@ export default function Users() {
     return acc
   }, { total: 0 })
 
+  const filteredUsers = React.useMemo(() => {
+    return users.filter(u => {
+      if (roleFilter && u.role !== roleFilter) return false
+      
+      if (searchQuery.trim()) {
+        const query = searchQuery.toLowerCase().trim()
+        const matchesName = u.name?.toLowerCase().includes(query)
+        const matchesEmail = u.email?.toLowerCase().includes(query)
+        if (!matchesName && !matchesEmail) return false
+      }
+      
+      return true
+    })
+  }, [users, roleFilter, searchQuery])
+
   const statCards = [
     { label: 'Total Users', count: roleStats.total, icon: UsersIcon, color: 'from-blue-600 to-cyan-400' },
     { label: 'Admins', count: roleStats.admin || 0, icon: Shield, color: 'from-purple-700 to-pink-500' },
@@ -45,9 +63,10 @@ export default function Users() {
   const generatePassword = (isEdit = false) => {
     const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()_+'
     let pass = ''
-    for (let i = 0; i < 12; i++) {
-      pass += chars.charAt(Math.floor(Math.random() * chars.length))
-    }
+    const array = new Uint8Array(12);
+    window.crypto.getRandomValues(array);
+    const passwordArray = Array.from(array).map(c => chars[c % chars.length]);
+    pass = passwordArray.join('');
     if (isEdit) {
       setEditUserForm({ ...editUserForm, password: pass })
       setEditShowPassword(true)
@@ -58,17 +77,21 @@ export default function Users() {
   }
 
   useEffect(() => {
-    load()
+    const controller = new AbortController()
+    load(controller.signal)
+    return () => controller.abort()
   }, [])
 
-  const load = async () => {
+  const load = async (signal) => {
     setLoading(true)
     try {
-      const res = await authFetch(`${API_BASE_URL}/users`)
+      const res = await authFetch(`${API_BASE_URL}/users`, { signal })
       const data = await handleApiResponse(res)
       setUsers(data)
     } catch (e) {
-      handleError(e)
+      if (e.name !== 'AbortError') {
+        handleError(e)
+      }
     } finally {
       setLoading(false)
     }
@@ -127,15 +150,10 @@ export default function Users() {
         !!password;
 
       if (!hasChanges) {
-        console.info('[Users] No changes detected for user:', id);
-        toast('No changes detected', {
-          icon: 'ℹ️',
-          style: {
-            background: '#f0f9ff',
-            color: '#0369a1',
-            border: '1px solid #bae6fd',
-          }
-        })
+        if (import.meta.env.DEV) {
+          console.info('[Users] No changes detected for user:', id);
+        }
+        toast('No changes detected', noChangesToastConfig)
         setEditUserDialog(false)
         return
       }
@@ -269,8 +287,39 @@ export default function Users() {
       <div className="flex flex-wrap -mx-3">
         <div className="w-full max-w-full px-3 mb-6">
           <Card>
+            <CardHeader>
+              <div className="flex flex-col md:flex-row gap-4 justify-between items-end w-full">
+                <div className="w-full md:max-w-xs">
+                  <InputGroup
+                    label="Search Users"
+                    placeholder="Search by name or email..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    icon={<Search size={16} />}
+                    className="mb-0"
+                  />
+                </div>
+                <div className="w-full md:max-w-xs">
+                  <Select
+                    label="Filter by Role"
+                    value={roleFilter}
+                    onChange={(e) => setRoleFilter(e.target.value)}
+                    options={[
+                      { value: '', label: 'All Roles' },
+                      { label: 'Admin', value: 'admin' },
+                      { label: 'Developer', value: 'developer' },
+                      { label: 'HR', value: 'hr' },
+                      { label: 'E-commerce', value: 'ecommerce' },
+                      { label: 'Management', value: 'management' },
+                      { label: 'Accountant', value: 'accountant' },
+                    ]}
+                    className="mb-0"
+                  />
+                </div>
+              </div>
+            </CardHeader>
             <CardBody>
-              <Table columns={userColumns} data={users} loading={loading} pagination={true} pageSize={10} />
+              <Table columns={userColumns} data={filteredUsers} loading={loading} pagination={true} pageSize={10} />
             </CardBody>
           </Card>
         </div>

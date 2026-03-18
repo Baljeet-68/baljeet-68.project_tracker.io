@@ -4,7 +4,11 @@ import toast from 'react-hot-toast';
  * Centralized error handler for API and Validation errors
  */
 export const handleError = (error, type = 'api') => {
-  console.error(`[${type.toUpperCase()} Error]:`, error);
+  if (error.name === 'AbortError') return;
+
+  if (import.meta.env.DEV) {
+    console.error(`[${type.toUpperCase()} Error]:`, error);
+  }
 
   const message = error.message || 'An unexpected error occurred. Please try again.';
 

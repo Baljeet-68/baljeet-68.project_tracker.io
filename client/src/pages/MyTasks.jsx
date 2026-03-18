@@ -12,7 +12,8 @@ function groupByCategory(tasks) {
     leaves: [],
     bugs: [],
     hr: [],
-    notifications: []
+    notifications: [],
+    other: []
   }
 
   tasks.forEach((t) => {
@@ -21,7 +22,7 @@ function groupByCategory(tasks) {
     else if (t.category === 'bugs') groups.bugs.push(t)
     else if (t.category === 'hr') groups.hr.push(t)
     else if (t.category === 'notifications') groups.notifications.push(t)
-    else groups.notifications.push(t) // fallback
+    else groups.other.push(t)
   })
 
   return groups
@@ -34,30 +35,31 @@ export default function MyTasks() {
   const navigate = useNavigate()
 
   React.useEffect(() => {
-    let cancelled = false
+    const controller = new AbortController()
     async function loadTasks() {
       try {
-        const res = await authFetch(`${API_BASE_URL}/tasks/my`)
+        const res = await authFetch(`${API_BASE_URL}/tasks/my`, { signal: controller.signal })
         if (!res.ok) {
           throw new Error('Failed to load tasks')
         }
         const data = await res.json()
-        if (!cancelled) {
-          setTasks(Array.isArray(data) ? data : [])
-        }
+        const priorityMap = { high: 1, medium: 2, low: 3 }
+        const processedTasks = (Array.isArray(data) ? data : []).map(t => ({
+          ...t,
+          priorityValue: priorityMap[t.priority?.toLowerCase()] || 4
+        }))
+        setTasks(processedTasks)
       } catch (err) {
-        if (!cancelled) {
+        if (err.name !== 'AbortError') {
           setError(err.message || 'Failed to load tasks')
         }
       } finally {
-        if (!cancelled) {
-          setLoading(false)
-        }
+        setLoading(false)
       }
     }
     loadTasks()
     return () => {
-      cancelled = true
+      controller.abort()
     }
   }, [])
 
@@ -79,18 +81,20 @@ export default function MyTasks() {
       )
     },
     {
-      key: 'priority',
+      key: 'priorityValue',
       label: 'Priority',
+      sortable: true,
       render: (_, row) => {
         const priorityColors = {
           high: 'bg-red-100 text-red-800',
           medium: 'bg-yellow-100 text-yellow-800',
           low: 'bg-green-100 text-green-800'
         }
-        const color = priorityColors[row.priority] || 'bg-gray-100 text-gray-800'
+        const priority = row.priority?.toLowerCase() || 'low'
+        const color = priorityColors[priority] || 'bg-gray-100 text-gray-800'
         return (
           <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium capitalize ${color}`}>
-            {row.priority}
+            {priority}
           </span>
         )
       }
@@ -98,6 +102,7 @@ export default function MyTasks() {
     {
       key: 'module',
       label: 'Module',
+      sortable: true,
       render: (_, row) => (
         <span className="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-700 capitalize">
           {row.module}
@@ -107,6 +112,7 @@ export default function MyTasks() {
     {
       key: 'createdAt',
       label: 'Created',
+      sortable: true,
       render: (_, row) => {
         const d = row.createdAt ? new Date(row.createdAt) : null
         const label = d && !isNaN(d.getTime())
@@ -129,7 +135,11 @@ export default function MyTasks() {
           type="button"
           onClick={() => {
             if (row.actionUrl) {
-              navigate(row.actionUrl)
+              if (row.actionUrl.startsWith('http')) {
+                window.location.href = row.actionUrl
+              } else {
+                navigate(row.actionUrl)
+              }
             }
           }}
           className="inline-flex items-center rounded-lg border border-indigo-500 px-3 py-1.5 text-xs font-semibold text-indigo-600 hover:bg-indigo-50 transition-colors"
@@ -196,6 +206,7 @@ export default function MyTasks() {
           {renderSection('Bug Management', grouped.bugs, 'bug')}
           {renderSection('HR Tasks', grouped.hr, 'HR')}
           {renderSection('Notifications', grouped.notifications, 'notification')}
+          {grouped.other.length > 0 && renderSection('Other Tasks', grouped.other, 'other')}
         </>
       )}
     </PageContainer>

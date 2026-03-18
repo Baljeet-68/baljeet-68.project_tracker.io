@@ -20,7 +20,7 @@ export function BugDialog({
 }) {
     const [form, setForm] = useState({
         description: '',
-        severity: 'medium',
+        severity: '',
         screenId: '',
         module: '',
         assignedDeveloperId: '',
@@ -31,7 +31,7 @@ export function BugDialog({
         if (editingBug) {
             setForm({
                 description: editingBug.description || '',
-                severity: editingBug.severity || 'medium',
+                severity: editingBug.severity || '',
                 screenId: editingBug.screenId || '',
                 module: editingBug.module || '',
                 assignedDeveloperId: editingBug.assignedDeveloperId || '',
@@ -40,7 +40,7 @@ export function BugDialog({
         } else {
             setForm({
                 description: '',
-                severity: 'medium',
+                severity: '',
                 screenId: '',
                 module: '',
                 assignedDeveloperId: '',
@@ -52,6 +52,10 @@ export function BugDialog({
     const handleSubmit = () => {
         if (!form.description.trim()) {
             alert('Please enter a bug description')
+            return
+        }
+        if (!form.severity) {
+            alert('Please select a severity')
             return
         }
         onSubmit(form)
@@ -86,7 +90,11 @@ export function BugDialog({
                 label="Severity"
                 value={form.severity}
                 onChange={(e) => setForm({ ...form, severity: e.target.value })}
-                options={BUG_SEVERITIES}
+                options={[
+                    { label: 'Select Severity', value: '' },
+                    ...BUG_SEVERITIES
+                ]}
+                required
             />
             <Select
                 label="Screen (Optional)"

@@ -128,9 +128,12 @@ const leaveRoutes = require("./routes/leaves");
 const notificationRoutes = require("./routes/notifications");
 const announcementRoutes = require("./routes/announcements");
 const milestoneRoutes = require("./routes/milestones");
+const holidayRoutes = require("./routes/holidays");
+const ecommerceProjectRoutes = require("./routes/ecommerce-projects");
 const careerRoutes = require("./routes/careers");
 const projectDocumentRoutes = require("./routes/projectDocuments");
 const taskRoutes = require("./routes/tasks");
+const reportRoutes = require("./routes/reports");
 const dashboardRoutes = require("./routes/dashboard");
 
 /* ===============================
@@ -145,9 +148,12 @@ app.use(cfg.BASE_URL, leaveRoutes);
 app.use(cfg.BASE_URL, notificationRoutes);
 app.use(cfg.BASE_URL, announcementRoutes);
 app.use(cfg.BASE_URL, milestoneRoutes);
+app.use(cfg.BASE_URL, holidayRoutes);
+app.use(cfg.BASE_URL, ecommerceProjectRoutes);
 app.use(cfg.BASE_URL, careerRoutes);
 app.use(cfg.BASE_URL, projectDocumentRoutes);
 app.use(cfg.BASE_URL, taskRoutes);
+app.use(cfg.BASE_URL, reportRoutes);
 app.use(cfg.BASE_URL, dashboardRoutes);
 
 /* ===============================

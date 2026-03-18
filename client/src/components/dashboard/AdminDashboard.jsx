@@ -14,6 +14,7 @@ import {
 } from 'lucide-react'
 import { StatCard, Card, CardHeader, CardBody, Badge } from '../TailAdminComponents'
 import { LineChart, BarChart, PieChart } from '../ChartComponents'
+import { ActivityTimeline } from './common'
 
 /**
  * Admin Dashboard Component
@@ -196,42 +197,14 @@ export default function AdminDashboard({ dashboardData }) {
 
                 {/* Recent Activity */}
                 <div className="lg:col-span-7">
-                    <Card className="h-full bg-gradient-to-br from-white to-purple-50 border border-purple-100 hover:shadow-lg transition-all duration-300">
-                        <CardHeader className="border-b border-purple-100 bg-gradient-to-r from-purple-50 to-pink-50">
-                            <h6 className="font-bold text-slate-700 flex items-center gap-2">
-                                <Activity size={18} className="text-purple-600" />
-                                Recent Activity
-                            </h6>
-                        </CardHeader>
-                        <CardBody>
-                            <div className="space-y-2 max-h-80 overflow-y-auto pr-2">
-                                {recentActivity.length > 0 ? (
-                                    recentActivity.map((activity, index) => (
-                                        <div key={activity.id} className="relative flex gap-4 group">
-                                            {index < recentActivity.length - 1 && (
-                                                <div className="absolute left-3 top-8 bottom-0 w-0.5 bg-gradient-to-b from-purple-300 to-transparent"></div>
-                                            )}
-                                            <div className="relative flex-shrink-0 w-6 h-6 rounded-full mt-1 border-2 border-white bg-gradient-to-r from-purple-500 to-pink-500 shadow-md group-hover:shadow-lg transition-all duration-200 flex items-center justify-center">
-                                                <div className="w-2 h-2 bg-white rounded-full"></div>
-                                            </div>
-                                            <div className="flex-1 min-w-0 p-3 rounded-lg hover:bg-purple-100 transition-colors duration-150">
-                                                <p className="text-sm text-slate-700 font-medium truncate">{activity.description}</p>
-                                                <p className="text-xs text-slate-500 mt-1">
-                                                    {new Date(activity.timestamp).toLocaleDateString()} · {activity.user}
-                                                </p>
-                                            </div>
-                                        </div>
-                                    ))
-                                ) : (
-                                    <div className="flex flex-col items-center justify-center py-12 text-center">
-                                        <FileText size={32} className="text-slate-300 mb-3" />
-                                        <p className="text-slate-400 font-medium">No activity yet</p>
-                                        <p className="text-xs text-slate-400 mt-1">Your actions will appear here</p>
-                                    </div>
-                                )}
-                            </div>
-                        </CardBody>
-                    </Card>
+                    <ActivityTimeline 
+                        activities={recentActivity.map(a => ({
+                            title: a.description,
+                            timestamp: `${new Date(a.timestamp).toLocaleString()} · ${a.user}`
+                        }))}
+                        emptyIcon={Activity}
+                        emptyMessage="No system activity recorded yet."
+                    />
                 </div>
             </div>
         </div>

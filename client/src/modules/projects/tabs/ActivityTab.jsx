@@ -55,6 +55,15 @@ export function ActivityTab({
     activity = [],
     isLoading = false
 }) {
+    const [visibleCount, setVisibleCount] = React.useState(10)
+
+    const handleLoadMore = () => {
+        setVisibleCount(prev => prev + 10)
+    }
+
+    const visibleActivity = activity.slice(0, visibleCount)
+    const hasMore = activity.length > visibleCount
+
     if (isLoading) {
         return <div className="p-6 text-center text-slate-500">Loading activity...</div>
     }
@@ -75,14 +84,14 @@ export function ActivityTab({
             <Card>
                 <CardBody className="p-0">
                     <div className="divide-y">
-                        {activity.map((entry, index) => (
+                        {visibleActivity.map((entry, index) => (
                             <div key={entry.id || index} className="flex gap-4 p-4 hover:bg-slate-50 transition-colors">
                                 {/* Timeline Icon */}
                                 <div className="flex flex-col items-center flex-shrink-0">
                                     <div className="p-2 bg-slate-100 rounded-lg">
                                         {getActivityIcon(entry.entityType, entry.action)}
                                     </div>
-                                    {index !== activity.length - 1 && (
+                                    {index !== visibleActivity.length - 1 && (
                                         <div className="h-8 w-0.5 bg-slate-200 mt-2"></div>
                                     )}
                                 </div>
@@ -144,6 +153,17 @@ export function ActivityTab({
                     </div>
                 </CardBody>
             </Card>
+
+            {hasMore && (
+                <div className="text-center pt-4">
+                    <button
+                        onClick={handleLoadMore}
+                        className="px-6 py-2 bg-white border border-slate-200 rounded-full text-sm font-medium text-slate-600 hover:bg-slate-50 hover:border-slate-300 transition-all shadow-sm"
+                    >
+                        Load More Activity
+                    </button>
+                </div>
+            )}
         </div>
     )
 }

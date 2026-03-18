@@ -5,9 +5,11 @@ import { Card, CardHeader, CardBody, Badge, Button, PageHeader } from '../compon
 import { Modal, InputGroup, Select, Table, Alert } from '../components/FormComponents'
 import { Briefcase, Plus, Edit, Trash2, Users, FileText, MapPin, Clock, DollarSign, Calendar, ArrowLeft } from 'lucide-react'
 import { handleError, handleApiResponse } from '../utils/errorHandler'
+import { noChangesToastConfig } from '../utils/changeDetection'
 import toast from 'react-hot-toast'
 import ReactQuill from 'react-quill'
 import 'react-quill/dist/quill.snow.css'
+import DOMPurify from 'dompurify'
 import PageContainer from '../components/layout/PageContainer'
 
 export default function Careers() {
@@ -16,6 +18,12 @@ export default function Careers() {
   const [loading, setLoading] = useState(false)
   const [activeTab, setActiveTab] = useState('jobs') // 'jobs' or 'applications'
   const [view, setView] = useState('list') // 'list' or 'form'
+  const [editingApplication, setEditingApplication] = useState(null)
+  const [appForm, setAppForm] = useState({
+    interviewDate: '',
+    interviewerName: '',
+    interviewNotes: ''
+  })
   const user = getUser()
   const isAdminOrHR = user?.role?.toLowerCase() === 'admin' || user?.role?.toLowerCase() === 'hr'
 
@@ -31,32 +39,38 @@ export default function Careers() {
   })
 
   useEffect(() => {
-    loadJobs()
+    const controller = new AbortController()
+    loadJobs(controller.signal)
     if (isAdminOrHR) {
-      loadApplications()
+      loadApplications(controller.signal)
     }
-  }, [])
+    return () => controller.abort()
+  }, [isAdminOrHR])
 
-  const loadJobs = async () => {
+  const loadJobs = async (signal) => {
     setLoading(true)
     try {
-      const res = await authFetch(`${API_BASE_URL}/jobs`)
+      const res = await authFetch(`${API_BASE_URL}/jobs`, { signal })
       const data = await handleApiResponse(res)
       setJobs(data)
     } catch (e) {
-      handleError(e)
+      if (e.name !== 'AbortError') {
+        handleError(e)
+      }
     } finally {
       setLoading(false)
     }
   }
 
-  const loadApplications = async () => {
+  const loadApplications = async (signal) => {
     try {
-      const res = await authFetch(`${API_BASE_URL}/applications`)
+      const res = await authFetch(`${API_BASE_URL}/applications`, { signal })
       const data = await handleApiResponse(res)
       setApplications(data)
     } catch (e) {
-      handleError(e)
+      if (e.name !== 'AbortError') {
+        handleError(e)
+      }
     }
   }
 
@@ -71,22 +85,17 @@ export default function Careers() {
         // Check for changes
         const hasChanges = 
           jobForm.title !== (editingJob.title || '') ||
-          jobForm.description !== (editingJob.description || '') ||
+          DOMPurify.sanitize(jobForm.description) !== (editingJob.description || '') ||
           jobForm.location !== (editingJob.location || '') ||
           jobForm.type !== (editingJob.type || 'Full-time') ||
           jobForm.salary !== (editingJob.salary || '') ||
           jobForm.status !== (editingJob.status || 'active');
 
         if (!hasChanges) {
-          console.info('[Careers] No changes detected for job:', editingJob.id);
-          toast('No changes detected', {
-            icon: 'ℹ️',
-            style: {
-              background: '#f0f9ff',
-              color: '#0369a1',
-              border: '1px solid #bae6fd',
-            }
-          })
+          if (import.meta.env.DEV) {
+            console.info('[Careers] No changes detected for job:', editingJob.id);
+          }
+          toast('No changes detected', noChangesToastConfig)
           setView('list')
           setEditingJob(null)
           return
@@ -96,10 +105,12 @@ export default function Careers() {
       const method = editingJob ? 'PATCH' : 'POST'
       const url = editingJob ? `${API_BASE_URL}/jobs/${editingJob.id}` : `${API_BASE_URL}/jobs`
       
+      const payload = { ...jobForm, description: DOMPurify.sanitize(jobForm.description) };
+
       const res = await authFetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(jobForm)
+        body: JSON.stringify(payload)
       })
 
       await handleApiResponse(res)
@@ -120,6 +131,22 @@ export default function Careers() {
       await handleApiResponse(res)
       toast.success('Job deleted')
       loadJobs()
+    } catch (e) {
+      handleError(e)
+    }
+  }
+
+  const handleUpdateApplicationDetails = async () => {
+    try {
+      const res = await authFetch(`${API_BASE_URL}/applications/${editingApplication.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(appForm)
+      })
+      await handleApiResponse(res)
+      toast.success('Application details updated')
+      setEditingApplication(null)
+      loadApplications()
     } catch (e) {
       handleError(e)
     }
@@ -404,12 +431,36 @@ export default function Careers() {
                   />
                 )},
                 { key: 'appliedAt', label: 'Applied On', render: (val) => new Date(val).toLocaleDateString() },
+                { key: 'interview', label: 'Interview', render: (_, app) => (
+                  app.interviewDate ? (
+                    <div className="flex flex-col text-xs">
+                      <span className="font-bold text-slate-700">{new Date(app.interviewDate).toLocaleDateString()}</span>
+                      <span className="text-slate-500">{app.interviewerName}</span>
+                    </div>
+                  ) : <span className="text-slate-400 text-xs italic">Not Scheduled</span>
+                )},
                 { key: 'resume', label: 'Resume', render: (_, app) => (
-                  app.resumeUrl ? (
-                    <a href={app.resumeUrl} target="_blank" rel="noreferrer" className="text-fuchsia-600 hover:underline flex items-center gap-1.5 font-bold">
-                      <FileText size={16} /> View
-                    </a>
-                  ) : <span className="text-slate-400">No Resume</span>
+                  <div className="flex items-center gap-3">
+                    {app.resumeUrl ? (
+                      <a href={app.resumeUrl} target="_blank" rel="noreferrer" className="text-fuchsia-600 hover:underline flex items-center gap-1.5 font-bold text-xs">
+                        <FileText size={14} /> View
+                      </a>
+                    ) : <span className="text-slate-400 text-xs">No Resume</span>}
+                    <button 
+                      onClick={() => {
+                        setEditingApplication(app)
+                        setAppForm({
+                          interviewDate: app.interviewDate ? new Date(app.interviewDate).toISOString().split('T')[0] : '',
+                          interviewerName: app.interviewerName || '',
+                          interviewNotes: app.interviewNotes || ''
+                        })
+                      }}
+                      className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                      title="Update Interview Details"
+                    >
+                      <Edit size={14} />
+                    </button>
+                  </div>
                 )}
               ]}
               data={applications}
@@ -420,6 +471,42 @@ export default function Careers() {
         </Card>
       )}
     </div>
+
+    <Modal
+      isOpen={!!editingApplication}
+      onClose={() => setEditingApplication(null)}
+      title="Update Application Details"
+      size="md"
+      footer={
+        <div className="flex gap-2">
+          <Button variant="secondary" onClick={() => setEditingApplication(null)}>Cancel</Button>
+          <Button onClick={handleUpdateApplicationDetails}>Save Details</Button>
+        </div>
+      }
+    >
+      <div className="space-y-4">
+        <InputGroup
+          label="Interview Date"
+          type="date"
+          value={appForm.interviewDate}
+          onChange={(e) => setAppForm({ ...appForm, interviewDate: e.target.value })}
+        />
+        <InputGroup
+          label="Interviewer Name"
+          placeholder="e.g. Jane Smith"
+          value={appForm.interviewerName}
+          onChange={(e) => setAppForm({ ...appForm, interviewerName: e.target.value })}
+        />
+        <InputGroup
+          label="Interview Notes"
+          as="textarea"
+          rows={4}
+          placeholder="Enter feedback or internal notes..."
+          value={appForm.interviewNotes}
+          onChange={(e) => setAppForm({ ...appForm, interviewNotes: e.target.value })}
+        />
+      </div>
+    </Modal>
     </PageContainer>
   )
 }

@@ -132,7 +132,7 @@ export default function Login() {
 
               <Button
                 type="submit"
-                disabled={loading}
+                disabled={loading || isLocked}
                 className="w-full py-4 text-lg font-bold rounded-2xl flex items-center justify-center gap-3"
               >
                 {loading ? (

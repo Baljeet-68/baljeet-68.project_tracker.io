@@ -8,10 +8,14 @@ import Users from './pages/Users'
 import Settings from './pages/Settings'
 import Attendance from './pages/Attendance'
 import ECommerceProjects from './pages/ECommerceProjects'
+import ECommerceProjectPage from './pages/ECommerceProjectPage'
 import Notifications from './pages/Notifications'
 import Announcements from './pages/Announcements'
 import Careers from './pages/Careers'
+import PublicJobBoard from './pages/PublicJobBoard'
+import PublicApplyForm from './pages/PublicApplyForm'
 import MyTasks from './pages/MyTasks'
+import Reports from './pages/Reports'
 import { getToken, getUser } from './auth'
 import Layout from './Layout'
 import { Toaster, ToastBar, toast } from 'react-hot-toast'
@@ -84,6 +88,8 @@ export default function App() {
       </Toaster>
       <Routes>
         <Route path="/login" element={<Login />} />
+        <Route path="/careers/jobs" element={<PublicJobBoard />} />
+        <Route path="/careers/apply/:id" element={<PublicApplyForm />} />
 
         <Route element={<Layout />}>
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
@@ -94,7 +100,9 @@ export default function App() {
           <Route path="/users" element={<PrivateRoute roles={['admin']}><Users /></PrivateRoute>} />
           <Route path="/settings" element={<PrivateRoute><Settings /></PrivateRoute>} />
           <Route path="/attendance" element={<PrivateRoute><Attendance /></PrivateRoute>} />
+          <Route path="/reports" element={<PrivateRoute roles={['admin', 'management']}><Reports /></PrivateRoute>} />
           <Route path="/ecommerce-projects" element={<PrivateRoute roles={['admin', 'ecommerce', 'management']}><ECommerceProjects /></PrivateRoute>} />
+          <Route path="/ecommerce-projects/:id" element={<PrivateRoute roles={['admin', 'ecommerce', 'management']}><ECommerceProjectPage /></PrivateRoute>} />
           <Route path="/notifications" element={<PrivateRoute><Notifications /></PrivateRoute>} />
           <Route path="/announcements" element={<PrivateRoute><Announcements /></PrivateRoute>} />
           <Route path="/careers" element={<PrivateRoute roles={['admin', 'hr']}><Careers /></PrivateRoute>} />

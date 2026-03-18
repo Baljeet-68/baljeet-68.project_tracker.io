@@ -8,7 +8,7 @@ import { authFetch } from '../../../auth'
 import { API_BASE_URL } from '../../../apiConfig'
 import { handleApiResponse } from '../../../utils/errorHandler'
 
-export function useProjectData(projectId) {
+export function useProjectData(projectId, isEcommerce = false) {
     const [project, setProject] = useState(null)
     const [screens, setScreens] = useState([])
     const [bugs, setBugs] = useState([])
@@ -19,30 +19,24 @@ export function useProjectData(projectId) {
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState(null)
 
-    const loadData = useCallback(async () => {
+    const loadData = useCallback(async (signal) => {
         if (!projectId) return
 
         setLoading(true)
         setError(null)
 
-        try {
-            const [projRes, screensRes, bugsRes, milestonesRes, docsRes, activityRes, tasksRes] = await Promise.all([
-                authFetch(`${API_BASE_URL}/projects/${projectId}`),
-                authFetch(`${API_BASE_URL}/projects/${projectId}/screens`),
-                authFetch(`${API_BASE_URL}/projects/${projectId}/bugs`),
-                authFetch(`${API_BASE_URL}/projects/${projectId}/milestones`),
-                authFetch(`${API_BASE_URL}/projects/${projectId}/documents`),
-                authFetch(`${API_BASE_URL}/projects/${projectId}/activity`),
-                authFetch(`${API_BASE_URL}/tasks/project/${projectId}`)
-            ])
+        const basePath = isEcommerce ? 'ecommerce-projects' : 'projects'
 
-            const projData = await handleApiResponse(projRes)
-            const screensData = await handleApiResponse(screensRes)
-            const bugsData = await handleApiResponse(bugsRes)
-            const milestonesData = await handleApiResponse(milestonesRes)
-            const docsData = await handleApiResponse(docsRes)
-            const activityData = await handleApiResponse(activityRes)
-            const tasksData = await handleApiResponse(tasksRes)
+        try {
+            const [projData, screensData, bugsData, milestonesData, docsData, activityData, tasksData] = await Promise.all([
+                authFetch(`${API_BASE_URL}/${basePath}/${projectId}`, { signal }).then(handleApiResponse),
+                authFetch(`${API_BASE_URL}/projects/${projectId}/screens`, { signal }).then(handleApiResponse),
+                authFetch(`${API_BASE_URL}/projects/${projectId}/bugs`, { signal }).then(handleApiResponse),
+                authFetch(`${API_BASE_URL}/projects/${projectId}/milestones`, { signal }).then(handleApiResponse),
+                authFetch(`${API_BASE_URL}/projects/${projectId}/documents`, { signal }).then(handleApiResponse),
+                authFetch(`${API_BASE_URL}/projects/${projectId}/activity`, { signal }).then(handleApiResponse),
+                authFetch(`${API_BASE_URL}/tasks/project/${projectId}`, { signal }).then(handleApiResponse)
+            ])
 
             setProject(projData)
             setScreens(Array.isArray(screensData) ? screensData : [])
@@ -52,14 +46,18 @@ export function useProjectData(projectId) {
             setActivity(Array.isArray(activityData) ? activityData : [])
             setTasks(Array.isArray(tasksData) ? tasksData : [])
         } catch (err) {
-            setError(err.message || 'Failed to load project data')
+            if (err.name !== 'AbortError') {
+                setError(err.message || 'Failed to load project data')
+            }
         } finally {
             setLoading(false)
         }
     }, [projectId])
 
     useEffect(() => {
-        loadData()
+        const controller = new AbortController()
+        loadData(controller.signal)
+        return () => controller.abort()
     }, [projectId, loadData])
 
     return {

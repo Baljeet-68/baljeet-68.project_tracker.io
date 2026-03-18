@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Bell, User, Calendar, AlertTriangle, CheckCircle2, MessageSquare, Clock, ArrowRight, RefreshCw } from 'lucide-react'
+import { Bell, User, Calendar, AlertTriangle, CheckCircle2, MessageSquare, Clock, ArrowRight, RefreshCw, Trash2 } from 'lucide-react'
 import { Card, CardHeader, CardBody, Badge, Button, PageHeader } from '../components/TailAdminComponents'
 import { Alert } from '../components/FormComponents'
 import { authFetch } from '../auth'
@@ -9,28 +9,34 @@ import { Loader } from '../components/Loader'
 import { handleError, handleApiResponse } from '../utils/errorHandler'
 import { toast } from 'react-hot-toast'
 import PageContainer from '../components/layout/PageContainer'
+import { useCallback } from 'react'
 
 export default function Notifications() {
   const navigate = useNavigate()
   const [notifications, setNotifications] = useState([])
   const [loading, setLoading] = useState(true)
+  const [typeFilter, setTypeFilter] = useState('all')
 
-  const fetchNotifications = async () => {
+  const fetchNotifications = useCallback(async (signal) => {
     try {
       setLoading(true)
-      const res = await authFetch(`${API_BASE_URL}/notifications`)
+      const res = await authFetch(`${API_BASE_URL}/notifications`, { signal })
       const data = await handleApiResponse(res)
       setNotifications(Array.isArray(data) ? data : [])
     } catch (err) {
-      handleError(err)
+      if (err.name !== 'AbortError') {
+        handleError(err)
+      }
     } finally {
       setLoading(false)
     }
-  }
+  }, [])
 
   useEffect(() => {
-      fetchNotifications()
-    }, [])
+    const controller = new AbortController()
+    fetchNotifications(controller.signal)
+    return () => controller.abort()
+  }, [fetchNotifications])
 
   const markAllRead = async () => {
     try {
@@ -40,6 +46,19 @@ export default function Notifications() {
       await handleApiResponse(res)
       setNotifications(prev => prev.map(n => ({ ...n, status: 'read' })))
       toast.success('All notifications marked as read')
+    } catch (err) {
+      handleError(err)
+    }
+  }
+
+  const deleteNotification = async (id) => {
+    try {
+      const res = await authFetch(`${API_BASE_URL}/notifications/${id}`, {
+        method: 'DELETE'
+      })
+      await handleApiResponse(res)
+      setNotifications(prev => prev.filter(n => n.id !== id))
+      toast.success('Notification deleted')
     } catch (err) {
       handleError(err)
     }
@@ -119,6 +138,16 @@ export default function Notifications() {
     return acc
   }, { total: 0, unread: 0, leaveRequests: 0, leaveStatus: 0 })
 
+  const filteredNotifications = React.useMemo(() => {
+    if (typeFilter === 'all') return notifications
+    return notifications.filter(n => {
+      if (typeFilter === 'leaves') return n.type.startsWith('leave_')
+      if (typeFilter === 'projects') return n.type === 'project_assignment' || n.type === 'task_overdue'
+      if (typeFilter === 'unread') return n.status === 'unread'
+      return true
+    })
+  }, [notifications, typeFilter])
+
   const statCards = [
     { label: 'Total Notifications', count: roleStats.total, icon: Bell, color: 'from-blue-600 to-cyan-400' },
     { label: 'Unread Messages', count: roleStats.unread, icon: MessageSquare, color: 'from-purple-700 to-pink-500' },
@@ -164,12 +193,35 @@ export default function Notifications() {
       <div className="flex flex-wrap -mx-3">
         <div className="w-full max-w-full px-3">
           <Card>
+            <CardHeader className="flex flex-col md:flex-row justify-between items-center gap-4">
+              <h6 className="font-bold text-slate-800">Recent Notifications</h6>
+              <div className="flex items-center gap-2 overflow-x-auto pb-2 md:pb-0 w-full md:w-auto">
+                {[
+                  { label: 'All', value: 'all' },
+                  { label: 'Unread', value: 'unread' },
+                  { label: 'Leave Requests', value: 'leaves' },
+                  { label: 'Project Updates', value: 'projects' },
+                ].map((f) => (
+                  <button
+                    key={f.value}
+                    onClick={() => setTypeFilter(f.value)}
+                    className={`px-4 py-1.5 text-xs font-bold rounded-full transition-all whitespace-nowrap border ${
+                      typeFilter === f.value
+                        ? 'bg-blue-600 text-white border-blue-600 shadow-md'
+                        : 'bg-white text-slate-500 border-slate-200 hover:border-blue-300 hover:text-blue-600'
+                    }`}
+                  >
+                    {f.label}
+                  </button>
+                ))}
+              </div>
+            </CardHeader>
             <CardBody>
               <div className="space-y-4">
                 {loading && notifications.length === 0 ? (
                   <Loader message="Fetching notifications..." />
                 ) : (
-                  notifications.map((notification) => {
+                  filteredNotifications.map((notification) => {
                     const Icon = getIcon(notification.type, notification.title)
                     const gradient = getGradient(notification.type, notification.title)
                     return (
@@ -195,9 +247,35 @@ export default function Notifications() {
                                   <span className="w-2 h-2 rounded-full bg-blue-500"></span>
                                 )}
                               </div>
-                              <span className="text-xs font-medium text-slate-400 whitespace-nowrap">
-                                {formatTime(notification.created_at)}
-                              </span>
+                              <div className="flex flex-col items-end gap-2">
+                                <span className="text-xs font-medium text-slate-400 whitespace-nowrap">
+                                  {formatTime(notification.created_at)}
+                                </span>
+                                <div className="flex gap-2">
+                                  {notification.status === 'unread' && (
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        markAsRead(notification.id);
+                                      }}
+                                      className="text-xs font-bold text-blue-600 hover:text-blue-700 whitespace-nowrap bg-blue-50 px-3 py-1.5 rounded-lg transition-all"
+                                    >
+                                      Mark as read
+                                    </button>
+                                  )}
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      deleteNotification(notification.id);
+                                    }}
+                                    className="text-xs font-bold text-slate-400 hover:text-red-600 hover:bg-red-50 p-2 rounded-lg transition-all flex items-center gap-1 justify-center"
+                                    title="Delete Notification"
+                                  >
+                                    <Trash2 size={14} />
+                                    <span>Delete</span>
+                                  </button>
+                                </div>
+                              </div>
                             </div>
                             
                             <p className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed mb-3">

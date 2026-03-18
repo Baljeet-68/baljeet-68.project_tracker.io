@@ -13,26 +13,28 @@ import { API_BASE_URL } from '../../apiConfig'
 import toast from 'react-hot-toast'
 import PageContainer from '../../components/layout/PageContainer'
 import { Card, CardHeader, CardBody } from '../../components/TailAdminComponents'
+import { useTaskCount } from '../../context/TaskCountContext'
 
 // Import hooks and utilities
 import { useProjectData } from './hooks/useProjectData'
 import {
     OverviewTab,
-    ScreensTab,
     MilestonesTab,
+    ScreensTab,
     TasksTab,
     BugsTab,
     DocumentsTab,
     ActivityTab
 } from './tabs'
 import { ProjectHeader } from './ProjectHeader'
-import { BugDialog, ScreenDialog, MilestoneDialog, DocumentDialog } from './dialogs'
+import { BugDialog, MilestoneDialog, ScreenDialog, DocumentDialog } from './dialogs'
 import { TABS, TAB_LIST } from './utils/constants'
 
 export default function ProjectPage() {
     const { id } = useParams()
     const nav = useNavigate()
     const user = getUser()
+    const { refreshTaskCount } = useTaskCount()
 
     // Main data hook
     const {
@@ -60,31 +62,15 @@ export default function ProjectPage() {
     // Dialog states
     const [bugDialogOpen, setBugDialogOpen] = useState(false)
     const [editingBug, setEditingBug] = useState(null)
-    const [screenDialogOpen, setScreenDialogOpen] = useState(false)
-    const [editingScreen, setEditingScreen] = useState(null)
     const [milestoneDialogOpen, setMilestoneDialogOpen] = useState(false)
     const [editingMilestone, setEditingMilestone] = useState(null)
+    const [screenDialogOpen, setScreenDialogOpen] = useState(false)
+    const [editingScreen, setEditingScreen] = useState(null)
+
     const [documentDialogOpen, setDocumentDialogOpen] = useState(false)
     const [isUploading, setIsUploading] = useState(false)
     const [uploadProgress, setUploadProgress] = useState(0)
     const [docSearchQuery, setDocSearchQuery] = useState('')
-
-    /**
-     * Handle authentication errors
-     */
-    const handleAuthError = useCallback(
-        (err) => {
-            if (err.message?.includes('Unauthorized') || err.message?.includes('Token expired')) {
-                clearToken()
-                clearUser()
-                nav('/login', { replace: true })
-                handleError(new Error('Session expired. Please login again.'))
-            } else {
-                handleError(err)
-            }
-        },
-        [nav]
-    )
 
     /**
      * BUG HANDLERS
@@ -121,8 +107,25 @@ export default function ProjectPage() {
             setBugDialogOpen(false)
             setEditingBug(null)
             refetch()
+            refreshTaskCount()
         } catch (err) {
-            handleAuthError(err)
+            handleError(err)
+        }
+    }
+
+    const handleUpdateBugStatus = async (bugId, status) => {
+        try {
+            const res = await authFetch(`${API_BASE_URL}/bugs/${bugId}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ status })
+            })
+            await handleApiResponse(res)
+            toast.success('Status updated')
+            refetch()
+            refreshTaskCount()
+        } catch (err) {
+            handleError(err)
         }
     }
 
@@ -136,7 +139,7 @@ export default function ProjectPage() {
             toast.success('Bug deleted')
             refetch()
         } catch (err) {
-            handleAuthError(err)
+            handleError(err)
         }
     }
 
@@ -175,8 +178,25 @@ export default function ProjectPage() {
             setScreenDialogOpen(false)
             setEditingScreen(null)
             refetch()
+            refreshTaskCount()
         } catch (err) {
-            handleAuthError(err)
+            handleError(err)
+        }
+    }
+
+    const handleUpdateScreenStatus = async (screenId, status) => {
+        try {
+            const res = await authFetch(`${API_BASE_URL}/screens/${screenId}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ status })
+            })
+            await handleApiResponse(res)
+            toast.success('Status updated')
+            refetch()
+            refreshTaskCount()
+        } catch (err) {
+            handleError(err)
         }
     }
 
@@ -190,7 +210,7 @@ export default function ProjectPage() {
             toast.success('Screen deleted')
             refetch()
         } catch (err) {
-            handleAuthError(err)
+            handleError(err)
         }
     }
 
@@ -230,7 +250,7 @@ export default function ProjectPage() {
             setEditingMilestone(null)
             refetch()
         } catch (err) {
-            handleAuthError(err)
+            handleError(err)
         }
     }
 
@@ -244,7 +264,7 @@ export default function ProjectPage() {
             toast.success('Milestone deleted')
             refetch()
         } catch (err) {
-            handleAuthError(err)
+            handleError(err)
         }
     }
 
@@ -296,7 +316,7 @@ export default function ProjectPage() {
 
             xhr.send(formData)
         } catch (err) {
-            handleAuthError(err)
+            handleError(err)
             setIsUploading(false)
         }
     }
@@ -311,7 +331,7 @@ export default function ProjectPage() {
             toast.success('Document deleted')
             refetch()
         } catch (err) {
-            handleAuthError(err)
+            handleError(err)
         }
     }
 
@@ -413,17 +433,6 @@ export default function ProjectPage() {
                                 milestones={milestones}
                             />
                         )}
-
-                        {activeTab === TABS.SCREENS && (
-                            <ScreensTab
-                                screens={screens}
-                                onAdd={handleAddScreen}
-                                onEdit={handleEditScreen}
-                                onDelete={handleDeleteScreen}
-                                isLoading={loading}
-                            />
-                        )}
-
                         {activeTab === TABS.MILESTONES && (
                             <MilestonesTab
                                 milestones={milestones}
@@ -433,6 +442,18 @@ export default function ProjectPage() {
                                 isLoading={loading}
                             />
                         )}
+                        {activeTab === TABS.SCREENS && (
+                            <ScreensTab
+                                screens={screens}
+                                onAdd={handleAddScreen}
+                                onEdit={handleEditScreen}
+                                onDelete={handleDeleteScreen}
+                                onUpdateStatus={handleUpdateScreenStatus}
+                                isLoading={loading}
+                            />
+                        )}
+
+
 
                         {activeTab === TABS.TASKS && (
                             <TasksTab tasks={tasks} isLoading={loading} />
@@ -444,6 +465,7 @@ export default function ProjectPage() {
                                 onAdd={handleAddBug}
                                 onEdit={handleEditBug}
                                 onDelete={handleDeleteBug}
+                                onUpdateStatus={handleUpdateBugStatus}
                                 isLoading={loading}
                             />
                         )}
@@ -501,6 +523,7 @@ export default function ProjectPage() {
                     }}
                     onSubmit={handleSubmitMilestone}
                     editingMilestone={editingMilestone}
+                    screens={screens}
                     title={editingMilestone ? 'Edit Milestone' : 'Create Milestone'}
                 />
 

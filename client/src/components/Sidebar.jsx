@@ -27,11 +27,12 @@ import {
 import { API_BASE_URL } from '../apiConfig'
 
 import logo from '../../public/assets/img/logos/mmf_logo.svg'
+import { useTaskCount } from '../context/TaskCountContext'
 
 export default function Sidebar({ open, onClose, collapsed, setCollapsed }) {
   const [isHovered, setIsHovered] = React.useState(false)
   const [showProfileMenu, setShowProfileMenu] = React.useState(false)
-  const [taskCount, setTaskCount] = React.useState(null)
+  const { taskCount } = useTaskCount()
   const user = getUser()
   const location = useLocation()
   const navigate = useNavigate()
@@ -47,29 +48,6 @@ export default function Sidebar({ open, onClose, collapsed, setCollapsed }) {
     document.addEventListener('mousedown', handleClickOutside)
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
-
-  React.useEffect(() => {
-    let cancelled = false
-    async function loadTaskCount() {
-      try {
-        const res = await authFetch(`${API_BASE_URL}/tasks/count`)
-        if (!res || !res.ok) return
-        const data = await res.json()
-        if (!cancelled) {
-          const total = typeof data.total === 'number' ? data.total : 0
-          setTaskCount(total)
-        }
-      } catch (_err) {
-        // Best-effort only; silently ignore
-      }
-    }
-    if (user && user.role) {
-      loadTaskCount()
-    }
-    return () => {
-      cancelled = true
-    }
-  }, [user])
 
   const handleLogout = () => {
     clearToken()
@@ -90,6 +68,7 @@ export default function Sidebar({ open, onClose, collapsed, setCollapsed }) {
     { label: 'Leave Request', icon: Calendar, path: '/attendance', roles: ['admin', 'hr', 'management', 'developer', 'ecommerce', 'accountant'] },
     { label: 'Notifications', icon: Bell, path: '/notifications', roles: ['admin', 'tester', 'developer', 'ecommerce', 'management', 'hr', 'accountant'] },
     { label: 'User Management', icon: Users, path: '/users', roles: ['admin'] },
+    { label: 'Reports', icon: BarChart3, path: '/reports', roles: ['admin', 'management'] },
   ]
 
   // const sharedItems = [
@@ -108,7 +87,7 @@ export default function Sidebar({ open, onClose, collapsed, setCollapsed }) {
     return item.roles.some(r => r.toLowerCase() === user.role.toLowerCase())
   })
 
-  const isActive = (path) => location.pathname === path
+  const isActive = (path) => location.pathname === path || location.pathname.startsWith(path + '/')
 
   const NavItem = ({ item, isProject = false, isActuallyCollapsed, onClose }) => {
     const Icon = item.icon
