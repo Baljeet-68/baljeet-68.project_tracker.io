@@ -33,7 +33,7 @@ function PrivateRoute({ children, roles }) {
 }
 
 export default function App() {
-  const basename = '/Project_Tracker_Tool';
+  const basename = '/';
 
   return (
     <BrowserRouter
