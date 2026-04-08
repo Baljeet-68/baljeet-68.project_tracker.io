@@ -1,5 +1,10 @@
 RewriteEngine On
-RewriteBase /Project_Tracker_Tool/
+# Old base: RewriteBase /Project_Tracker_Tool/
+RewriteBase /
+
+# Skip API and uploads paths
+RewriteCond %{REQUEST_URI} !^/api/ [NC]
+RewriteCond %{REQUEST_URI} !^/uploads/ [NC]
 
 # If the request is NOT a real file
 RewriteCond %{REQUEST_FILENAME} !-f
