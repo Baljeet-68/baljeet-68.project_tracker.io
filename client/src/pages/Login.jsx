@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
 import { saveToken, getToken, saveUser } from '../auth'
 import { API_BASE_URL } from '../apiConfig';
 import { Eye, EyeOff, Lock, LayoutDashboard, Mail } from 'lucide-react'
@@ -15,12 +14,12 @@ export default function Login() {
   const [loading, setLoading] = useState(false)
   const [showPwd, setShowPwd] = useState(false)
   const [isLocked, setIsLocked] = useState(false)
-  const nav = useNavigate()
+  const APP_URL = 'https://project-tracker-tool.vercel.app/'
 
   useEffect(() => {
     const token = getToken()
-    if (token) nav('/dashboard', { replace: true })
-  }, [nav])
+    if (token) window.location.href = APP_URL
+  }, [APP_URL])
 
   const validate = () => {
     const errors = {}
@@ -69,9 +68,7 @@ export default function Login() {
       saveToken(data.token)
       saveUser(data.user)
       
-      const role = data.user.role?.toLowerCase()
-      const targetPath = role === 'hr' ? '/notifications' : '/dashboard'
-      nav(targetPath, { replace: true })
+      window.location.href = APP_URL
     } catch (err) {
       handleError(err)
     } finally {
