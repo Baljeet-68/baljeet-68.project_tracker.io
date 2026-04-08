@@ -67,12 +67,6 @@ export default function Projects() {
   const user = getUser()
   const nav = useNavigate()
 
-  useEffect(() => {
-    const controller = new AbortController()
-    load(controller.signal)
-    return () => controller.abort()
-  }, [load])
-
   /**
    * Fetch projects and users data
    */
@@ -97,6 +91,12 @@ export default function Projects() {
       setLoading(false)
     }
   }, [])
+
+  useEffect(() => {
+    const controller = new AbortController()
+    load(controller.signal)
+    return () => controller.abort()
+  }, [load])
 
   /**
    * Handle new project creation

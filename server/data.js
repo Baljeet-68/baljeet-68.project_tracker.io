@@ -195,4 +195,7 @@ const leaves = [
   }
 ]
 
-module.exports = { users, projects, screens, bugs, activityLog, bugCounters, milestones, jobs, applications, projectDocuments, leaves }
+const holidays = []
+const notification_preferences = []
+
+module.exports = { users, projects, screens, bugs, activityLog, bugCounters, milestones, jobs, applications, projectDocuments, leaves, holidays, notification_preferences }

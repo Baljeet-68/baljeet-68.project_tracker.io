@@ -6,8 +6,8 @@
  */
 
 // 1. URLs
-$BASE_API_URL = "https://mmfinfotech.website/Project_Tracker_Tool/server/api";
-$INTERNAL_API_URL = "http://127.0.0.1:4000/Project_Tracker_Tool/server/api";
+$BASE_API_URL = "https://project-tracker-tool.vercel.app/api"; // Old URL: https://mmfinfotech.website/Project_Tracker_Tool/server/api
+$INTERNAL_API_URL = "https://project-tracker-tool.vercel.app/api"; // Old URL: http://127.0.0.1:4000/Project_Tracker_Tool/server/api
 
 function apiRequest($endpoint, $method = 'GET', $data = null)
 {

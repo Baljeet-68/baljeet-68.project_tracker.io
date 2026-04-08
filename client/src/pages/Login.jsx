@@ -14,6 +14,7 @@ export default function Login() {
   const [fieldErrors, setFieldErrors] = useState({})
   const [loading, setLoading] = useState(false)
   const [showPwd, setShowPwd] = useState(false)
+  const [isLocked, setIsLocked] = useState(false)
   const nav = useNavigate()
 
   useEffect(() => {

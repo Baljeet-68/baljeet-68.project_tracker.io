@@ -4,11 +4,10 @@ import PageContainer from '../components/layout/PageContainer'
 import { Card, CardHeader, CardBody, Button, Badge } from '../components/TailAdminComponents'
 import { Modal, InputGroup, Select, ConfirmDialog } from '../components/FormComponents'
 import { authFetch } from '../auth'
+import { API_BASE_URL } from '../apiConfig'
 import { handleError, handleApiResponse } from '../utils/errorHandler'
 import LeaveTable, { formatDateISO, formatDatePretty } from '../components/attendance/LeaveTable'
 import toast from 'react-hot-toast'
-
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api'
 
 export default function AttendanceEmployee({ user }) {
   const [loading, setLoading] = useState(false)

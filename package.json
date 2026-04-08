@@ -3,12 +3,14 @@
   "version": "1.0.0",
   "scripts": {
     "client": "npm run dev --prefix client",
+   
     "server": "npm run start --prefix server",
     "dev": "npm run server",
     "start": "npm run server"
   },
   "dependencies": {
     "bcrypt": "^6.0.0",
-    "react-toastify": "^11.0.5"
+    "react-toastify": "^11.0.5",
+    "source-map-explorer": "^2.5.3"
   }
 }
