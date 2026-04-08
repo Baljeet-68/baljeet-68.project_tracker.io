@@ -26,7 +26,7 @@ import {
 
 import { API_BASE_URL } from '../apiConfig'
 
-import logo from '../../public/assets/img/logos/mmf_logo.svg'
+import logo from '/assets/img/logos/mmf_Logo.svg'
 import { useTaskCount } from '../context/TaskCountContext'
 
 export default function Sidebar({ open, onClose, collapsed, setCollapsed }) {
