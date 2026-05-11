@@ -32,7 +32,7 @@ jobs:
       - name: Build
         run: npm run build --prefix client
         env:
-          VITE_BASE_URL: /baljeet-68.project_traceker.io/
+          VITE_BASE_URL: /baljeet-68.project_tracker.io/
           VITE_API_URL: https://project-tracker-tool.vercel.app/api
 
       - uses: actions/configure-pages@v4
