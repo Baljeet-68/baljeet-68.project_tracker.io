@@ -1,12 +1,37 @@
-# Node modules for both client + server
+# Node modules
 client/node_modules/
 server/node_modules/
 node_modules/
+
+# Environment files
 server/.env
 client/.env
-webhook.php
-# Build output
-# client/dist/
+.env
+.env.local
+.env.*.local
 
-# Common local logs
+# Build output
+client/dist/
+dist/
+
+# Vite build artifacts (hashed filenames)
+assets/index-*.js
+assets/index-*.css
+assets/vendor-*.js
+assets/vendor-*.css
+assets/mmf_Logo-*.svg
+
+# Logs
 *.log
+logs/
+
+# Editor
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Misc
+webhook.php
