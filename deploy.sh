@@ -4,7 +4,7 @@ echo "================================="
 echo "🚀 DEPLOY START"
 echo "================================="
 
-TARGET="/home/mmfilgqi/public_html/Project_Tracker_Tool"
+TARGET="/home/your_cpanel_username/public_html/Project_Tracker_Tool"
 
 # Load Node environment
 

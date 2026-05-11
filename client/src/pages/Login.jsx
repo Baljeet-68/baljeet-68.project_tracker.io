@@ -87,7 +87,7 @@ export default function Login() {
                 <div className="w-12 h-12 rounded-xl bg-gradient-to-tl from-purple-700 to-pink-500 flex items-center justify-center shadow-soft-lg">
                   <LayoutDashboard className="text-white" size={24} />
                 </div>
-                <h2 className="text-2xl font-bold text-slate-800 tracking-tight">MMF Infotech Tool</h2>
+                <h2 className="text-2xl font-bold text-slate-800 tracking-tight">Project Tracker</h2>
               </div>
               <h3 className="text-4xl font-extrabold text-transparent bg-gradient-to-tl from-purple-700 to-pink-500 bg-clip-text mb-3">
                 Welcome!
@@ -146,7 +146,7 @@ export default function Login() {
 
             <div className="mt-12 text-center">
               <p className="text-slate-400 text-sm font-medium">
-                &copy;{new Date().getFullYear()} MMF Infotech Tool. All rights reserved.
+                &copy;{new Date().getFullYear()} Project Tracker. All rights reserved.
               </p>
               <p className="text-slate-400 text-sm font-medium">
                 version 1.0.0

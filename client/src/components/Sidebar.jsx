@@ -26,7 +26,6 @@ import {
 
 import { API_BASE_URL } from '../apiConfig'
 
-import logo from '/assets/img/logos/mmf_Logo.svg'
 import { useTaskCount } from '../context/TaskCountContext'
 
 export default function Sidebar({ open, onClose, collapsed, setCollapsed }) {
@@ -165,12 +164,12 @@ export default function Sidebar({ open, onClose, collapsed, setCollapsed }) {
           {/* Workspace Switcher */}
           <div className={`flex items-center mb-8 ${isActuallyCollapsed ? 'justify-center' : 'justify-between px-2'}`}>
             <div className="flex items-center gap-3">
-              <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center text-white font-bold text-lg shadow-soft-2xl backdrop-blur-sm flex-shrink-0 overflow-hidden">
-                <img src={logo} alt="MMF INFOTECH" className="w-12 h-12 rounded-xl object-cover" />
+              <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center text-white font-bold text-lg shadow-soft-2xl backdrop-blur-sm flex-shrink-0">
+                PT
               </div>
               {!isActuallyCollapsed && (
                 <div className="flex flex-col">
-                  <span className="text-sm font-black text-white leading-tight">MMF INFOTECH</span>
+                  <span className="text-sm font-black text-white leading-tight">Project Tracker</span>
                   <span className="text-[10px] font-bold text-white/60 uppercase tracking-wider">Work Smartly</span>
                 </div>
               )}

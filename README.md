@@ -2,7 +2,7 @@
 
 ## Executive Summary
 
-Project Tracker Tool is a comprehensive full‑stack project management and bug‑tracking system used internally at MMF Infotech. It is a **MERN‑style monolith** (React SPA + Node/Express API + MySQL) that provides:
+Project Tracker Tool is a comprehensive full‑stack project management and bug‑tracking application. It is a **MERN‑style monolith** (React SPA + Node/Express API + MySQL) that provides:
 
 - **Project and Screen Planning** - Complete project lifecycle management
 - **Bug Reporting and Tracking** - Comprehensive bug management with assignment and verification workflows
