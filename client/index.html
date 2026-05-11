@@ -8,22 +8,33 @@
     <!-- Font Awesome Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" />
     <!-- Nucleo Icons -->
-    <link href="/assets/css/nucleo-icons.css" rel="stylesheet" />
-    <link href="/assets/css/nucleo-svg.css" rel="stylesheet" />
+    <link href="%BASE_URL%assets/css/nucleo-icons.css" rel="stylesheet" />
+    <link href="%BASE_URL%assets/css/nucleo-svg.css" rel="stylesheet" />
     <!-- Popper -->
     <script src="https://unpkg.com/@popperjs/core@2"></script>
     <!-- Main Styling -->
-    <link href="/assets/css/soft-ui-dashboard-tailwind.css?v=1.0.5" rel="stylesheet" />
+    <link href="%BASE_URL%assets/css/soft-ui-dashboard-tailwind.css?v=1.0.5" rel="stylesheet" />
     <link href="https://fonts.googleapis.com/css2?family=Roboto+Slab:wght@100..900&display=swap" rel="stylesheet" />
+    <!-- SPA routing: decode path redirected from 404.html -->
+    <script type="text/javascript">
+      (function(l) {
+        if (l.search[1] === '/' || l.search.indexOf('?p=/') === 0) {
+          var decoded = l.search.slice(l.search.indexOf('?p=') + 3)
+            .replace(/~q~/g, '?')
+            .replace(/~and~/g, '&');
+          window.history.replaceState(null, null, l.pathname + decoded + l.hash);
+        }
+      }(window.location));
+    </script>
   </head>
   <body class="m-0 font-sans text-base antialiased font-normal leading-default bg-gray-50 text-slate-500">
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
     <!-- plugin for charts  -->
-    <script src="/assets/js/plugins/chartjs.min.js" async></script>
+    <script src="%BASE_URL%assets/js/plugins/chartjs.min.js" async></script>
     <!-- plugin for scrollbar  -->
-    <script src="/assets/js/plugins/perfect-scrollbar.min.js" async></script>
+    <script src="%BASE_URL%assets/js/plugins/perfect-scrollbar.min.js" async></script>
     <!-- main script file  -->
-    <script src="/assets/js/soft-ui-dashboard-tailwind.js?v=1.0.5" async></script>
+    <script src="%BASE_URL%assets/js/soft-ui-dashboard-tailwind.js?v=1.0.5" async></script>
   </body>
 </html>

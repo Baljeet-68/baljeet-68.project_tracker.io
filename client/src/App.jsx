@@ -33,7 +33,7 @@ function PrivateRoute({ children, roles }) {
 }
 
 export default function App() {
-  const basename = '/';
+  const basename = import.meta.env.BASE_URL.replace(/\/$/, '') || '/';
 
   return (
     <BrowserRouter
