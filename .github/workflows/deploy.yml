@@ -33,7 +33,7 @@ jobs:
         run: npm run build --prefix client
         env:
           VITE_BASE_URL: /baljeet-68.project_tracker.io/
-          VITE_API_URL: ${{ vars.VITE_API_URL }}
+          VITE_API_URL: https://baljeet-68-project-tracker-io.vercel.app/api
 
       - uses: actions/configure-pages@v4
 
