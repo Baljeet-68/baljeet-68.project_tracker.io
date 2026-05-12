@@ -12,6 +12,7 @@ const logger = require('../utils/logger');
 
 // Debug: absolute minimal test
 router.get(`/ping`, (req, res) => res.json({ ok: true }));
+router.post(`/post-test`, (req, res) => res.json({ hasBody: req.body !== undefined, body: req.body }));
 
 // Debug: login without rate limiter to isolate the error
 router.post(`/login-test`, async (req, res) => {
