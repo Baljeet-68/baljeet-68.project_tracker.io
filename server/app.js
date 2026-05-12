@@ -68,7 +68,20 @@ app.use(
   })
 );
 
-app.use(express.json({ limit: '2mb' }));
+// Manual body parser — express.json() never calls next() on Vercel serverless
+app.use((req, res, next) => {
+  const ct = req.headers['content-type'] || '';
+  if (!['POST', 'PUT', 'PATCH'].includes(req.method) || !ct.includes('json')) {
+    return next();
+  }
+  let raw = '';
+  req.on('data', chunk => { raw += chunk.toString(); });
+  req.on('end', () => {
+    try { req.body = raw ? JSON.parse(raw) : {}; } catch (_) { req.body = {}; }
+    next();
+  });
+  req.on('error', () => { req.body = {}; next(); });
+});
 app.use(express.urlencoded({ extended: true, limit: '2mb' }));
 
 app.use('/uploads', express.static(path.join(__dirname, 'uploads'), {
