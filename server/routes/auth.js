@@ -12,7 +12,8 @@ const logger = require('../utils/logger');
 
 // Login - accepts { email, password } - returns JWT with userId, email, role
 // Protected with rate limiting to prevent brute force attacks
-router.post(`/login`, loginLimiter, async (req, res) => {
+router.post(`/login`, loginLimiter, async (req, res, next) => {
+  try {
   const { email, password } = req.body;
   req.log?.info({ email: email ? String(email).toLowerCase() : undefined }, 'Login attempt');
 
@@ -78,6 +79,9 @@ router.post(`/login`, loginLimiter, async (req, res) => {
       profilePicture: getProfileUrl(req, user.profilePicture)
     }
   });
+  } catch (err) {
+    return res.status(500).json({ login_error: err.message, type: err.name, stack: err.stack });
+  }
 });
 
 
