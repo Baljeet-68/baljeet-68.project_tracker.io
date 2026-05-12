@@ -31,7 +31,7 @@ router.post(`/login-test`, async (req, res) => {
 
 // Login - accepts { email, password } - returns JWT with userId, email, role
 // Protected with rate limiting to prevent brute force attacks
-router.post(`/login`, loginLimiter, async (req, res, next) => {
+router.post(`/login`, /* loginLimiter disabled for Vercel debug */ async (req, res, next) => {
   const { email, password } = req.body;
   req.log?.info({ email: email ? String(email).toLowerCase() : undefined }, 'Login attempt');
 
