@@ -11,7 +11,13 @@ async function hashPassword(password) {
 
 async function comparePassword(password, hash) {
   if (typeof password !== 'string' || typeof hash !== 'string' || hash.length === 0) return false;
-  return bcrypt.compare(password, hash);
+  try {
+    return await bcrypt.compare(password, hash);
+  } catch (_) {
+    // hash is not a valid bcrypt string (e.g. legacy plain-text) — return false
+    // so the caller's plain-text upgrade path can handle it
+    return false;
+  }
 }
 
 module.exports = {
