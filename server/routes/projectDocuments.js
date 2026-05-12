@@ -13,8 +13,10 @@ const fs = require('fs');
 const { getConfig } = require('../config/runtime');
 const { pool } = require('../db');
 
-const uploadDir = path.join(__dirname, '..', 'uploads', 'project-documents');
-if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
+const uploadDir = process.env.VERCEL
+  ? '/tmp/uploads/project-documents'
+  : path.join(__dirname, '..', 'uploads', 'project-documents');
+try { fs.mkdirSync(uploadDir, { recursive: true }); } catch (_) {}
 
 const uploadLimiter = rateLimit({
   windowMs: 5 * 1000,

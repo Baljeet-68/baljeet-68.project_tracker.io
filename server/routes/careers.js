@@ -92,8 +92,8 @@ router.post('/public-apply', async (req, res) => {
       return res.status(400).json({ error: 'Resume file is required' });
     }
 
-    const uploadDir = path.join(__dirname, '..', 'uploads');
-    if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
+    const uploadDir = process.env.VERCEL ? '/tmp/uploads' : path.join(__dirname, '..', 'uploads');
+    try { fs.mkdirSync(uploadDir, { recursive: true }); } catch (_) {}
 
     const ext = path.extname(String(resumeFile.name || '')).toLowerCase();
     const allowedExt = new Set(['.pdf', '.doc', '.docx']);

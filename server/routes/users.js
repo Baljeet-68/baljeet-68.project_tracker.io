@@ -87,7 +87,8 @@ router.patch(`/me`, authenticate, async (req, res) => {
     if (profilePicture !== undefined) {
       const users = await usersSource();
       const currentUser = users.find(u => u.id === req.user.userId);
-      const uploadDir = path.join(__dirname, '..', 'uploads');
+      const uploadDir = process.env.VERCEL ? '/tmp/uploads' : path.join(__dirname, '..', 'uploads');
+      try { fs.mkdirSync(uploadDir, { recursive: true }); } catch (_) {}
 
       if (profilePicture === '' || profilePicture === null) {
         // Delete old picture if it exists
