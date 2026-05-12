@@ -68,19 +68,21 @@ app.use(
   })
 );
 
-// Manual body parser — express.json() never calls next() on Vercel serverless
-app.use((req, res, next) => {
+// Manual body parser using async iteration (reliable on Vercel serverless)
+app.use(async (req, res, next) => {
   const ct = req.headers['content-type'] || '';
   if (!['POST', 'PUT', 'PATCH'].includes(req.method) || !ct.includes('json')) {
     return next();
   }
-  let raw = '';
-  req.on('data', chunk => { raw += chunk.toString(); });
-  req.on('end', () => {
-    try { req.body = raw ? JSON.parse(raw) : {}; } catch (_) { req.body = {}; }
-    next();
-  });
-  req.on('error', () => { req.body = {}; next(); });
+  try {
+    const chunks = [];
+    for await (const chunk of req) chunks.push(chunk);
+    const raw = Buffer.concat(chunks).toString();
+    req.body = raw ? JSON.parse(raw) : {};
+  } catch (_) {
+    req.body = {};
+  }
+  next();
 });
 app.use(express.urlencoded({ extended: true, limit: '2mb' }));
 
