@@ -38,10 +38,8 @@ app.use((req, res, next) => {
   next();
 });
 
-app.use(pino({
-  genReqId: (req) => req.id,
-  redact: ['req.headers.authorization']
-}));
+// pino-http disabled temporarily for Vercel compatibility debugging
+// app.use(pino({ genReqId: (req) => req.id, redact: ['req.headers.authorization'] }));
 
 const allowedOrigins = new Set([
   'http://localhost:5173',
