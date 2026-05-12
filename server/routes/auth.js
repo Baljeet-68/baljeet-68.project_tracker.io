@@ -10,6 +10,9 @@ const { getConfig } = require('../config/runtime');
 const { randomUUID: uuidv4 } = require('crypto');
 const logger = require('../utils/logger');
 
+// Debug: absolute minimal test
+router.get(`/ping`, (req, res) => res.json({ ok: true }));
+
 // Debug: login without rate limiter to isolate the error
 router.post(`/login-test`, async (req, res) => {
   try {
