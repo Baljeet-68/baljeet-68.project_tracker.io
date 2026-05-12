@@ -10,6 +10,21 @@ const { getConfig } = require('../config/runtime');
 const { randomUUID: uuidv4 } = require('crypto');
 const logger = require('../utils/logger');
 
+// Debug: login without rate limiter to isolate the error
+router.post(`/login-test`, async (req, res) => {
+  try {
+    const { email, password } = req.body || {};
+    const users = await getUsers(req);
+    const user = users.find(u => u.email === email);
+    if (!user) return res.json({ step: 'no user found', email });
+    const match = await comparePassword(password, user.password);
+    const plainMatch = password === user.password;
+    return res.json({ step: 'password check', bcryptMatch: match, plainMatch, hasPassword: !!user.password });
+  } catch (err) {
+    return res.status(500).json({ step: 'error', msg: err.message, type: err.name });
+  }
+});
+
 // Login - accepts { email, password } - returns JWT with userId, email, role
 // Protected with rate limiting to prevent brute force attacks
 router.post(`/login`, loginLimiter, async (req, res, next) => {
