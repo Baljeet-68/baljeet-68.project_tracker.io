@@ -12,6 +12,11 @@ const cfg = initConfig(loadConfig(process.env));
 
 const app = express();
 
+// DEBUG: bare POST test before ALL middleware
+app.post(`${process.env.BASE_URL || ''}/raw-post-test`, (req, res) => {
+  res.json({ ok: true, method: req.method, url: req.url });
+});
+
 app.use((req, res, next) => {
   req.cache = {
     users: null,
