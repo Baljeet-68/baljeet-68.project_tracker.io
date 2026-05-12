@@ -3,7 +3,7 @@ const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const pino = require('pino-http');
-const { v4: uuidv4 } = require('uuid');
+const { randomUUID } = require('crypto');
 
 const { loadConfig } = require('./config/index');
 const { initConfig } = require('./config/runtime');
@@ -33,7 +33,7 @@ app.use(helmet({
 }));
 
 app.use((req, res, next) => {
-  req.id = req.headers['x-request-id'] || uuidv4();
+  req.id = req.headers['x-request-id'] || randomUUID();
   res.setHeader('x-request-id', req.id);
   next();
 });

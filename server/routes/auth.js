@@ -7,7 +7,7 @@ const { getProfileUrl, getUsers } = require('../middleware/helpers');
 const { USE_LIVE_DB } = require('../config');
 const { comparePassword, hashPassword } = require('../utils/encryption');
 const { getConfig } = require('../config/runtime');
-const { v4: uuidv4 } = require('uuid');
+const { randomUUID: uuidv4 } = require('crypto');
 const logger = require('../utils/logger');
 
 // Login - accepts { email, password } - returns JWT with userId, email, role
